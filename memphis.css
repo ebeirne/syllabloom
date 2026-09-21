@@ -974,6 +974,261 @@ textarea {
   color: var(--grass-dark);
 }
 
+/* Today context: compact, readable, and visibly part of the study plan. */
+
+#home .app-toolbar {
+  height: 48px !important;
+  min-height: 48px !important;
+  margin: 0 0 12px !important;
+  padding: 0 14px !important;
+  background: var(--paper) !important;
+  border: 1.5px solid var(--ink) !important;
+  border-radius: 17px !important;
+  box-shadow: 3px 3px 0 var(--ink) !important;
+}
+
+#home .study-plan-pane {
+  padding-top: 14px !important;
+}
+
+#home .breadcrumbs,
+#home .toolbar-actions {
+  color: var(--ink) !important;
+  font-size: 15px !important;
+  font-weight: 650;
+}
+
+#home .breadcrumbs strong {
+  font-weight: 800 !important;
+}
+
+#home .breadcrumbs b {
+  color: var(--ink) !important;
+  font-weight: 800;
+}
+
+#home .toolbar-actions {
+  gap: 9px;
+}
+
+#home .toolbar-actions button,
+#home .toolbar-actions > span {
+  min-height: 30px;
+  padding: 0 10px !important;
+  display: inline-flex;
+  align-items: center;
+  border: 1.5px solid var(--ink) !important;
+  border-bottom: 1.5px solid var(--ink) !important;
+  border-radius: 10px !important;
+  color: var(--ink) !important;
+  font-size: 13px !important;
+  font-weight: 750 !important;
+  text-decoration: none !important;
+  box-shadow: 2px 2px 0 var(--ink) !important;
+}
+
+#home .toolbar-actions button {
+  background: var(--memphis-pink-soft) !important;
+}
+
+#home .toolbar-actions > span {
+  background: var(--memphis-yellow) !important;
+}
+
+#home .toolbar-actions > span b {
+  margin-right: 4px;
+  color: var(--ink) !important;
+}
+
+/* The learning handoff: Syllabloom ranks new work, Anki schedules reviews. */
+
+.anki-learning-map {
+  margin: 0 0 24px;
+  padding: 26px;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 28px;
+  box-shadow: 5px 5px 0 var(--ink);
+}
+
+.anki-learning-map > header {
+  margin-bottom: 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.anki-learning-map h2 {
+  margin: 0 0 5px;
+  color: var(--ink);
+  font-size: 27px;
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.anki-learning-map > header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.anki-learning-status {
+  min-height: 34px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  background: var(--memphis-yellow);
+  border: 1.5px solid var(--ink);
+  border-radius: 11px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 850;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+.anki-learning-lanes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.anki-learning-lane {
+  min-width: 0;
+  min-height: 250px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  border: 1.5px solid var(--ink);
+  border-radius: 21px;
+}
+
+.syllabloom-lane {
+  background: var(--memphis-pink-soft);
+}
+
+.anki-lane {
+  background: var(--memphis-aqua);
+}
+
+.anki-lane-step {
+  width: fit-content;
+  margin-bottom: 18px;
+  padding: 5px 9px;
+  background: var(--ink);
+  border-radius: 8px;
+  color: var(--paper);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.anki-learning-lane h3 {
+  margin: 0 0 7px;
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+
+.anki-learning-lane > p {
+  margin: 0 0 18px;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.anki-learning-lane > label {
+  margin-top: auto;
+  display: grid;
+  gap: 7px;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.anki-learning-lane select {
+  width: 100%;
+}
+
+.anki-learning-readout {
+  margin-top: auto;
+  padding: 13px 14px;
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  border-radius: 13px;
+}
+
+.anki-learning-readout strong,
+.anki-learning-readout small {
+  display: block;
+}
+
+.anki-learning-readout strong {
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.anki-learning-readout small {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.anki-boundary-note {
+  margin-top: 14px;
+  padding: 12px 14px;
+  display: flex;
+  gap: 8px;
+  background: var(--memphis-yellow);
+  border: 1.5px solid var(--ink);
+  border-radius: 13px;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.anki-boundary-note strong {
+  flex: 0 0 auto;
+}
+
+.release-plan-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.release-plan > header .release-plan-controls label {
+  display: grid;
+  grid-template-columns: 1fr !important;
+  align-items: start;
+  gap: 6px;
+}
+
+.release-plan-controls select,
+.release-plan-controls input {
+  height: 42px;
+  min-height: 42px;
+  padding: 0 11px;
+  background: var(--paper) !important;
+  border: 1.5px solid var(--ink) !important;
+  border-radius: 11px !important;
+  color: var(--ink);
+  font: inherit;
+}
+
+.release-plan-controls select {
+  min-width: 210px;
+}
+
+.release-plan-controls input {
+  width: 76px;
+}
+
 .anki-toggle-list > label,
 .anki-collection-setting > label {
   border: 1px solid var(--ink);
@@ -1011,6 +1266,15 @@ textarea {
 
   .anki-export-mascot {
     width: 205px;
+  }
+
+  .release-plan > header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .release-plan-controls {
+    width: 100%;
   }
 }
 
@@ -1153,6 +1417,31 @@ textarea {
   .study-card-stage .study-card {
     min-height: 370px !important;
     padding: 30px 24px !important;
+  }
+
+  .anki-learning-map {
+    padding: 20px;
+  }
+
+  .anki-learning-map > header,
+  .anki-boundary-note,
+  .release-plan-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .anki-learning-lanes {
+    grid-template-columns: 1fr;
+  }
+
+  .anki-learning-lane {
+    min-height: 0;
+  }
+
+  .release-plan-controls label,
+  .release-plan-controls select,
+  .release-plan-controls input {
+    width: 100%;
   }
 
   .onboarding-shell {

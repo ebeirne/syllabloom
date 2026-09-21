@@ -3501,7 +3501,7 @@
     }
   </style>
   <link rel="stylesheet" href="redesign.css?v=20260921-syllabloom-beta-3">
-  <link rel="stylesheet" href="memphis.css?v=20260921-syllabloom-beta-7">
+  <link rel="stylesheet" href="memphis.css?v=20260921-syllabloom-beta-8">
 </head>
 <body>
   <section id="landing" class="marketing-home" aria-label="Syllabloom home page">
@@ -4058,7 +4058,7 @@
               <dl class="behavior-list">
                 <div><dt>Strongest cue</dt><dd>Action → name</dd></div>
                 <div><dt>Weakest field</dt><dd>Attachment</dd></div>
-                <div><dt>Best duration</dt><dd>25–30 min</dd></div>
+                <div><dt>Best duration</dt><dd>25 to 30 min</dd></div>
                 <div><dt>Card editing</dt><dd>Under two lines</dd></div>
               </dl>
               <button class="inspector-link" data-go="knowledge">Review learner model</button>
@@ -4181,7 +4181,13 @@
         </div>
 
         <section class="release-plan surface" aria-labelledby="releasePlanHeading">
-          <header><div><h2 id="releasePlanHeading">New-card release plan</h2><p id="releasePlanSummary">Built around the next exam, your available time, and the new-card limit in your Anki preset.</p></div><label for="dailyStudyMinutes">Daily minutes<input id="dailyStudyMinutes" type="number" inputmode="numeric" min="10" max="240" value="35" /></label></header>
+          <header>
+            <div><h2 id="releasePlanHeading">New-card release plan</h2><p id="releasePlanSummary">Built around the next exam, your available time, and the new-card limit in your Anki preset.</p></div>
+            <div class="release-plan-controls">
+              <label for="releaseStrategy">Choose new cards by<select id="releaseStrategy"><option value="weakest-deadline">Weakest plus deadline</option><option value="weakest">Weakest first</option><option value="syllabus">Syllabus order</option><option value="recent-source">Most recent source</option></select></label>
+              <label for="dailyStudyMinutes">Daily minutes<input id="dailyStudyMinutes" type="number" inputmode="numeric" min="10" max="240" value="35" /></label>
+            </div>
+          </header>
           <div class="release-plan-labels" aria-hidden="true"><span>Day</span><span>Focus</span><span>New cards</span><span>Reviews</span></div>
           <div id="releasePlanRows" class="release-plan-rows"></div>
         </section>
@@ -4337,6 +4343,28 @@
         <div><strong id="ankiSettingsCardCount">0 accepted cards</strong><span id="ankiSettingsDestination">Human Anatomy</span><p>Syllabloom decides which new cards are ready. Anki and FSRS decide every return date after import.</p></div>
       </section>
 
+      <section class="anki-learning-map" aria-labelledby="ankiLearningMapTitle">
+        <header>
+          <div><h2 id="ankiLearningMapTitle">How your queue learns</h2><p>New-card priority and review timing are related, but they are not the same job.</p></div>
+          <span id="ankiLearningStatus" class="anki-learning-status">FSRS · 90% target</span>
+        </header>
+        <div class="anki-learning-lanes">
+          <article class="anki-learning-lane syllabloom-lane">
+            <span class="anki-lane-step">Before export</span>
+            <h3>Syllabloom chooses what is new</h3>
+            <p>It ranks approved cards using the syllabus, the next deadline, your weak topics, and the time you have today.</p>
+            <label for="ankiReleaseStrategy">Prioritize new cards by<select id="ankiReleaseStrategy" class="text-input"><option value="weakest-deadline">Weakest plus deadline</option><option value="weakest">Weakest first</option><option value="syllabus">Syllabus order</option><option value="recent-source">Most recent source</option></select></label>
+          </article>
+          <article class="anki-learning-lane anki-lane">
+            <span class="anki-lane-step">After import</span>
+            <h3>Anki learns when each card returns</h3>
+            <p>Your Again, Hard, Good, and Easy answers teach FSRS your memory pattern. Due reviews remain Anki's responsibility.</p>
+            <div class="anki-learning-readout"><strong id="ankiSchedulerReadout">Due reviews first, then new cards</strong><small id="ankiHistoryReadout">Demo history: 146 answers. Keep default FSRS parameters until there is more history.</small></div>
+          </article>
+        </div>
+        <div class="anki-boundary-note"><strong>No double scheduling.</strong><span>Syllabloom can limit or reorder new material, but it never moves a review that Anki says is due.</span></div>
+      </section>
+
       <details class="anki-settings-group" open>
         <summary><span>Deck and card setup</span><small>Where the set goes and how each note is written</small></summary>
         <div class="anki-settings-grid">
@@ -4456,6 +4484,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="muscle-data.js?v=20260921-loop"></script>
-  <script src="app.js?v=20260921-syllabloom-beta-3"></script>
+  <script src="app.js?v=20260921-syllabloom-beta-4"></script>
 </body>
 </html>

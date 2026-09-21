@@ -44,12 +44,13 @@
     minimumInterval: 1,
     leechThreshold: 8,
     leechAction: 'suspend',
+    releaseStrategy: 'weakest-deadline',
     insertionOrder: 'sequential',
     gatherOrder: 'deck',
     sortOrder: 'template',
-    newReviewOrder: 'mix',
+    newReviewOrder: 'after',
     interdayOrder: 'mix',
-    reviewOrder: 'retrievability-asc',
+    reviewOrder: 'due',
     buryNew: true,
     buryReviews: true,
     buryInterday: true,
@@ -227,6 +228,8 @@
       '#ankiMinimumInterval': state.anki.minimumInterval,
       '#ankiLeechThreshold': state.anki.leechThreshold,
       '#ankiLeechAction': state.anki.leechAction,
+      '#ankiReleaseStrategy': state.anki.releaseStrategy,
+      '#releaseStrategy': state.anki.releaseStrategy,
       '#ankiInsertionOrder': state.anki.insertionOrder,
       '#ankiGatherOrder': state.anki.gatherOrder,
       '#ankiSortOrder': state.anki.sortOrder,
@@ -276,6 +279,7 @@
     });
     updateAnkiConditionalFields();
     updateAnkiExportSurface();
+    refreshAnkiLearningPreview();
   }
 
   function syncAnkiStateFromForm() {
@@ -301,6 +305,7 @@
       minimumInterval: Math.max(1, numberValue('#ankiMinimumInterval', 1)),
       leechThreshold: Math.max(1, numberValue('#ankiLeechThreshold', 8)),
       leechAction: document.querySelector('#ankiLeechAction').value,
+      releaseStrategy: document.querySelector('#ankiReleaseStrategy').value,
       insertionOrder: document.querySelector('#ankiInsertionOrder').value,
       gatherOrder: document.querySelector('#ankiGatherOrder').value,
       sortOrder: document.querySelector('#ankiSortOrder').value,
@@ -364,6 +369,40 @@
     document.querySelectorAll('.sm2-only, .sm2-only-group').forEach(element => {
       element.classList.toggle('anki-setting-muted', fsrsEnabled);
     });
+    refreshAnkiLearningPreview();
+  }
+
+  function releaseStrategyLabel(value) {
+    return ({
+      'weakest-deadline': 'weak topics near the next deadline',
+      weakest: 'weakest topics first',
+      syllabus: 'syllabus order',
+      'recent-source': 'the most recent source first'
+    })[value] || 'weak topics near the next deadline';
+  }
+
+  function refreshAnkiLearningPreview() {
+    const fsrsInput = document.querySelector('#ankiFsrsEnabled');
+    const retentionInput = document.querySelector('#ankiDesiredRetention');
+    const orderInput = document.querySelector('#ankiNewReviewOrder');
+    const strategyInput = document.querySelector('#ankiReleaseStrategy');
+    const enabled = fsrsInput ? fsrsInput.checked : state.anki.fsrsEnabled;
+    const retention = retentionInput ? Number(retentionInput.value || state.anki.desiredRetention) : state.anki.desiredRetention;
+    const order = orderInput ? orderInput.value : state.anki.newReviewOrder;
+    const strategy = strategyInput ? strategyInput.value : state.anki.releaseStrategy;
+    const orderLabels = {
+      after: 'Due reviews first, then new cards',
+      before: 'New cards first, then due reviews',
+      mix: 'Due reviews and new cards mixed'
+    };
+    const status = document.querySelector('#ankiLearningStatus');
+    const scheduler = document.querySelector('#ankiSchedulerReadout');
+    const history = document.querySelector('#ankiHistoryReadout');
+    if (status) status.textContent = enabled ? `FSRS · ${Math.round(retention * 100)}% target` : 'SM-2 preset';
+    if (scheduler) scheduler.textContent = `${orderLabels[order] || orderLabels.after}. New cards follow ${releaseStrategyLabel(strategy)}.`;
+    if (history) history.textContent = enabled
+      ? `Demo history: ${state.reviewCount} answers. Keep default FSRS parameters until there are several hundred real reviews.`
+      : 'FSRS is off. Anki will use the legacy scheduler settings below.';
   }
 
   function updateAnkiExportSurface() {
@@ -432,7 +471,13 @@
     const examDate = exam ? new Date(`${exam.date}T12:00:00`) : new Date(Date.now() + 12 * 86400000);
     const daysLeft = Math.max(1, Math.ceil((examDate - new Date()) / 86400000));
     const availableNew = Math.max(1, Math.min(state.anki.newPerDay, Math.floor(state.dailyStudyMinutes / 2), Math.ceil(42 / daysLeft)));
-    const topics = ['Upper-limb attachments', 'Forearm innervation', 'Muscles of mastication', 'Facial expression actions', 'Lower-limb actions', 'Mixed recall', 'Catch-up and card edits'];
+    const topicOrders = {
+      'weakest-deadline': ['Upper-limb attachments', 'Forearm innervation', 'Muscles of mastication', 'Facial expression actions', 'Lower-limb actions', 'Mixed recall', 'Catch-up and card edits'],
+      weakest: ['Upper-limb attachments', 'Forearm innervation', 'Muscles of mastication', 'Facial expression actions', 'Lower-limb actions', 'Weak-topic recheck', 'Catch-up and card edits'],
+      syllabus: ['Muscles of facial expression', 'Muscles of mastication', 'Upper limb', 'Forearm and hand', 'Trunk', 'Lower limb', 'Mixed syllabus check'],
+      'recent-source': ['Latest lecture highlights', 'Latest lecture weak points', 'New slide terminology', 'Source-linked recall', 'Earlier source gaps', 'Mixed recall', 'Catch-up and card edits']
+    };
+    const topics = topicOrders[state.anki.releaseStrategy] || topicOrders['weakest-deadline'];
     const rows = [];
     for (let offset = 0; offset < 7; offset += 1) {
       const date = new Date();
@@ -447,7 +492,7 @@
     }
     document.querySelector('#releasePlanRows').innerHTML = rows.join('');
     const nextLabel = exam ? `${exam.title} in ${daysLeft} day${daysLeft === 1 ? '' : 's'}` : 'No exam date yet';
-    document.querySelector('#releasePlanSummary').textContent = `${nextLabel}. The agent can release up to ${availableNew} new cards a day; reviews remain in Anki.`;
+    document.querySelector('#releasePlanSummary').textContent = `${nextLabel}. Up to ${availableNew} new cards a day, ordered by ${releaseStrategyLabel(state.anki.releaseStrategy)}. Due reviews remain in Anki.`;
   }
 
   async function detectRuntimeCapabilities() {
@@ -1561,6 +1606,9 @@
     showToast('Anki export settings saved');
   });
   document.querySelector('#ankiFsrsEnabled').addEventListener('change', updateAnkiConditionalFields);
+  document.querySelector('#ankiSettingsForm').addEventListener('input', event => {
+    if (event.target.matches('#ankiFsrsEnabled, #ankiDesiredRetention, #ankiNewReviewOrder, #ankiReleaseStrategy')) refreshAnkiLearningPreview();
+  });
 
   document.querySelector('#calendarEventForm').addEventListener('submit', event => {
     event.preventDefault();
@@ -1604,6 +1652,13 @@
   document.querySelector('#dailyStudyMinutes').addEventListener('input', event => {
     state.dailyStudyMinutes = Math.min(240, Math.max(10, Number(event.target.value) || 35));
     renderClassPlanner();
+  });
+  document.querySelector('#releaseStrategy').addEventListener('change', event => {
+    state.anki.releaseStrategy = event.target.value;
+    localStorage.setItem('syllabloom-anki-preferences', JSON.stringify(state.anki));
+    document.querySelector('#ankiReleaseStrategy').value = state.anki.releaseStrategy;
+    renderClassPlanner();
+    refreshAnkiLearningPreview();
   });
 
   document.querySelectorAll('.setup-next').forEach(button => button.addEventListener('click', () => showSetupStep(state.setupStep + 1)));
