@@ -14,7 +14,7 @@ Syllabloom turns lectures, slides, syllabi, and course files into editable, sour
 - Downloadable `.apkg` decks with nested deck names and an embedded deck preset
 - Anki preferences for limits, learning steps, lapses, ordering, burying, Easy Days, audio, timers, FSRS, and SM-2
 - Class calendar and new-card release planning around lectures, quizzes, assignments, and exams
-- Responsive student workspace and persistent Syllabloom companion
+- Responsive student workspace and task-specific Syllabloom companion scenes
 - Real medical-class fixtures and regression reports
 
 ## Scheduling boundary
@@ -66,6 +66,7 @@ app.js               Product state and interactions
 index.html           Landing page, onboarding, and application screens
 muscle-data.js       Medical-class source fixture
 redesign.css         Responsive visual system
+memphis.css          Green, yellow, pink, and aqua character-led art direction
 server.py            Local server, source ingestion, transcription, and Anki export
 vercel.json          Production deployment configuration
 ```

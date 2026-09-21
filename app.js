@@ -390,17 +390,7 @@
   }
 
   function updateWorkflowCompanion(view) {
-    const messages = {
-      home: ['assets/rounds-mascot-listening.webp', 'I am keeping today small enough to finish.'],
-      capture: ['assets/rounds-mascot-listening.webp', 'Mark anything the professor repeats. I will keep the timestamp.'],
-      cards: ['assets/rounds-mascot-anki.webp', 'You approve the set. I will pack the preset with it.'],
-      study: ['assets/rounds-mascot-celebrate.webp', 'One card at a time. Anki keeps the return dates.'],
-      source: ['assets/rounds-mascot-loop.webp', 'Everything I make should point back to a class source.'],
-      knowledge: ['assets/rounds-mascot-loop.webp', 'I plan the new work. Anki plans the reviews.']
-    };
-    const [image, message] = messages[view] || messages.home;
-    document.querySelector('#workflowCompanionImage').src = image;
-    document.querySelector('#workflowCompanionText').textContent = message;
+    document.querySelector('#mainApp').dataset.currentView = view;
   }
 
   function calendarEventsSorted() {
@@ -545,6 +535,14 @@
 
   function showSetupStep(step) {
     const stepNames = ['Class details', 'Syllabus', 'Materials', 'Quick check', 'Anki setup', 'Review'];
+    const setupCompanions = {
+      1: ['assets/rounds-mascot-listening.webp', 'The Syllabloom companion listening as you name your class'],
+      2: ['assets/syllabloom-mascot-materials.webp', 'The Syllabloom companion checking a syllabus and class documents'],
+      3: ['assets/syllabloom-mascot-materials.webp', 'The Syllabloom companion organizing class materials'],
+      4: ['assets/syllabloom-mascot-detective.webp', 'The Syllabloom companion looking closely for gaps in your knowledge'],
+      5: ['assets/rounds-mascot-anki.webp', 'The Syllabloom companion packing approved cards for Anki'],
+      6: ['assets/rounds-mascot-celebrate.webp', 'The Syllabloom companion celebrating a finished class setup']
+    };
     state.setupStep = Math.max(1, Math.min(6, step));
     document.querySelectorAll('[data-setup-panel]').forEach(panel => {
       panel.classList.toggle('active', Number(panel.dataset.setupPanel) === state.setupStep);
@@ -556,6 +554,10 @@
       label.querySelector('span:first-child').textContent = labelStep < state.setupStep ? '✓' : labelStep;
     });
     document.querySelector('#setupStepName').textContent = stepNames[state.setupStep - 1];
+    const onboardingCompanion = document.querySelector('#onboardingCompanion');
+    const [companionSource, companionAlt] = setupCompanions[state.setupStep];
+    onboardingCompanion.setAttribute('src', companionSource);
+    onboardingCompanion.setAttribute('alt', companionAlt);
 
     if (state.setupStep === 6) {
       syncOnboardingAnkiToState();
