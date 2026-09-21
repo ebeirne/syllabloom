@@ -7,12 +7,58 @@
   let signInMounted = false;
   let configured = false;
   let closing = false;
+  let billingMount = null;
 
   window.SyllabloomAuth = {
     get configured() { return configured; },
     get signedIn() { return Boolean(clerk?.isSignedIn); },
-    open: openDialog
+    open: openDialog,
+    openClerkProfile,
+    mountBilling,
+    refresh: updateAuthState
   };
+
+  function sharedAppearance() {
+    return {
+      variables: {
+        colorPrimary: '#2f6b42',
+        colorText: '#2c2e2a',
+        colorTextOnPrimary: '#ffffff',
+        colorBackground: '#fffdf6',
+        colorInputBackground: '#fffdf6',
+        colorInputText: '#2c2e2a',
+        colorNeutral: '#666963',
+        colorRing: '#2f6b42',
+        borderRadius: '18px',
+        spacingUnit: '16px',
+        fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif'
+      },
+      elements: {
+        rootBox: { width: '100%' },
+        cardBox: { width: '100%', boxShadow: 'none' },
+        card: { width: '100%', boxShadow: 'none', border: '1.5px solid #2c2e2a', borderRadius: '28px' },
+        navbar: { background: '#f5f1e4' },
+        navbarButton: { color: '#2c2e2a', fontWeight: '750' },
+        navbarButtonActive: { background: '#f5e211', color: '#2c2e2a' },
+        formButtonPrimary: {
+          background: '#f5e211',
+          border: '1.5px solid #2c2e2a',
+          borderRadius: '999px',
+          boxShadow: '3px 3px 0 #2c2e2a',
+          color: '#2c2e2a',
+          fontWeight: '850'
+        }
+      }
+    };
+  }
+
+  function currentPlan() {
+    try {
+      return clerk?.session?.checkAuthorization?.({ plan: 'student' }) ? 'student' : 'free';
+    } catch (_) {
+      return 'free';
+    }
+  }
 
   async function closeDialog() {
     if (!dialog.open || closing) return;
@@ -26,7 +72,7 @@
 
   function openDialog() {
     if (clerk?.isSignedIn) {
-      clerk.openUserProfile();
+      window.dispatchEvent(new CustomEvent('syllabloom:open-profile'));
       return;
     }
     if (clerk && !signInMounted) {
@@ -120,6 +166,39 @@
     }
   }
 
+  function openClerkProfile() {
+    if (!clerk?.isSignedIn) {
+      openDialog();
+      return;
+    }
+    clerk.openUserProfile({ appearance: sharedAppearance() });
+  }
+
+  async function mountBilling(node) {
+    if (!node || !clerk || !configured) return { ready: false, reason: 'auth-not-ready' };
+    if (!clerk.isSignedIn) return { ready: false, reason: 'sign-in-required' };
+    try {
+      const plansResponse = await clerk.billing.getPlans({});
+      const plans = Array.isArray(plansResponse?.data) ? plansResponse.data : Array.isArray(plansResponse) ? plansResponse : [];
+      if (!plans.length) return { ready: false, reason: 'no-plans' };
+      if (billingMount && billingMount !== node) clerk.unmountPricingTable(billingMount);
+      if (billingMount !== node) {
+        clerk.mountPricingTable(node, {
+          for: 'user',
+          highlightedPlan: 'student',
+          newSubscriptionRedirectUrl: `${window.location.origin}/#profile`,
+          appearance: sharedAppearance(),
+          checkoutProps: { appearance: sharedAppearance() }
+        });
+        billingMount = node;
+      }
+      return { ready: true, planCount: plans.length };
+    } catch (error) {
+      console.info('Clerk Billing is not enabled for this instance yet.', error);
+      return { ready: false, reason: 'billing-disabled' };
+    }
+  }
+
   function updateAuthState() {
     const signedIn = Boolean(clerk?.isSignedIn && clerk.user);
     const email = clerk?.user?.primaryEmailAddress?.emailAddress || '';
@@ -131,7 +210,10 @@
       detail: {
         signedIn,
         email,
-        userId: clerk?.user?.id || ''
+        userId: clerk?.user?.id || '',
+        displayName: clerk?.user?.fullName || clerk?.user?.firstName || '',
+        imageUrl: clerk?.user?.imageUrl || '',
+        plan: signedIn ? currentPlan() : 'free'
       }
     }));
     if (signedIn && dialog.open) closeDialog();

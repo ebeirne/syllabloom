@@ -16,6 +16,8 @@ Syllabloom turns lectures, slides, syllabi, and course files into editable, sour
 - Downloadable `.apkg` decks with nested deck names and an embedded deck preset
 - Anki preferences for limits, learning steps, lapses, ordering, burying, Easy Days, audio, timers, FSRS, and SM-2
 - Class calendar and new-card release planning around lectures, quizzes, assignments, and exams
+- Full profile hub with Clerk identity controls, current tier, active classes, and editable important dates
+- Dedicated billing page that mounts Clerk Billing's Stripe-powered pricing and checkout UI when Plans are enabled
 - Responsive student workspace and task-specific Syllabloom companion scenes
 - Real medical-class fixtures and regression reports
 
@@ -50,6 +52,14 @@ python server.py
 ```
 
 Use the same `CLERK_PUBLISHABLE_KEY` environment variable in Vercel. Until cloud sync is added, Clerk controls beta access and the one-free-class gate. Lecture media is stored in IndexedDB under the current Clerk user ID, so accounts stay separated on the same device, but files do not yet follow a student to another browser or device.
+
+### Billing
+
+The billing page is wired to Clerk Billing for individual users. It checks the signed-in user's `student` Plan, mounts Clerk's live pricing table when Billing and public Plans exist, and sends account, payment-method, and statement management to Clerk's secure user profile.
+
+For development, enable Billing in the Clerk Dashboard and use Clerk's shared development gateway. Create a public `student` Plan with monthly and annual prices. Production needs a production Clerk instance connected to an independent Stripe account; a Stripe account attached to a development instance cannot be reused for production.
+
+Clerk Billing currently processes payments through Stripe but manages Plans and Subscriptions separately from Stripe Billing. Before charging students, review the current tax, VAT, refund, country, and 3D Secure limitations in Clerk's Billing documentation.
 
 ### Optional local transcription
 

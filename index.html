@@ -3670,7 +3670,7 @@
               <li>Class calendar, weak-topic plan, and Anki presets</li>
             </ul>
             <div class="price-plan-footer">
-              <button class="button primary price-action" data-auth-open>Join the beta</button>
+              <button class="button primary price-action" data-open-billing>See Student billing</button>
               <span>$12 month to month</span>
             </div>
           </article>
@@ -3843,6 +3843,7 @@
         <span class="sidebar-section-label">Class</span>
         <button class="sidebar-action" data-go="source">Materials</button>
         <button class="sidebar-action" data-go="knowledge">Plan</button>
+        <button class="sidebar-action account-nav-action" data-open-profile>Account</button>
         <button id="addClass" class="sidebar-action">Add another class</button>
         <span id="sourceCount" hidden>192</span>
         <span id="sourceMiniText" hidden>List of muscles Fall 2023</span>
@@ -3854,6 +3855,7 @@
         <button class="mobile-class" data-back-home aria-label="Back to Syllabloom home"><span class="brand-mark"><img src="assets/syllabloom-mark.svg" width="48" height="48" alt="" /></span><span><strong id="currentClassNameMobile">Human Anatomy</strong><span>Syllabloom</span></span></button>
         <button id="mobileRecordingPill" class="mobile-recording-pill" data-go="capture" hidden><span></span><strong id="mobileRecordingPillTime">00:00</strong></button>
         <button class="mobile-class-button" data-go="source">Class</button>
+        <button class="mobile-account-button" data-open-profile aria-label="Open profile">Me</button>
         <select id="mobileNav" aria-label="Choose page" hidden>
           <optgroup label="Study">
             <option value="home">Today</option>
@@ -3864,6 +3866,8 @@
           <optgroup label="Class">
             <option value="source">Materials</option>
             <option value="knowledge">Plan</option>
+            <option value="profile">Profile</option>
+            <option value="billing">Billing</option>
           </optgroup>
         </select>
       </header>
@@ -4262,6 +4266,110 @@
         </div>
       </section>
 
+      <section id="profile" class="page account-page" aria-labelledby="profilePageTitle">
+        <header class="account-page-head">
+          <div>
+            <p class="account-page-path">Account / Profile</p>
+            <h1 id="profilePageTitle">Your semester, in one place.</h1>
+            <p>See your tier, active classes, and the dates shaping your next study session.</p>
+          </div>
+          <img class="account-page-companion character-cutout" src="assets/syllabloom-mascot-calendar.webp" width="1200" height="1200" alt="The Syllabloom companion organizing a class calendar" />
+        </header>
+
+        <nav class="account-tabs" aria-label="Account pages">
+          <button class="active" type="button" data-account-view="profile" aria-current="page">Profile</button>
+          <button type="button" data-account-view="billing">Billing</button>
+        </nav>
+
+        <div class="profile-layout">
+          <section class="profile-card profile-identity-card" aria-labelledby="profileIdentityHeading">
+            <div class="profile-avatar-wrap"><img id="profileAvatar" src="assets/syllabloom-mark.svg" width="88" height="88" alt="Account avatar" /></div>
+            <div class="profile-identity-copy">
+              <span id="profileTierBadge" class="tier-badge">Free</span>
+              <h2 id="profileIdentityHeading">Your Syllabloom account</h2>
+              <p id="profileEmail">Sign in to keep your profile and class library separate.</p>
+            </div>
+            <button id="manageClerkProfile" class="button" type="button">Account &amp; security</button>
+          </section>
+
+          <section class="profile-card tier-card" aria-labelledby="profileTierHeading">
+            <div>
+              <p class="profile-card-label">Current tier</p>
+              <h2 id="profileTierHeading"><span id="profileTierName">Free</span> plan</h2>
+              <p id="profileTierDescription">1 active class, Anki export, and 60 lecture minutes each month.</p>
+            </div>
+            <div class="tier-usage" aria-label="Class allowance">
+              <strong id="profileClassUsage">1 of 1</strong>
+              <span>class used</span>
+            </div>
+            <button class="button primary" type="button" data-open-billing>View billing</button>
+          </section>
+
+          <section class="profile-card profile-classes" aria-labelledby="profileClassesHeading">
+            <header><div><p class="profile-card-label">Your classes</p><h2 id="profileClassesHeading">What you are studying</h2></div><button class="button" type="button" data-profile-add-class>Add class</button></header>
+            <div id="profileClassList" class="profile-class-list"></div>
+          </section>
+
+          <section class="profile-card profile-schedule" aria-labelledby="profileScheduleHeading">
+            <header>
+              <div><p class="profile-card-label">Important dates</p><h2 id="profileScheduleHeading">Your schedule</h2><p>Exam and lecture dates directly change the study plan.</p></div>
+              <button class="button" type="button" data-go="knowledge">Open full plan</button>
+            </header>
+            <div id="profileUpcomingEvents" class="profile-upcoming-events" aria-live="polite"></div>
+            <form id="profileScheduleForm" class="profile-schedule-form">
+              <label for="profileEventTitle">Date name<input id="profileEventTitle" class="text-input" required placeholder="Practical exam" autocomplete="off" /></label>
+              <label for="profileEventDate">Date<input id="profileEventDate" class="text-input" type="date" required /></label>
+              <label for="profileEventType">Type<select id="profileEventType" class="text-input"><option value="lecture">Lecture</option><option value="quiz">Quiz</option><option value="exam">Exam</option><option value="assignment">Assignment</option></select></label>
+              <button class="button primary" type="submit">Add date</button>
+            </form>
+          </section>
+        </div>
+      </section>
+
+      <section id="billing" class="page account-page billing-page" aria-labelledby="billingPageTitle">
+        <header class="account-page-head billing-page-head">
+          <div>
+            <p class="account-page-path">Account / Billing</p>
+            <h1 id="billingPageTitle">One class free. Upgrade when it earns it.</h1>
+            <p>Manage your tier, payment method, and billing history through Clerk, with payments processed by Stripe.</p>
+          </div>
+          <img class="account-page-companion character-cutout" src="assets/rounds-mascot-anki.webp" width="900" height="900" alt="The Syllabloom companion packing finished study cards" />
+        </header>
+
+        <nav class="account-tabs" aria-label="Account pages">
+          <button type="button" data-account-view="profile">Profile</button>
+          <button class="active" type="button" data-account-view="billing" aria-current="page">Billing</button>
+        </nav>
+
+        <section class="billing-current-card" aria-labelledby="billingCurrentHeading">
+          <div>
+            <span id="billingTierBadge" class="tier-badge">Free</span>
+            <h2 id="billingCurrentHeading">Your current plan</h2>
+            <p id="billingCurrentDescription">You have 1 active class and can export approved cards to Anki.</p>
+          </div>
+          <div class="billing-current-price"><strong id="billingCurrentPrice">$0</strong><span id="billingCurrentCadence">forever</span></div>
+          <button id="billingManageAccount" class="button" type="button">Payment &amp; statements</button>
+        </section>
+
+        <section class="billing-plans-shell" aria-labelledby="billingPlansHeading">
+          <header><div><p class="profile-card-label">Plans</p><h2 id="billingPlansHeading">Choose what fits this semester</h2></div><span id="billingConnectionStatus" class="billing-status">Checking Clerk Billing</span></header>
+          <div id="clerkPricingTable" class="clerk-pricing-table" hidden></div>
+          <div id="billingPlanFallback" class="billing-plan-fallback">
+            <article>
+              <span>Free</span><strong>$0</strong><p>Use Syllabloom for the class that needs it most.</p>
+              <ul><li>1 active class</li><li>60 lecture minutes each month</li><li>Editable cards and Anki export</li></ul>
+              <button class="button" type="button" disabled>Current plan</button>
+            </article>
+            <article class="student-plan-preview">
+              <span>Student</span><strong>$9 <small>/ month billed yearly</small></strong><p>Keep your whole course load moving toward Anki.</p>
+              <ul><li>Unlimited active classes</li><li>20 lecture hours each month</li><li>Calendar, weak-topic plan, and Anki presets</li></ul>
+              <button id="billingSetupPending" class="button primary" type="button">Sign in to choose Student</button>
+            </article>
+          </div>
+          <p class="billing-fine-print">Payments are processed by Stripe through Clerk Billing. Syllabloom never stores card numbers.</p>
+        </section>
+      </section>
+
       <section id="cards" class="page">
         <div class="page-head">
           <div>
@@ -4629,8 +4737,8 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="muscle-data.js?v=20260921-loop"></script>
-  <script src="auth.js?v=20260921-auth-theme-2"></script>
-  <script src="app.js?v=20260921-media-library-1"></script>
+  <script src="auth.js?v=20260921-account-billing-1"></script>
+  <script src="app.js?v=20260921-account-billing-1"></script>
   <script type="module" src="motion-effects.js?v=20260921-motion-smooth-2"></script>
 </body>
 </html>

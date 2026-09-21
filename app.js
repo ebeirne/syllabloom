@@ -158,7 +158,9 @@
       ...storedJson('syllabloom-account', {}),
       signedIn: false,
       email: '',
-      userId: ''
+      userId: '',
+      displayName: '',
+      imageUrl: ''
     }
   };
 
@@ -546,6 +548,89 @@
     document.querySelector('#releasePlanRows').innerHTML = rows.join('');
     const nextLabel = exam ? `${exam.title} in ${daysLeft} day${daysLeft === 1 ? '' : 's'}` : 'No exam date yet';
     document.querySelector('#releasePlanSummary').textContent = `${nextLabel}. Up to ${availableNew} new cards a day, ordered by ${releaseStrategyLabel(state.anki.releaseStrategy)}. Due reviews remain in Anki.`;
+    renderProfileSchedule();
+  }
+
+  function renderProfileSchedule() {
+    const target = document.querySelector('#profileUpcomingEvents');
+    if (!target) return;
+    const today = localIsoDate(new Date());
+    const upcoming = calendarEventsSorted().filter(event => event.date >= today).slice(0, 6);
+    target.innerHTML = upcoming.length
+      ? upcoming.map(event => {
+        const date = new Date(`${event.date}T12:00:00`);
+        const weekday = new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(date);
+        const day = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date);
+        return `<article class="profile-event"><time datetime="${escapeHtml(event.date)}"><strong>${escapeHtml(day)}</strong><span>${escapeHtml(weekday)}</span></time><div><strong>${escapeHtml(event.title)}</strong><span>${escapeHtml(labelCase(event.type))}</span></div><button type="button" data-profile-remove-event="${escapeHtml(event.id)}" aria-label="Remove ${escapeHtml(event.title)}">Remove</button></article>`;
+      }).join('')
+      : '<div class="profile-schedule-empty"><strong>No dates yet</strong><span>Add the first exam, quiz, or lecture below.</span></div>';
+  }
+
+  function renderProfile() {
+    const studentPlan = state.account.plan === 'student';
+    const tierName = studentPlan ? 'Student' : 'Free';
+    const used = Math.max(0, Number(state.account.classesUsed) || 0);
+    const signedInName = state.account.displayName || state.account.email?.split('@')[0] || 'Your Syllabloom account';
+    const emailText = state.account.signedIn
+      ? state.account.email || 'Signed-in account'
+      : 'Sign in to keep your profile and class library separate.';
+    const avatar = document.querySelector('#profileAvatar');
+    avatar.src = state.account.imageUrl || 'assets/syllabloom-mark.svg';
+    avatar.alt = state.account.imageUrl ? `${signedInName} profile photo` : 'Syllabloom account mark';
+    document.querySelector('#profileIdentityHeading').textContent = signedInName;
+    document.querySelector('#profileEmail').textContent = emailText;
+    document.querySelector('#profileTierBadge').textContent = tierName;
+    document.querySelector('#profileTierName').textContent = tierName;
+    document.querySelector('#profileTierDescription').textContent = studentPlan
+      ? 'Unlimited classes, 20 lecture hours each month, and the complete class-to-Anki workflow.'
+      : '1 active class, Anki export, and 60 lecture minutes each month.';
+    document.querySelector('#profileClassUsage').textContent = studentPlan ? `${Math.max(used, state.classMode === 'custom' ? 1 : 0)} active` : `${used} of 1`;
+    document.querySelector('#manageClerkProfile').textContent = state.account.signedIn ? 'Account & security' : 'Sign in';
+
+    const exam = nextExamEvent();
+    const examLabel = exam
+      ? `${new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(`${exam.date}T12:00:00`))} · ${exam.title}`
+      : 'No exam date yet';
+    const sourceTotal = state.includeSampleMaterial ? 3 : state.sources.length;
+    document.querySelector('#profileClassList').innerHTML = `<article class="profile-class-item"><span class="profile-class-mark" aria-hidden="true"><img src="assets/syllabloom-mark.svg" width="50" height="50" alt="" /></span><div><strong>${escapeHtml(state.className)}</strong><span>${escapeHtml(state.classTerm)} · ${state.classMode === 'sample' ? 'Sample class' : 'Active class'}</span></div><dl><div><dt>Sources</dt><dd>${sourceTotal}</dd></div><div><dt>Next date</dt><dd>${escapeHtml(examLabel)}</dd></div></dl><button class="button" type="button" data-open-current-class>Open class</button></article>`;
+    renderProfileSchedule();
+  }
+
+  function syncBillingSummary() {
+    const studentPlan = state.account.plan === 'student';
+    const tierName = studentPlan ? 'Student' : 'Free';
+    document.querySelector('#billingTierBadge').textContent = tierName;
+    document.querySelector('#billingCurrentDescription').textContent = studentPlan
+      ? 'Unlimited classes and 20 live lecture hours are active on this account.'
+      : 'You have 1 active class and can export approved cards to Anki.';
+    document.querySelector('#billingCurrentPrice').textContent = studentPlan ? '$9' : '$0';
+    document.querySelector('#billingCurrentCadence').textContent = studentPlan ? 'per month, billed yearly' : 'forever';
+    document.querySelector('#billingManageAccount').textContent = state.account.signedIn ? 'Payment & statements' : 'Sign in to manage';
+  }
+
+  async function renderBillingPage() {
+    syncBillingSummary();
+    const status = document.querySelector('#billingConnectionStatus');
+    const mount = document.querySelector('#clerkPricingTable');
+    const fallback = document.querySelector('#billingPlanFallback');
+    mount.hidden = true;
+    fallback.hidden = false;
+    if (!state.account.signedIn) {
+      status.textContent = 'Sign in to see your billing';
+      document.querySelector('#billingSetupPending').textContent = 'Sign in to choose Student';
+      return;
+    }
+    status.textContent = 'Checking Clerk Billing';
+    const result = await window.SyllabloomAuth?.mountBilling?.(mount);
+    if (state.view !== 'billing') return;
+    if (result?.ready) {
+      status.textContent = 'Secure checkout by Clerk + Stripe';
+      mount.hidden = false;
+      fallback.hidden = true;
+      return;
+    }
+    document.querySelector('#billingSetupPending').textContent = 'Billing setup pending';
+    status.textContent = result?.reason === 'no-plans' ? 'Plans are not configured yet' : 'Billing setup is not connected yet';
   }
 
   async function detectRuntimeCapabilities() {
@@ -776,8 +861,18 @@
 
   function showPricing() {
     document.querySelector('#classLimitDialog').close();
-    showLanding();
-    window.setTimeout(() => document.querySelector('#pricing').scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
+    openAccountPage('billing');
+  }
+
+  function openAccountPage(view = 'profile') {
+    state.creatingClass = false;
+    document.querySelector('#landing').classList.add('hidden');
+    document.querySelector('#onboarding').classList.add('hidden');
+    const app = document.querySelector('#mainApp');
+    app.inert = false;
+    app.setAttribute('aria-hidden', 'false');
+    document.body.classList.remove('marketing-mode');
+    navigate(view);
   }
 
   function closeOnboarding() {
@@ -809,8 +904,11 @@
     document.querySelectorAll('.page').forEach(page => page.classList.toggle('active', page.id === view));
     document.querySelectorAll('.nav-button').forEach(button => button.classList.toggle('active', button.dataset.view === view));
     const inClassContext = view === 'source' || view === 'knowledge';
+    const inAccountContext = view === 'profile' || view === 'billing';
     document.querySelector('#classSwitcher').classList.toggle('active-context', inClassContext);
     document.querySelector('.mobile-class-button').classList.toggle('active-context', inClassContext);
+    document.querySelector('.account-nav-action').classList.toggle('active-context', inAccountContext);
+    document.querySelector('.mobile-account-button').classList.toggle('active-context', inAccountContext);
     document.querySelector('#classSwitcher').toggleAttribute('aria-current', inClassContext);
     document.querySelector('.mobile-class-button').toggleAttribute('aria-current', inClassContext);
     document.querySelector('#mobileNav').value = view;
@@ -820,6 +918,8 @@
     }
     if (view === 'study') renderStudy();
     if (view === 'knowledge') renderClassPlanner();
+    if (view === 'profile') renderProfile();
+    if (view === 'billing') renderBillingPage();
     updateWorkflowCompanion(view);
     window.scrollTo({ top: 0, behavior: 'auto' });
     window.dispatchEvent(new CustomEvent('syllabloom:view-changed', { detail: { view } }));
@@ -2106,6 +2206,10 @@
 
   document.querySelectorAll('.nav-button').forEach(button => button.addEventListener('click', () => navigate(button.dataset.view)));
   document.querySelectorAll('[data-go]').forEach(button => button.addEventListener('click', () => navigate(button.dataset.go)));
+  document.querySelectorAll('[data-open-profile]').forEach(button => button.addEventListener('click', () => openAccountPage('profile')));
+  document.querySelectorAll('[data-open-billing]').forEach(button => button.addEventListener('click', () => openAccountPage('billing')));
+  document.querySelectorAll('[data-account-view]').forEach(button => button.addEventListener('click', () => navigate(button.dataset.accountView)));
+  window.addEventListener('syllabloom:open-profile', () => openAccountPage('profile'));
   document.querySelectorAll('[data-start-onboarding]').forEach(button => button.addEventListener('click', startClassSetup));
   document.querySelectorAll('[data-open-sample]').forEach(button => button.addEventListener('click', loadSampleClass));
   document.querySelectorAll('[data-back-home]').forEach(button => button.addEventListener('click', showLanding));
@@ -2201,17 +2305,54 @@
     state.account.signedIn = Boolean(detail.signedIn);
     state.account.email = detail.email || '';
     state.account.userId = detail.userId || '';
+    state.account.displayName = detail.displayName || '';
+    state.account.imageUrl = detail.imageUrl || '';
     if (state.account.signedIn && state.account.userId && priorUserId !== state.account.userId) {
       state.account.classesUsed = 0;
-      state.account.plan = 'free';
     }
+    state.account.plan = detail.plan === 'student' ? 'student' : 'free';
     saveAccount();
     closeMediaPreview();
     renderMediaLibrary();
+    renderProfile();
+    if (state.view === 'billing') renderBillingPage();
     if (state.account.signedIn && state.pendingClassSetup) {
       state.pendingClassSetup = false;
       window.setTimeout(startClassSetup, 0);
     }
+  });
+  document.querySelector('#manageClerkProfile').addEventListener('click', () => window.SyllabloomAuth?.openClerkProfile?.());
+  document.querySelector('#billingManageAccount').addEventListener('click', () => window.SyllabloomAuth?.openClerkProfile?.());
+  document.querySelector('#billingSetupPending').addEventListener('click', () => {
+    if (!state.account.signedIn) return window.SyllabloomAuth?.open?.();
+    showToast('Clerk Billing is ready in the UI. Connect plans in the Clerk Dashboard to turn on checkout.');
+  });
+  document.querySelector('[data-profile-add-class]').addEventListener('click', startClassSetup);
+  document.querySelector('#profileClassList').addEventListener('click', event => {
+    if (event.target.closest('[data-open-current-class]')) navigate('home');
+  });
+  document.querySelector('#profileScheduleForm').addEventListener('submit', event => {
+    event.preventDefault();
+    const title = document.querySelector('#profileEventTitle').value.trim();
+    const date = document.querySelector('#profileEventDate').value;
+    const type = document.querySelector('#profileEventType').value;
+    if (!title || !date) return;
+    state.calendarEvents.push({ id: `event-${Date.now()}`, title, date, type });
+    localStorage.setItem('syllabloom-calendar-events', JSON.stringify(state.calendarEvents));
+    event.currentTarget.reset();
+    document.querySelector('#profileEventDate').value = dateAfter(1);
+    renderClassPlanner();
+    renderProfile();
+    showToast('Important date added');
+  });
+  document.querySelector('#profileUpcomingEvents').addEventListener('click', event => {
+    const button = event.target.closest('[data-profile-remove-event]');
+    if (!button) return;
+    state.calendarEvents = state.calendarEvents.filter(item => item.id !== button.dataset.profileRemoveEvent);
+    localStorage.setItem('syllabloom-calendar-events', JSON.stringify(state.calendarEvents));
+    renderClassPlanner();
+    renderProfile();
+    showToast('Important date removed');
   });
   document.querySelectorAll('label[role="button"]').forEach(label => label.addEventListener('keydown', event => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -2510,11 +2651,15 @@
   syncAnkiFormFromState();
   document.querySelector('#examDateInput').value = nextExamEvent()?.date || dateAfter(12);
   document.querySelector('#calendarEventDate').value = dateAfter(1);
+  document.querySelector('#profileEventDate').value = dateAfter(1);
   renderClassPlanner();
+  renderProfile();
+  syncBillingSummary();
   updateWorkflowCompanion('home');
   showLanding();
   detectRuntimeCapabilities();
   loadStoredSources();
   restoreLatestSession();
   renderMediaLibrary();
+  window.SyllabloomAuth?.refresh?.();
 })();
