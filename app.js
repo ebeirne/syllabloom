@@ -148,16 +148,17 @@
     selectedTypes: ['attachment', 'action', 'innervation'],
     creatingClass: false,
     pendingClassSetup: false,
+    cloudBeta: false,
     missCounts: storedJson('syllabloom-miss-counts', {}),
     missedItem: null,
     account: {
-      signedIn: false,
-      email: '',
-      userId: '',
       plan: 'free',
       classLimit: 1,
       classesUsed: 0,
-      ...storedJson('syllabloom-account', {})
+      ...storedJson('syllabloom-account', {}),
+      signedIn: false,
+      email: '',
+      userId: ''
     }
   };
 
@@ -554,16 +555,16 @@
       const capabilities = await response.json();
       if (capabilities.mode !== 'beta-cloud') return;
 
+      state.cloudBeta = true;
       document.documentElement.dataset.runtime = 'cloud-beta';
       document.querySelector('#cloudBetaNotice').hidden = false;
-      document.querySelector('#audioInput').disabled = true;
-      document.querySelector('#recordButton').disabled = true;
       document.querySelector('#useTestAudio').disabled = true;
-      document.querySelector('#captureState').textContent = 'Desktop pilot required';
-      document.querySelector('#recordingSafety').textContent = 'Lecture transcription runs in the desktop pilot';
+      document.querySelector('#useTestAudio').textContent = 'Sample needs desktop transcription';
+      document.querySelector('#captureState').textContent = 'Ready to record or upload';
+      document.querySelector('#recordingSafety').textContent = 'Saved under your account on this device';
       const captureStatus = document.querySelector('.capture-status');
-      captureStatus.querySelector('strong').textContent = 'Public beta';
-      captureStatus.querySelector('span:last-child').textContent = 'Session-only source processing';
+      captureStatus.querySelector('strong').textContent = 'Device library';
+      captureStatus.querySelector('span:last-child').textContent = 'Per-user media storage';
     } catch (_) {
       // The local prototype intentionally continues with the desktop feature set.
     }
@@ -1188,7 +1189,170 @@
   let recordingWakeLock = null;
   let lectureMarkers = [];
   let captureAudioUrl = null;
+  let libraryMediaUrl = null;
   let lastTranscript = '';
+  const MEDIA_DATABASE = 'syllabloom-media';
+  const MEDIA_STORE = 'lectures';
+  const MAX_MEDIA_BYTES = 500 * 1024 * 1024;
+  let mediaDatabasePromise = null;
+
+  function currentMediaOwner() {
+    return state.account.signedIn && state.account.userId
+      ? `clerk:${state.account.userId}`
+      : 'browser-guest';
+  }
+
+  function openMediaDatabase() {
+    if (!('indexedDB' in window)) return Promise.reject(new Error('This browser cannot save lecture files.'));
+    if (mediaDatabasePromise) return mediaDatabasePromise;
+    const pending = new Promise((resolve, reject) => {
+      const request = indexedDB.open(MEDIA_DATABASE, 1);
+      request.addEventListener('upgradeneeded', () => {
+        const database = request.result;
+        const store = database.createObjectStore(MEDIA_STORE, { keyPath: 'id' });
+        store.createIndex('owner', 'owner', { unique: false });
+      });
+      request.addEventListener('success', () => resolve(request.result), { once: true });
+      request.addEventListener('error', () => reject(request.error || new Error('Lecture storage could not open.')), { once: true });
+      request.addEventListener('blocked', () => reject(new Error('Close other Syllabloom tabs, then try saving again.')), { once: true });
+    });
+    mediaDatabasePromise = pending.catch(error => {
+      mediaDatabasePromise = null;
+      throw error;
+    });
+    return mediaDatabasePromise;
+  }
+
+  async function mediaStoreWrite(action) {
+    const database = await openMediaDatabase();
+    return new Promise((resolve, reject) => {
+      const transaction = database.transaction(MEDIA_STORE, 'readwrite');
+      action(transaction.objectStore(MEDIA_STORE));
+      transaction.addEventListener('complete', () => resolve(), { once: true });
+      transaction.addEventListener('abort', () => reject(transaction.error || new Error('The lecture could not be saved.')), { once: true });
+      transaction.addEventListener('error', () => reject(transaction.error || new Error('The lecture could not be saved.')), { once: true });
+    });
+  }
+
+  async function listMediaAssets() {
+    const database = await openMediaDatabase();
+    return new Promise((resolve, reject) => {
+      const transaction = database.transaction(MEDIA_STORE, 'readonly');
+      const request = transaction.objectStore(MEDIA_STORE).index('owner').getAll(IDBKeyRange.only(currentMediaOwner()));
+      request.addEventListener('success', () => resolve(request.result.sort((left, right) => right.createdAt - left.createdAt)), { once: true });
+      request.addEventListener('error', () => reject(request.error || new Error('Saved lectures could not be read.')), { once: true });
+    });
+  }
+
+  async function getMediaAsset(id) {
+    const database = await openMediaDatabase();
+    return new Promise((resolve, reject) => {
+      const request = database.transaction(MEDIA_STORE, 'readonly').objectStore(MEDIA_STORE).get(id);
+      request.addEventListener('success', () => {
+        const item = request.result;
+        resolve(item?.owner === currentMediaOwner() ? item : null);
+      }, { once: true });
+      request.addEventListener('error', () => reject(request.error || new Error('The lecture could not be opened.')), { once: true });
+    });
+  }
+
+  async function deleteMediaAsset(id) {
+    const item = await getMediaAsset(id);
+    if (!item) return;
+    await mediaStoreWrite(store => store.delete(id));
+  }
+
+  function formatFileSize(bytes) {
+    const size = Math.max(0, Number(bytes) || 0);
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 ** 2) return `${(size / 1024).toFixed(1)} KB`;
+    if (size < 1024 ** 3) return `${(size / 1024 ** 2).toFixed(1)} MB`;
+    return `${(size / 1024 ** 3).toFixed(1)} GB`;
+  }
+
+  function mediaLooksLikeVideo(item) {
+    const type = String(item.type || '');
+    return type.startsWith('video/') || (!type.startsWith('audio/') && /\.(mp4|mov|m4v)$/i.test(item.name || ''));
+  }
+
+  async function saveMediaAsset(blob, filename, origin, markers = []) {
+    if (!blob?.size) throw new Error('This media file is empty.');
+    if (blob.size > MAX_MEDIA_BYTES) throw new Error('Keep each lecture under 500 MB for the browser beta.');
+    const asset = {
+      id: crypto.randomUUID ? crypto.randomUUID() : `media-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      owner: currentMediaOwner(),
+      name: filename || `lecture-${Date.now()}.webm`,
+      type: blob.type || 'application/octet-stream',
+      size: blob.size,
+      createdAt: Date.now(),
+      origin,
+      className: state.className,
+      classTerm: state.classTerm,
+      markers,
+      blob
+    };
+    await mediaStoreWrite(store => store.put(asset));
+    await renderMediaLibrary();
+    return asset;
+  }
+
+  function closeMediaPreview() {
+    if (libraryMediaUrl) URL.revokeObjectURL(libraryMediaUrl);
+    libraryMediaUrl = null;
+    const audio = document.querySelector('#libraryAudio');
+    const video = document.querySelector('#libraryVideo');
+    audio.pause();
+    video.pause();
+    audio.removeAttribute('src');
+    video.removeAttribute('src');
+    audio.hidden = true;
+    video.hidden = true;
+    document.querySelector('#mediaLibraryPlayer').hidden = true;
+  }
+
+  async function openMediaPreview(id) {
+    const item = await getMediaAsset(id);
+    if (!item) throw new Error('This lecture is no longer available for this account.');
+    closeMediaPreview();
+    libraryMediaUrl = URL.createObjectURL(item.blob);
+    const video = mediaLooksLikeVideo(item);
+    const player = document.querySelector(video ? '#libraryVideo' : '#libraryAudio');
+    player.src = libraryMediaUrl;
+    player.hidden = false;
+    document.querySelector('#mediaPlayerTitle').textContent = item.name;
+    document.querySelector('#mediaLibraryPlayer').hidden = false;
+  }
+
+  async function renderMediaLibrary() {
+    const list = document.querySelector('#mediaLibraryList');
+    const label = document.querySelector('#mediaOwnerLabel');
+    const summary = document.querySelector('#mediaStorageSummary');
+    if (!list || !label || !summary) return;
+    label.textContent = state.account.signedIn
+      ? (state.account.email || 'Signed-in account')
+      : 'This browser';
+    try {
+      const items = await listMediaAssets();
+      const totalBytes = items.reduce((total, item) => total + Number(item.size || 0), 0);
+      summary.textContent = items.length
+        ? `${items.length} file${items.length === 1 ? '' : 's'} · ${formatFileSize(totalBytes)} on this device`
+        : state.account.signedIn ? 'No saved lectures for this account' : 'Sign in to keep files separated';
+      list.classList.toggle('is-empty', items.length === 0);
+      list.innerHTML = items.length ? items.map(item => {
+        const date = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(item.createdAt));
+        const mediaLabel = mediaLooksLikeVideo(item) ? 'Video' : 'Audio';
+        return `<article class="media-library-item">
+          <span class="media-kind" aria-hidden="true">${mediaLooksLikeVideo(item) ? '▶' : '♫'}</span>
+          <div><strong>${escapeHtml(item.name)}</strong><span>${mediaLabel} · ${formatFileSize(item.size)} · ${escapeHtml(item.className || 'Class')}</span><small>${item.origin === 'recording' ? 'Recorded' : 'Uploaded'} ${escapeHtml(date)}</small></div>
+          <div class="media-library-actions"><button type="button" data-open-media="${escapeHtml(item.id)}">Play</button><button type="button" data-delete-media="${escapeHtml(item.id)}">Remove</button></div>
+        </article>`;
+      }).join('') : '<div class="media-library-empty"><strong>No saved lectures yet</strong><span>Start recording or upload an audio or video file.</span></div>';
+    } catch (error) {
+      summary.textContent = 'Storage is unavailable';
+      list.classList.add('is-empty');
+      list.innerHTML = `<div class="media-library-empty"><strong>This browser blocked lecture storage</strong><span>${escapeHtml(error.message)}</span></div>`;
+    }
+  }
 
   function escapeHtml(value) {
     return String(value)
@@ -1496,7 +1660,7 @@
     });
   }
 
-  async function processAudio(blob, filename, markers = []) {
+  async function processAudio(blob, filename, markers = [], options = {}) {
     setAudioBusy(true, 'Checking lecture file');
     document.querySelector('#transcriptPanel').classList.remove('transcript-collapsed');
     document.querySelector('#toggleTranscript').textContent = 'Hide transcript';
@@ -1511,9 +1675,43 @@
     drawLectureProgress(0, 1);
     if (captureAudioUrl) URL.revokeObjectURL(captureAudioUrl);
     captureAudioUrl = URL.createObjectURL(blob);
-    const player = document.querySelector('#captureAudio');
+    const audioPlayer = document.querySelector('#captureAudio');
+    const videoPlayer = document.querySelector('#captureVideo');
+    const mediaType = String(blob.type || '');
+    const video = mediaType.startsWith('video/') || (!mediaType.startsWith('audio/') && /\.(mp4|mov|m4v)$/i.test(filename || ''));
+    audioPlayer.pause();
+    videoPlayer.pause();
+    audioPlayer.hidden = video;
+    videoPlayer.hidden = !video;
+    const player = video ? videoPlayer : audioPlayer;
     player.src = captureAudioUrl;
-    player.hidden = false;
+
+    let storageError = null;
+    if (options.persist !== false) {
+      try {
+        await saveMediaAsset(blob, filename, options.origin || 'upload', markers);
+      } catch (error) {
+        storageError = error;
+        showToast(error.message || 'The lecture could not be saved');
+      }
+    }
+
+    if (state.cloudBeta) {
+      document.querySelector('#captureState').textContent = storageError ? 'Preview only' : 'Saved to your library';
+      document.querySelector('#lectureSubtitle').textContent = storageError
+        ? `${state.className} · this file was not saved`
+        : `${state.className} · saved for this account on this device`;
+      document.querySelector('#transcriptMeta').textContent = storageError
+        ? `${filename} · storage failed`
+        : `${filename} · ready for playback`;
+      document.querySelector('#transcriptContent').innerHTML = `<div class="transcript-error media-saved-message"><strong>${storageError ? 'The media is available only in this preview.' : 'Your lecture is saved.'}</strong><span>${storageError ? escapeHtml(storageError.message) : 'Play it from your lecture library anytime. Automatic transcription and card drafting are coming next for the hosted beta.'}</span></div>`;
+      document.querySelector('#recordingSafety').textContent = storageError
+        ? 'Could not save this file on this device'
+        : 'Saved under your account on this device';
+      if (!storageError) showToast('Lecture saved to your library');
+      setAudioBusy(false);
+      return;
+    }
 
     try {
       const body = new FormData();
@@ -1800,7 +1998,7 @@
       document.querySelector('#recordingPill').classList.remove('paused');
       document.querySelector('#mobileRecordingPill').classList.remove('paused');
       document.querySelector('.mobile-class-button').hidden = false;
-      document.querySelector('#recordingSafety').textContent = 'Audio stays on this computer';
+      document.querySelector('#recordingSafety').textContent = 'Saved under your account on this device';
       if (recordingWakeLock) {
         await recordingWakeLock.release().catch(() => {});
         recordingWakeLock = null;
@@ -1824,7 +2022,7 @@
         const blob = new Blob(chunks, { type: mediaRecorder.mimeType || 'audio/webm' });
         const savedMarkers = [...lectureMarkers];
         mediaRecorder = null;
-        processAudio(blob, `lecture-${Date.now()}.webm`, savedMarkers);
+        processAudio(blob, `lecture-${Date.now()}.webm`, savedMarkers, { origin: 'recording' });
       }, { once: true });
       mediaRecorder.start(1000);
       recordingStartedAt = Date.now();
@@ -1849,8 +2047,8 @@
       drawLiveWaveform(microphoneStream);
       await requestRecordingWakeLock();
       document.querySelector('#recordingSafety').textContent = recordingWakeLock
-        ? 'Recording locally · screen kept awake'
-        : 'Recording locally · keep this screen open';
+        ? 'Recording to your device library · screen kept awake'
+        : 'Recording to your device library · keep this screen open';
     } catch (error) {
       document.querySelector('#captureState').textContent = 'Microphone unavailable';
       showToast('Microphone access was not granted');
@@ -2008,6 +2206,8 @@
       state.account.plan = 'free';
     }
     saveAccount();
+    closeMediaPreview();
+    renderMediaLibrary();
     if (state.account.signedIn && state.pendingClassSetup) {
       state.pendingClassSetup = false;
       window.setTimeout(startClassSetup, 0);
@@ -2024,16 +2224,35 @@
   document.querySelector('#audioInput').addEventListener('change', event => {
     const file = event.target.files[0];
     if (!file) return;
-    processAudio(file, file.name);
+    processAudio(file, file.name, [], { origin: 'upload' });
     event.target.value = '';
   });
+  document.querySelector('#mediaLibraryList').addEventListener('click', async event => {
+    const openButton = event.target.closest('[data-open-media]');
+    const deleteButton = event.target.closest('[data-delete-media]');
+    try {
+      if (openButton) {
+        await openMediaPreview(openButton.dataset.openMedia);
+        return;
+      }
+      if (!deleteButton) return;
+      if (!window.confirm('Remove this lecture from this device?')) return;
+      closeMediaPreview();
+      await deleteMediaAsset(deleteButton.dataset.deleteMedia);
+      await renderMediaLibrary();
+      showToast('Lecture removed from this device');
+    } catch (error) {
+      showToast(error.message || 'The lecture library could not be updated');
+    }
+  });
+  document.querySelector('#closeMediaPlayer').addEventListener('click', closeMediaPreview);
   document.querySelector('#useTestAudio').addEventListener('click', async () => {
     try {
       setAudioBusy(true, 'Loading real anatomy audio');
       const response = await fetch('test-audio/kenhub-tibialis-anterior-cc-by-3.webm');
       if (!response.ok) throw new Error('The included audio sample could not be loaded.');
       const blob = await response.blob();
-      await processAudio(blob, 'kenhub-tibialis-anterior-cc-by-3.webm');
+      await processAudio(blob, 'kenhub-tibialis-anterior-cc-by-3.webm', [], { origin: 'sample', persist: false });
     } catch (error) {
       setAudioBusy(false, 'Ready to record');
       showToast(error.message);
@@ -2297,4 +2516,5 @@
   detectRuntimeCapabilities();
   loadStoredSources();
   restoreLatestSession();
+  renderMediaLibrary();
 })();

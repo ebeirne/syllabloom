@@ -8,6 +8,7 @@ Syllabloom turns lectures, slides, syllabi, and course files into editable, sour
 
 - Marketing site and per-class onboarding
 - Live lecture recording and uploaded audio/video ingestion
+- Per-user on-device lecture library with audio/video playback and removal
 - DOCX, PDF, PowerPoint, and text source import
 - Editable card review and approval queue
 - Source-grounded explanations after every missed card, with same-card retry and repeated-miss editing
@@ -48,7 +49,7 @@ $env:CLERK_PUBLISHABLE_KEY = "pk_test_your_key"
 python server.py
 ```
 
-Use the same `CLERK_PUBLISHABLE_KEY` environment variable in Vercel. Until cloud sync is added, Clerk controls beta access and the one-free-class gate while class files and study settings remain in that browser.
+Use the same `CLERK_PUBLISHABLE_KEY` environment variable in Vercel. Until cloud sync is added, Clerk controls beta access and the one-free-class gate. Lecture media is stored in IndexedDB under the current Clerk user ID, so accounts stay separated on the same device, but files do not yet follow a student to another browser or device.
 
 ### Optional local transcription
 
@@ -65,7 +66,7 @@ $env:SYLLABLOOM_WHISPER_MODEL = "C:\path\to\whisper-small"
 python server.py
 ```
 
-Audio remains on the local machine in this mode. The hosted beta does not claim the same local model availability as the development server.
+Audio remains on the local machine in this mode. The hosted beta records, imports, stores, and plays lecture media, but it does not claim the desktop server's local transcription or automatic card drafting.
 
 ## Project structure
 
@@ -117,4 +118,4 @@ The `.vercel` directory is intentionally excluded because it contains machine-sp
 
 ## Status
 
-This is a beta product. It has verified prototype flows and a live deployment, but it is not yet a multi-user production system. Calendar events and Anki preferences are currently stored in the browser. Real student testing should focus on card quality, source faithfulness, import behavior, and whether the daily plan feels achievable.
+This is a beta product. It has verified prototype flows and a live deployment, but it is not yet a cloud-synced multi-user system. Calendar events, Anki preferences, and per-user lecture libraries are currently stored in the browser. Real student testing should focus on card quality, source faithfulness, media capture, import behavior, and whether the daily plan feels achievable.

@@ -3871,7 +3871,7 @@
       <section id="capture" class="page">
         <header class="capture-toolbar">
           <div class="breadcrumbs"><span data-class-name>Human Anatomy</span><b>/</b><strong>Lecture</strong></div>
-          <div class="capture-status"><span class="status-light"></span><strong>Local</strong><span>Audio stays on this computer</span></div>
+          <div class="capture-status"><span class="status-light"></span><strong>Device library</strong><span>Saved separately for each signed-in user</span></div>
         </header>
 
         <div class="capture-workspace">
@@ -3887,7 +3887,7 @@
             <section class="recorder" id="recorderPanel">
               <div id="cloudBetaNotice" class="cloud-beta-notice" role="status" hidden>
                 <strong>Public beta</strong>
-                <span>PowerPoint and document import, card review, and Anki export work here. Lecture transcription is still in the desktop pilot. Uploaded class files are processed for this session and are not saved by this beta.</span>
+                <span>Recordings and uploaded media are saved to your signed-in library on this device. Automatic transcription and card drafting are still in the desktop pilot.</span>
               </div>
               <div class="recording-intro character-story-panel">
                 <div><strong>Your lecture, minus the frantic typing.</strong>
@@ -3907,18 +3907,34 @@
               </div>
               <canvas id="waveformCanvas" class="waveform" width="900" height="150" aria-label="Audio waveform"></canvas>
               <audio id="captureAudio" class="capture-audio" controls hidden></audio>
+              <video id="captureVideo" class="capture-video" controls playsinline hidden></video>
               <div id="markerSummary" class="marker-summary" hidden>
                 <strong>Important moments</strong>
                 <div id="markerList"></div>
               </div>
               <div class="record-secondary-controls">
-                <label class="import-button" for="audioInput" role="button" tabindex="0">Import a recording</label>
-                <input id="audioInput" type="file" accept="audio/*,.webm,.mp4,.mov" hidden />
+                <label class="import-button" for="audioInput" role="button" tabindex="0">Upload audio or video</label>
+                <input id="audioInput" type="file" accept="audio/*,video/*,.webm,.mp4,.mov,.m4a,.mp3,.wav,.ogg" hidden />
                 <button id="useTestAudio" class="sample-button">Try the anatomy sample</button>
               </div>
               <div class="recorder-foot">
-                <span id="recordingSafety">Audio stays on this computer</span>
+                <span id="recordingSafety">Saved under your account on this device</span>
                 <span>Keep this tab open while recording</span>
+              </div>
+            </section>
+
+            <section class="media-library" aria-labelledby="mediaLibraryTitle">
+              <header class="media-library-head">
+                <div><h2 id="mediaLibraryTitle">Your lecture library</h2><p>Record in class or upload audio and video. Files stay separated by signed-in user.</p></div>
+                <div class="media-library-scope"><strong id="mediaOwnerLabel">This browser</strong><span id="mediaStorageSummary">Checking saved media</span></div>
+              </header>
+              <div id="mediaLibraryPlayer" class="media-library-player" hidden>
+                <div><strong id="mediaPlayerTitle">Lecture preview</strong><button id="closeMediaPlayer" type="button">Close</button></div>
+                <audio id="libraryAudio" controls hidden></audio>
+                <video id="libraryVideo" controls playsinline hidden></video>
+              </div>
+              <div id="mediaLibraryList" class="media-library-list" aria-live="polite">
+                <div class="media-library-empty"><strong>No saved lectures yet</strong><span>Start recording or upload an audio or video file.</span></div>
               </div>
             </section>
 
@@ -4614,7 +4630,7 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="muscle-data.js?v=20260921-loop"></script>
   <script src="auth.js?v=20260921-auth-theme-2"></script>
-  <script src="app.js?v=20260921-beta-ready-2"></script>
+  <script src="app.js?v=20260921-media-library-1"></script>
   <script type="module" src="motion-effects.js?v=20260921-motion-smooth-2"></script>
 </body>
 </html>
