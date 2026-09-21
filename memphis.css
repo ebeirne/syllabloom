@@ -24,6 +24,131 @@
   --hairline: 1px solid rgba(23, 24, 22, 0.2);
 }
 
+/* Ready-card capture flow */
+.lecture-name-field {
+  max-width: 650px;
+  margin: 30px 0 0;
+  display: grid;
+  gap: 8px;
+}
+
+.lecture-name-field > span {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.lecture-name-field input {
+  width: 100%;
+  min-height: 58px;
+  padding: 0 18px;
+  border-radius: 16px !important;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.lecture-name-field input[aria-invalid="true"] {
+  border-color: var(--record) !important;
+  box-shadow: 0 0 0 3px rgba(239, 95, 81, 0.18);
+}
+
+.lecture-name-field input:disabled {
+  opacity: 0.72;
+}
+
+.lecture-name-field small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.lecture-name-field + .recorder-meta {
+  margin-top: 28px !important;
+}
+
+.lecture-result-actions {
+  display: flex !important;
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 9px !important;
+}
+
+.media-library-item.is-renaming {
+  align-items: start;
+}
+
+.media-rename-form {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.media-rename-form label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.media-rename-form input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 13px;
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  border-radius: 13px;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+}
+
+.media-rename-form > span {
+  display: flex;
+  gap: 8px;
+}
+
+.media-rename-form button {
+  min-height: 36px;
+  padding: 0 12px;
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  border-radius: 12px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.media-rename-form button[type="submit"] {
+  background: var(--memphis-yellow);
+}
+
+@media (max-width: 760px) {
+  .lecture-name-field {
+    margin-top: 24px;
+  }
+
+  .lecture-name-field input {
+    font-size: 16px;
+  }
+
+  .lecture-result-actions {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: 1fr;
+  }
+
+  .media-library-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .media-rename-form {
+    grid-column: 2;
+  }
+}
+
 /* Branded account entry: the Clerk form behaves like part of the study world. */
 
 .auth-dialog {
@@ -1770,4 +1895,8 @@ textarea {
   .setup-step-label > span:last-child {
     display: none;
   }
+}
+
+[hidden] {
+  display: none !important;
 }

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light" />
   <title>Syllabloom: Class in. Anki out.</title>
-  <meta name="description" content="Syllabloom turns lectures and course sources into editable, source-linked Anki cards, then adapts study plans to what you miss." />
+  <meta name="description" content="Syllabloom turns lectures and course sources into ready-to-use, source-linked Anki cards, then adapts study plans to what you miss." />
   <meta name="theme-color" content="#f5f1e4" />
   <link rel="icon" href="assets/syllabloom-mark.svg" type="image/svg+xml" />
   <style>
@@ -3500,8 +3500,8 @@
       .source-reference dd { margin: 4px 0 0; font-size: 15px; line-height: 1.5; }
     }
   </style>
-  <link rel="stylesheet" href="redesign.css?v=20260921-account-polish-2">
-  <link rel="stylesheet" href="memphis.css?v=20260921-syllabloom-beta-8">
+  <link rel="stylesheet" href="redesign.css?v=20260921-ready-cards-1">
+  <link rel="stylesheet" href="memphis.css?v=20260921-ready-cards-1">
 </head>
 <body>
   <section id="landing" class="marketing-home" aria-label="Syllabloom home page">
@@ -3526,14 +3526,14 @@
     <main>
       <section class="marketing-hero">
         <div class="marketing-hero-copy">
-          <h1>The Anki workflow that learns with you.</h1>
-          <p>Syllabloom listens to lectures, reads the syllabus and course files, builds editable cards for Anki, then uses what you miss to plan what comes next.</p>
+          <h1>Walk out of class with your Anki cards ready.</h1>
+          <p>Syllabloom listens to the lecture, checks the syllabus and course files, and writes a usable card set for you. Review anything you want, then study here or export to Anki.</p>
           <div class="marketing-hero-actions">
             <button class="button primary marketing-primary-cta" data-start-onboarding>Set up your first class</button>
             <button class="marketing-link-button" data-open-sample>Open a real sample class <span>→</span></button>
           </div>
           <div class="marketing-trust-line">
-            <span>You approve every card</span>
+            <span>Cards arrive ready to use</span>
             <span>Anki stays your study system</span>
           </div>
         </div>
@@ -3559,9 +3559,9 @@
           <b class="loop-arrow" aria-hidden="true">→</b>
           <article class="loop-step" role="listitem"><span>2</span><h3>Capture the class</h3><p>Record live or add slides, notes, audio, and video.</p></article>
           <b class="loop-arrow" aria-hidden="true">→</b>
-          <article class="loop-step" role="listitem"><span>3</span><h3>Approve the cards</h3><p>Edit, verify, or reject what Syllabloom drafts.</p></article>
+          <article class="loop-step" role="listitem"><span>3</span><h3>Get a ready set</h3><p>Source-matched cards are ready. Edit or leave out anything you do not want.</p></article>
           <b class="loop-arrow" aria-hidden="true">→</b>
-          <article class="loop-step loop-step-anki" role="listitem"><span>4</span><h3>Study in Anki</h3><p>Export with your format, deck, tags, and limits.</p></article>
+          <article class="loop-step loop-step-anki" role="listitem"><span>4</span><h3>Study your way</h3><p>Start here, or export to Anki with your format, deck, tags, and limits.</p></article>
           <b class="loop-arrow" aria-hidden="true">→</b>
           <article class="loop-step" role="listitem"><span>5</span><h3>Check what stuck</h3><p>Short recall checks find hesitation and repeat misses.</p></article>
           <div class="loop-return">
@@ -3577,16 +3577,16 @@
       <section id="anki-first" class="anki-first-section">
         <div class="anki-first-copy">
           <h2>Built for Anki people.</h2>
-          <p>Syllabloom does the slow work before Anki: finding the testable idea, writing a focused prompt, tracing it to the source, and giving you the final say.</p>
+          <p>Syllabloom does the slow work before Anki: finding the testable idea, writing a focused prompt, tracing it to the source, and delivering a set you can use immediately.</p>
           <ul>
             <li><span>✓</span><div><strong>Basic or cloze</strong><small>Choose the format during class setup.</small></div></li>
             <li><span>✓</span><div><strong>Your deck structure</strong><small>Keep deck names, nested tags, and daily new-card limits.</small></div></li>
-            <li><span>✓</span><div><strong>No mystery cards</strong><small>Edit, approve, or skip every card before export.</small></div></li>
+            <li><span>✓</span><div><strong>Ready, never locked</strong><small>Use the set as-is, or edit and leave out any card before export.</small></div></li>
           </ul>
           <button class="button anki-cta" data-start-onboarding>Build an Anki-ready class</button>
         </div>
         <div class="anki-export-demo" aria-label="Example Anki export review">
-          <img class="anki-companion character-cutout" src="assets/rounds-mascot-anki.webp" width="900" height="900" loading="lazy" decoding="async" alt="The Syllabloom companion packing approved flashcards for Anki" />
+          <img class="anki-companion character-cutout" src="assets/rounds-mascot-anki.webp" width="900" height="900" loading="lazy" decoding="async" alt="The Syllabloom companion packing ready flashcards for Anki" />
           <div class="export-demo-head">
             <span>Organic Chemistry</span>
             <strong>Ready for Anki</strong>
@@ -3594,14 +3594,14 @@
           <div class="export-demo-card">
             <small>REACTION MECHANISMS · SN2</small>
             <p>Which conditions favor an SN2 reaction?</p>
-            <div><span>Source checked</span><b>Approved</b></div>
+            <div><span>Source checked</span><b>Ready</b></div>
           </div>
           <div class="export-demo-settings">
             <span><small>Format</small><strong>Basic</strong></span>
             <span><small>New / day</small><strong>20</strong></span>
             <span><small>Tags</small><strong>ochem::exam-1</strong></span>
           </div>
-          <button type="button">Export 32 approved cards <span>→</span></button>
+          <button type="button">Export 32 ready cards <span>→</span></button>
         </div>
       </section>
 
@@ -3895,9 +3895,14 @@
               </div>
               <div class="recording-intro character-story-panel">
                 <div><strong>Your lecture, minus the frantic typing.</strong>
-                <span>Syllabloom listens for the class terms in your syllabus and saves every draft for your approval.</span></div>
+                <span>Syllabloom listens for the class terms in your syllabus and builds cards that are ready to use.</span></div>
                 <img class="capture-mascot character-cutout" src="assets/rounds-mascot-listening.webp" width="900" height="900" alt="The Syllabloom companion listening to a lecture and taking notes" />
               </div>
+              <label class="lecture-name-field" for="recordingTitle">
+                <span>Lecture name</span>
+                <input id="recordingTitle" class="text-input" type="text" maxlength="100" autocomplete="off" required aria-describedby="recordingTitleHint" />
+                <small id="recordingTitleHint">Name it before recording. You can rename it later.</small>
+              </label>
               <div class="recorder-meta">
                 <span id="captureState">Ready to record</span>
                 <strong id="captureTimer">00:00</strong>
@@ -3950,14 +3955,18 @@
               </div>
               <div id="sourceGate" class="source-gate waiting">
                 <strong>Waiting for a lecture</strong>
-                <span>Cards stay out of your deck until the lecture and class sources agree, or you approve them yourself.</span>
+                <span>Source-matched cards will be ready automatically. Anything uncertain will be held for a quick check.</span>
               </div>
               <div id="lastLectureMarkers" class="last-lecture-markers" hidden></div>
             </section>
 
             <section id="lectureResultBar" class="lecture-result-bar" hidden>
-              <div><strong><span id="audioCardCountInline">0</span> cards ready</strong><span>Checked against your class material</span></div>
-              <button class="button primary" data-go="cards">Review cards</button>
+              <div><strong><span id="audioCardCountInline">0</span> cards ready</strong><span>Study now, export to Anki, or look through the set first</span></div>
+              <div class="lecture-result-actions">
+                <button class="button" data-go="cards">Look through cards</button>
+                <button class="button" data-go="study">Study here</button>
+                <button id="lectureExportAnki" class="button primary" type="button">Export to Anki</button>
+              </div>
             </section>
 
             <section id="transcriptPanel" class="transcript-panel transcript-collapsed">
@@ -3994,9 +4003,9 @@
             </section>
 
             <section class="draft-section">
-              <div class="inspector-heading"><h3>Card drafts</h3><span id="audioCardCount">0 ready</span></div>
+              <div class="inspector-heading"><h3>Ready cards</h3><span id="audioCardCount">0 ready</span></div>
               <div id="audioCardDrafts" class="empty-result">Cards will use the lecture for relevance and the course document for the answer.</div>
-              <button id="reviewAudioCards" class="inspector-link" data-go="cards" disabled>Review drafts</button>
+              <button id="reviewAudioCards" class="inspector-link" data-go="cards" disabled>Look through cards</button>
             </section>
 
             <section class="test-source">
@@ -4094,10 +4103,10 @@
             </section>
 
             <section class="anki-queue-bar">
-              <div><strong>Anki queue</strong><span>Nothing exports without approval.</span></div>
+              <div><strong>Anki queue</strong><span>Source-matched cards arrive ready. You stay in control.</span></div>
               <div class="queue-counts">
-                <span><b id="homeCardCount">576</b> drafts</span>
-                <span><b id="approvedCount">0</b> approved</span>
+                <span><b id="homeCardCount">576</b> cards</span>
+                <span><b id="approvedCount">0</b> ready</span>
                 <span><b id="skippedCount">0</b> skipped</span>
                 <span><b id="homeSectionCount">21</b> sections</span>
               </div>
@@ -4195,8 +4204,8 @@
             <label class="option"><input class="card-type" type="checkbox" value="action" checked><span><strong>Action</strong>Ask what the muscle does.</span></label>
             <label class="option"><input class="card-type" type="checkbox" value="innervation" checked><span><strong>Innervation</strong>Ask which nerve supplies it.</span></label>
             <label class="option"><input class="card-type" type="checkbox" value="identify"><span><strong>Identify the muscle</strong>Use all three facts to ask for the name.</span></label>
-            <div class="generation-total"><span>Draft cards</span><strong id="generationCount">576</strong></div>
-            <button id="generateCards" class="button primary full">Shape these cards</button>
+            <div class="generation-total"><span>Ready cards</span><strong id="generationCount">576</strong></div>
+            <button id="generateCards" class="button primary full">Build the ready set</button>
           </aside>
         </div>
       </section>
@@ -4215,7 +4224,7 @@
 
         <section class="planner-boundary" aria-label="How Syllabloom and Anki share scheduling">
           <img src="assets/syllabloom-mascot-calendar.webp" width="1200" height="1200" alt="The Syllabloom companion placing class dates on a calendar and feeding new cards into Anki" />
-          <div><strong>Syllabloom fills the queue. Anki schedules the card.</strong><span>The agent chooses what new material to prepare before each deadline. Your Anki preset and review answers control when accepted cards return.</span></div>
+          <div><strong>Syllabloom fills the queue. Anki schedules the card.</strong><span>The agent chooses what new material to prepare before each deadline. Your Anki preset and review answers control when ready cards return.</span></div>
         </section>
 
         <div class="planner-layout">
@@ -4345,7 +4354,7 @@
           <div>
             <span id="billingTierBadge" class="tier-badge">Free</span>
             <h2 id="billingCurrentHeading">Your current plan</h2>
-            <p id="billingCurrentDescription">You have 1 active class and can export approved cards to Anki.</p>
+            <p id="billingCurrentDescription">You have 1 active class and can export ready cards to Anki.</p>
           </div>
           <div class="billing-current-price"><strong id="billingCurrentPrice">$0</strong><span id="billingCurrentCadence">forever</span></div>
           <button id="billingManageAccount" class="button" type="button">Payment &amp; statements</button>
@@ -4373,34 +4382,34 @@
       <section id="cards" class="page">
         <div class="page-head">
           <div>
-            <h1>A quick card check.</h1>
-            <p id="reviewPageDescription" class="page-description">Nothing reaches Anki until you approve it.</p>
+            <h1>Your cards are ready.</h1>
+            <p id="reviewPageDescription" class="page-description">Use the set now, or look through anything you want to change.</p>
           </div>
         </div>
 
         <section id="lectureDraftSection" class="lecture-draft-section" hidden>
           <div class="draft-queue-head">
-            <div><h2>From your latest source</h2><p>Edit the wording, check the cited slide or lecture, then accept it or leave it out.</p></div>
-            <span id="lectureDraftCount" class="status">0 waiting</span>
+            <div><h2>From your latest source</h2><p>These cards are usable now. Edit the wording or leave out anything you do not want.</p></div>
+            <span id="lectureDraftCount" class="status">0 ready</span>
           </div>
           <div id="lectureDraftQueue" class="lecture-draft-queue"></div>
         </section>
 
         <section id="reviewEmpty" class="review-empty character-story-panel">
-          <img class="review-empty-mascot character-cutout" src="assets/syllabloom-mascot-detective.webp" width="1200" height="1200" alt="The Syllabloom companion looking for new lecture card drafts" />
-          <div><h2>No lecture cards yet.</h2><p>Record a class or import a lecture. Drafts will land here for a quick check.</p></div>
+          <img class="review-empty-mascot character-cutout" src="assets/syllabloom-mascot-detective.webp" width="1200" height="1200" alt="The Syllabloom companion looking for new lecture cards" />
+          <div><h2>No lecture cards yet.</h2><p>Record a class or import a lecture. Your ready set will appear here.</p></div>
           <button class="button primary" data-go="capture">Record or import a lecture</button>
         </section>
 
         <div class="review-footer-actions">
-          <button id="studyAccepted" class="button" data-go="study" disabled>Study accepted cards</button>
+          <button id="studyAccepted" class="button" data-go="study" disabled>Study this set here</button>
           <button id="toggleClassCards" class="text-button">Open the full class card library</button>
         </div>
 
         <section class="anki-export-bar" aria-labelledby="ankiExportHeading">
-          <img class="anki-export-mascot character-cutout" src="assets/rounds-mascot-anki.webp" width="900" height="900" alt="The Syllabloom companion carrying an approved set toward Anki" />
-          <div class="anki-export-copy"><span id="approvedSetCount">0 accepted</span><h2 id="ankiExportHeading">Send this set to Anki</h2><p id="ankiExportSummary">Human Anatomy, Syllabloom FSRS, 20 new cards per day</p></div>
-          <div class="anki-export-actions"><button id="openAnkiSettings" class="button" type="button">Edit Anki settings</button><button id="exportAnki" class="button primary" disabled>Export this set</button></div>
+          <img class="anki-export-mascot character-cutout" src="assets/rounds-mascot-anki.webp" width="900" height="900" alt="The Syllabloom companion carrying a ready set toward Anki" />
+          <div class="anki-export-copy"><span id="approvedSetCount">0 ready</span><h2 id="ankiExportHeading">Export ready cards to Anki</h2><p id="ankiExportSummary">Human Anatomy, Syllabloom FSRS, 20 new cards per day</p></div>
+          <div class="anki-export-actions"><button id="openAnkiSettings" class="button" type="button">Edit Anki settings</button><button id="exportAnki" class="button primary" disabled>Export to Anki</button></div>
         </section>
 
         <div id="classCardWorkspace" class="surface card-workspace" hidden>
@@ -4419,7 +4428,7 @@
           <article class="card-editor">
             <div class="editor-head">
               <div><h2 id="editorMuscle">Anterior auricularis</h2><p id="editorLocation">Muscles of facial expression</p></div>
-              <span id="editorStatus" class="status">Draft</span>
+              <span id="editorStatus" class="status">Ready</span>
             </div>
 
             <div class="edit-field">
@@ -4444,7 +4453,7 @@
               <button id="skipCard" class="button danger">Skip card</button>
               <div class="editor-actions-right">
                 <button id="saveCard" class="button">Save changes</button>
-                <button id="approveCard" class="button primary">Approve and next</button>
+                <button id="approveCard" class="button primary">Keep and next</button>
               </div>
             </div>
           </article>
@@ -4462,7 +4471,7 @@
           </div>
 
           <section id="studyEmpty" class="study-empty" hidden>
-            <div><h2>No cards to study yet.</h2><p>Add a lecture or course file, then approve the cards you want to keep.</p></div>
+            <div><h2>No cards to study yet.</h2><p>Add a lecture or course file. Source-matched cards will be ready to study here.</p></div>
             <button class="button primary" type="button" data-go="source">Add class material</button>
           </section>
 
@@ -4552,7 +4561,7 @@
 
       <section class="anki-settings-intro">
         <img src="assets/rounds-mascot-anki.webp" width="900" height="900" alt="The Syllabloom companion packing flashcards for Anki" />
-        <div><strong id="ankiSettingsCardCount">0 accepted cards</strong><span id="ankiSettingsDestination">Human Anatomy</span><p>Syllabloom decides which new cards are ready. Anki and FSRS decide every return date after import.</p></div>
+        <div><strong id="ankiSettingsCardCount">0 ready cards</strong><span id="ankiSettingsDestination">Human Anatomy</span><p>Syllabloom decides which new cards are ready. Anki and FSRS decide every return date after import.</p></div>
       </section>
 
       <section class="anki-learning-map" aria-labelledby="ankiLearningMapTitle">
@@ -4564,7 +4573,7 @@
           <article class="anki-learning-lane syllabloom-lane">
             <span class="anki-lane-step">Before export</span>
             <h3>Syllabloom chooses what is new</h3>
-            <p>It ranks approved cards using the syllabus, the next deadline, your weak topics, and the time you have today.</p>
+            <p>It ranks ready cards using the syllabus, the next deadline, your weak topics, and the time you have today.</p>
             <label for="ankiReleaseStrategy">Prioritize new cards by<select id="ankiReleaseStrategy" class="text-input"><option value="weakest-deadline">Weakest plus deadline</option><option value="weakest">Weakest first</option><option value="syllabus">Syllabus order</option><option value="recent-source">Most recent source</option></select></label>
           </article>
           <article class="anki-learning-lane anki-lane">
@@ -4738,7 +4747,7 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="muscle-data.js?v=20260921-loop"></script>
   <script src="auth.js?v=20260921-account-polish-2"></script>
-  <script src="app.js?v=20260921-account-polish-2"></script>
+  <script src="app.js?v=20260921-ready-cards-1"></script>
   <script type="module" src="motion-effects.js?v=20260921-motion-smooth-2"></script>
 </body>
 </html>

@@ -464,7 +464,7 @@
     const approved = collectApprovedCards().length;
     const fullDeck = fullAnkiDeckName();
     const summary = `${fullDeck}, ${state.anki.presetName}, ${state.anki.newPerDay} new cards per day`;
-    const approvedLabel = `${approved} accepted card${approved === 1 ? '' : 's'}`;
+    const approvedLabel = `${approved} ready card${approved === 1 ? '' : 's'}`;
     const count = document.querySelector('#approvedSetCount');
     const exportSummary = document.querySelector('#ankiExportSummary');
     const settingsCount = document.querySelector('#ankiSettingsCardCount');
@@ -602,7 +602,7 @@
     document.querySelector('#billingTierBadge').textContent = tierName;
     document.querySelector('#billingCurrentDescription').textContent = studentPlan
       ? 'Unlimited classes and 20 live lecture hours are active on this account.'
-      : 'You have 1 active class and can export approved cards to Anki.';
+      : 'You have 1 active class and can export ready cards to Anki.';
     document.querySelector('#billingCurrentPrice').textContent = studentPlan ? '$9' : '$0';
     document.querySelector('#billingCurrentCadence').textContent = studentPlan ? 'per month, billed yearly' : 'forever';
     document.querySelector('#billingManageAccount').textContent = state.account.signedIn ? 'Payment & statements' : 'Sign in to manage';
@@ -723,7 +723,7 @@
       2: ['assets/syllabloom-mascot-materials.webp', 'The Syllabloom companion checking a syllabus and class documents'],
       3: ['assets/syllabloom-mascot-materials.webp', 'The Syllabloom companion organizing class materials'],
       4: ['assets/syllabloom-mascot-detective.webp', 'The Syllabloom companion looking closely for gaps in your knowledge'],
-      5: ['assets/rounds-mascot-anki.webp', 'The Syllabloom companion packing approved cards for Anki'],
+      5: ['assets/rounds-mascot-anki.webp', 'The Syllabloom companion packing ready cards for Anki'],
       6: ['assets/rounds-mascot-celebrate.webp', 'The Syllabloom companion celebrating a finished class setup']
     };
     state.setupStep = Math.max(1, Math.min(6, step));
@@ -786,6 +786,8 @@
     document.querySelector('#currentClassTerm').textContent = term;
     document.querySelectorAll('[data-class-name]').forEach(element => { element.textContent = className; });
     document.querySelector('#classSwitcher').setAttribute('aria-label', `Open ${className} class materials`);
+    const recordingTitle = document.querySelector('#recordingTitle');
+    if (recordingTitle && (!mediaRecorder || mediaRecorder.state === 'inactive')) recordingTitle.value = defaultRecordingTitle();
   }
 
   function persistClassProfile() {
@@ -958,7 +960,8 @@
     const filtered = filteredRecords();
     const list = document.querySelector('#muscleList');
     list.innerHTML = filtered.map(record => {
-      const status = state.statuses[keyFor(record)] || 'Draft';
+      const storedStatus = state.statuses[keyFor(record)] || 'Draft';
+      const status = storedStatus === 'Approved' ? 'Ready' : storedStatus;
       return `<button class="muscle-button ${record.id === state.selectedId ? 'active' : ''}" data-id="${record.id}">
         <strong>${record.muscle}</strong><span>${fieldLabels[state.field]} · ${status}</span>
       </button>`;
@@ -983,7 +986,8 @@
 
     document.querySelector('#editorMuscle').textContent = record.muscle;
     document.querySelector('#editorLocation').textContent = location;
-    document.querySelector('#editorStatus').textContent = state.statuses[key] || 'Draft';
+    const storedStatus = state.statuses[key] || 'Draft';
+    document.querySelector('#editorStatus').textContent = storedStatus === 'Approved' ? 'Ready' : storedStatus;
     document.querySelector('#frontText').value = edit.front || questionFor(record, state.field);
     document.querySelector('#backText').value = edit.back || answerFor(record, state.field);
     autoSizeTextArea(document.querySelector('#frontText'));
@@ -1203,7 +1207,7 @@
         front: card.front,
         back: card.back,
         tags: `${state.anki.tags} ${card.slideNumber ? 'slides-draft' : 'lecture-draft'} ${String(card.section || 'lecture').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-        source: card.source || (card.status === 'provisional' ? 'Lecture transcript · student approved' : 'Lecture + class source')
+        source: card.source || (card.status === 'provisional' ? 'Lecture transcript · student checked' : 'Lecture + class source')
       });
     });
     return approved;
@@ -1213,7 +1217,7 @@
     const approved = collectApprovedCards();
 
     if (!approved.length) {
-      showToast('Approve at least one card before exporting');
+      showToast('No ready cards to export yet');
       return;
     }
     const exportButton = document.querySelector('#exportAnki');
@@ -1241,11 +1245,11 @@
       link.click();
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-      showToast(`${approved.length} approved card${approved.length === 1 ? '' : 's'} exported to Anki`);
+      showToast(`${approved.length} ready card${approved.length === 1 ? '' : 's'} exported to Anki`);
     } catch (error) {
       showToast(error.message);
     } finally {
-      exportButton.textContent = 'Export this set';
+      exportButton.textContent = 'Export to Anki';
       updateReviewSurface();
     }
   }
@@ -1290,6 +1294,9 @@
   let lectureMarkers = [];
   let captureAudioUrl = null;
   let libraryMediaUrl = null;
+  let libraryMediaId = null;
+  let editingMediaId = null;
+  let activeRecordingTitle = '';
   let lastTranscript = '';
   const MEDIA_DATABASE = 'syllabloom-media';
   const MEDIA_STORE = 'lectures';
@@ -1375,13 +1382,14 @@
     return type.startsWith('video/') || (!type.startsWith('audio/') && /\.(mp4|mov|m4v)$/i.test(item.name || ''));
   }
 
-  async function saveMediaAsset(blob, filename, origin, markers = []) {
+  async function saveMediaAsset(blob, filename, origin, markers = [], title = '') {
     if (!blob?.size) throw new Error('This media file is empty.');
     if (blob.size > MAX_MEDIA_BYTES) throw new Error('Keep each lecture under 500 MB for the browser beta.');
     const asset = {
       id: crypto.randomUUID ? crypto.randomUUID() : `media-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       owner: currentMediaOwner(),
       name: filename || `lecture-${Date.now()}.webm`,
+      title: cleanLectureTitle(title || lectureName(filename)),
       type: blob.type || 'application/octet-stream',
       size: blob.size,
       createdAt: Date.now(),
@@ -1399,6 +1407,7 @@
   function closeMediaPreview() {
     if (libraryMediaUrl) URL.revokeObjectURL(libraryMediaUrl);
     libraryMediaUrl = null;
+    libraryMediaId = null;
     const audio = document.querySelector('#libraryAudio');
     const video = document.querySelector('#libraryVideo');
     audio.pause();
@@ -1414,12 +1423,13 @@
     const item = await getMediaAsset(id);
     if (!item) throw new Error('This lecture is no longer available for this account.');
     closeMediaPreview();
+    libraryMediaId = id;
     libraryMediaUrl = URL.createObjectURL(item.blob);
     const video = mediaLooksLikeVideo(item);
     const player = document.querySelector(video ? '#libraryVideo' : '#libraryAudio');
     player.src = libraryMediaUrl;
     player.hidden = false;
-    document.querySelector('#mediaPlayerTitle').textContent = item.name;
+    document.querySelector('#mediaPlayerTitle').textContent = mediaDisplayTitle(item);
     document.querySelector('#mediaLibraryPlayer').hidden = false;
   }
 
@@ -1441,12 +1451,15 @@
       list.innerHTML = items.length ? items.map(item => {
         const date = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(item.createdAt));
         const mediaLabel = mediaLooksLikeVideo(item) ? 'Video' : 'Audio';
-        return `<article class="media-library-item">
+        const isEditing = editingMediaId === item.id;
+        const title = mediaDisplayTitle(item);
+        return `<article class="media-library-item${isEditing ? ' is-renaming' : ''}">
           <span class="media-kind" aria-hidden="true">${mediaLooksLikeVideo(item) ? '▶' : '♫'}</span>
-          <div><strong>${escapeHtml(item.name)}</strong><span>${mediaLabel} · ${formatFileSize(item.size)} · ${escapeHtml(item.className || 'Class')}</span><small>${item.origin === 'recording' ? 'Recorded' : 'Uploaded'} ${escapeHtml(date)}</small></div>
-          <div class="media-library-actions"><button type="button" data-open-media="${escapeHtml(item.id)}">Play</button><button type="button" data-delete-media="${escapeHtml(item.id)}">Remove</button></div>
+          ${isEditing ? `<form class="media-rename-form" data-rename-form="${escapeHtml(item.id)}"><label for="rename-${escapeHtml(item.id)}">Lecture name</label><input id="rename-${escapeHtml(item.id)}" name="title" maxlength="100" value="${escapeHtml(title)}" required /><span><button type="submit">Save name</button><button type="button" data-cancel-rename>Cancel</button></span></form>` : `<div><strong>${escapeHtml(title)}</strong><span>${mediaLabel} · ${formatFileSize(item.size)} · ${escapeHtml(item.className || 'Class')}</span><small>${item.origin === 'recording' ? 'Recorded' : 'Uploaded'} ${escapeHtml(date)}</small></div>`}
+          <div class="media-library-actions"${isEditing ? ' hidden' : ''}><button type="button" data-open-media="${escapeHtml(item.id)}">Play</button><button type="button" data-rename-media="${escapeHtml(item.id)}">Rename</button><button type="button" data-delete-media="${escapeHtml(item.id)}">Remove</button></div>
         </article>`;
       }).join('') : '<div class="media-library-empty"><strong>No saved lectures yet</strong><span>Start recording or upload an audio or video file.</span></div>';
+      if (editingMediaId) window.requestAnimationFrame(() => list.querySelector('[data-rename-form] input')?.select());
     } catch (error) {
       summary.textContent = 'Storage is unavailable';
       list.classList.add('is-empty');
@@ -1481,6 +1494,35 @@
       return word.charAt(0).toUpperCase() + word.slice(1);
     }).join(' ');
     return title.replace(/\s+CC by \d+(?:\.\d+)?$/i, '');
+  }
+
+  function cleanLectureTitle(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 100);
+  }
+
+  function mediaDisplayTitle(item) {
+    return cleanLectureTitle(item?.title) || lectureName(item?.name);
+  }
+
+  function defaultRecordingTitle() {
+    const date = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date());
+    return `${state.className || 'Class'} lecture, ${date}`;
+  }
+
+  function recordingFilename(title, type = '') {
+    const extension = String(type).includes('mp4') ? 'm4a' : 'webm';
+    const slug = cleanLectureTitle(title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'lecture';
+    return `${slug}-${Date.now()}.${extension}`;
+  }
+
+  async function updateMediaAssetTitle(id, title) {
+    const item = await getMediaAsset(id);
+    if (!item) throw new Error('This lecture is no longer available for this account.');
+    item.title = cleanLectureTitle(title);
+    item.updatedAt = Date.now();
+    await mediaStoreWrite(store => store.put(item));
+    if (libraryMediaId === id) document.querySelector('#mediaPlayerTitle').textContent = item.title;
+    return item;
   }
 
   function drawWaveform(points = []) {
@@ -1594,7 +1636,11 @@
         sourceKey: lectureCardKey(card),
         front: existing?.front || card.front,
         back: existing?.back || card.back,
-        reviewStatus: existing?.reviewStatus || 'waiting'
+        reviewStatus: existing?.reviewStatus === 'skipped'
+          ? 'skipped'
+          : existing?.reviewStatus === 'approved' || card.status !== 'provisional'
+            ? 'approved'
+            : 'waiting'
       };
     });
     document.querySelector('#audioCardCountInline').textContent = state.lectureCards.length;
@@ -1606,23 +1652,25 @@
     const total = state.lectureCards.length;
     const waiting = state.lectureCards.filter(card => card.reviewStatus === 'waiting').length;
     const approved = collectApprovedCards().length;
-    document.querySelector('#reviewEmpty').hidden = total > 0;
+    document.querySelector('#reviewEmpty').hidden = total > 0 || approved > 0;
     const exportButton = document.querySelector('#exportAnki');
     const studyButton = document.querySelector('#studyAccepted');
+    const lectureExportButton = document.querySelector('#lectureExportAnki');
     exportButton.disabled = approved === 0;
     studyButton.disabled = approved === 0;
+    if (lectureExportButton) lectureExportButton.disabled = approved === 0;
     exportButton.hidden = total === 0 && approved === 0;
     studyButton.hidden = total === 0 && approved === 0;
-    document.querySelector('#homeReviewSummary').textContent = waiting
-      ? `${waiting} card${waiting === 1 ? '' : 's'} need your eyes before Anki`
-      : total
-        ? 'Your latest lecture is fully reviewed'
-        : 'No lecture cards waiting';
-    document.querySelector('#reviewPageDescription').textContent = waiting
-      ? `${waiting} card${waiting === 1 ? '' : 's'} need your eyes. Keep, tweak, or toss each one before anything reaches Anki.`
-      : total
-        ? `All ${total} cards from your latest lecture are reviewed. Export the ones you accepted whenever you are ready.`
-        : 'Nothing reaches Anki until you approve it.';
+    document.querySelector('#homeReviewSummary').textContent = total
+      ? `${approved} ready${waiting ? ` · ${waiting} need a source check` : ''}`
+      : approved
+        ? `${approved} ready from your course source`
+        : 'No lecture cards yet';
+    document.querySelector('#reviewPageDescription').textContent = total
+      ? `${approved} card${approved === 1 ? '' : 's'} are ready to study or export${waiting ? `. ${waiting} lecture-only card${waiting === 1 ? '' : 's'} need a quick check` : '. Look through the set only if you want to'}.`
+      : approved
+        ? `${approved} source-matched card${approved === 1 ? ' is' : 's are'} ready to study here or export to Anki.`
+        : 'Record or import a lecture. Anki-ready cards will appear here.';
     updateAnkiExportSurface();
   }
 
@@ -1638,7 +1686,7 @@
     section.hidden = false;
     const waiting = state.lectureCards.filter(card => card.reviewStatus === 'waiting').length;
     const approved = state.lectureCards.filter(card => card.reviewStatus === 'approved').length;
-    document.querySelector('#lectureDraftCount').textContent = `${waiting} waiting · ${approved} accepted`;
+    document.querySelector('#lectureDraftCount').textContent = `${approved} ready${waiting ? ` · ${waiting} need a check` : ''}`;
     const statusOrder = { waiting: 0, approved: 1, skipped: 2 };
     const orderedCards = [...state.lectureCards].sort((left, right) => statusOrder[left.reviewStatus] - statusOrder[right.reviewStatus]);
     queue.innerHTML = orderedCards.map((card, index) => `
@@ -1649,7 +1697,7 @@
           <label>Back<textarea data-lecture-field="back">${escapeHtml(card.back)}</textarea></label>
         </div>
         <div class="lecture-draft-actions">
-          <button class="button primary" data-lecture-action="approve">${card.reviewStatus === 'approved' ? 'Accepted' : 'Accept card'}</button>
+          <button class="button primary" data-lecture-action="approve">${card.reviewStatus === 'approved' ? 'Ready' : 'Add to ready set'}</button>
           <button class="button" data-lecture-action="skip">${card.reviewStatus === 'skipped' ? 'Left out' : 'Leave out'}</button>
         </div>
       </article>
@@ -1663,21 +1711,21 @@
     const provisional = concepts.length - verified;
     if (!concepts.length) {
       gate.className = 'source-gate waiting';
-      gate.innerHTML = '<strong>No source match yet</strong><span>The transcript is saved, but no cards enter the deck without a matched source or your approval.</span>';
+      gate.innerHTML = '<strong>No source match yet</strong><span>The transcript is saved, but no cards were created without enough course evidence.</span>';
       return;
     }
     if (verified && !provisional) {
       gate.className = 'source-gate matched';
-      gate.innerHTML = `<strong>Course source matched</strong><span>${verified} concept${verified === 1 ? '' : 's'} traced to the class library. Cards are still editable before export.</span>`;
+      gate.innerHTML = `<strong>Ready set created</strong><span>${verified} concept${verified === 1 ? '' : 's'} traced to the class library. The cards are ready now and still editable before export.</span>`;
       return;
     }
     if (verified) {
       gate.className = 'source-gate review';
-      gate.innerHTML = `<strong>Partial source match</strong><span>${verified} traced · ${provisional} lecture-only. The lecture-only set stays in review.</span>`;
+      gate.innerHTML = `<strong>Ready set with exceptions</strong><span>${verified} traced cards are ready. ${provisional} lecture-only card${provisional === 1 ? '' : 's'} need a quick check.</span>`;
       return;
     }
     gate.className = 'source-gate review';
-    gate.innerHTML = `<strong>Outside the active class source</strong><span>${provisional} lecture concept${provisional === 1 ? '' : 's'} found. These cards are quarantined until you accept them.</span>`;
+    gate.innerHTML = `<strong>Needs a source check</strong><span>${provisional} lecture concept${provisional === 1 ? '' : 's'} found outside the active class source. Add the cards you trust to the ready set.</span>`;
   }
 
   function renderLectureInsights({ concepts = [], notes = [], cards = [] }) {
@@ -1761,11 +1809,12 @@
   }
 
   async function processAudio(blob, filename, markers = [], options = {}) {
+    const displayTitle = cleanLectureTitle(options.title || lectureName(filename));
     setAudioBusy(true, 'Checking lecture file');
     document.querySelector('#transcriptPanel').classList.remove('transcript-collapsed');
     document.querySelector('#toggleTranscript').textContent = 'Hide transcript';
     document.querySelector('#lastLectureSummary').hidden = false;
-    document.querySelector('#lectureTitle').textContent = lectureName(filename);
+    document.querySelector('#lectureTitle').textContent = displayTitle;
     document.querySelector('#lectureSubtitle').textContent = `${state.className} · checking source alignment`;
     document.querySelector('#transcriptMeta').textContent = `${filename} · checking for an audio track`;
     document.querySelector('#transcriptContent').className = 'transcript-content empty';
@@ -1789,7 +1838,7 @@
     let storageError = null;
     if (options.persist !== false) {
       try {
-        await saveMediaAsset(blob, filename, options.origin || 'upload', markers);
+        await saveMediaAsset(blob, filename, options.origin || 'upload', markers, displayTitle);
       } catch (error) {
         storageError = error;
         showToast(error.message || 'The lecture could not be saved');
@@ -1802,8 +1851,8 @@
         ? `${state.className} · this file was not saved`
         : `${state.className} · saved for this account on this device`;
       document.querySelector('#transcriptMeta').textContent = storageError
-        ? `${filename} · storage failed`
-        : `${filename} · ready for playback`;
+        ? `${displayTitle} · storage failed`
+        : `${displayTitle} · ready for playback`;
       document.querySelector('#transcriptContent').innerHTML = `<div class="transcript-error media-saved-message"><strong>${storageError ? 'The media is available only in this preview.' : 'Your lecture is saved.'}</strong><span>${storageError ? escapeHtml(storageError.message) : 'Play it from your lecture library anytime. Automatic transcription and card drafting are coming next for the hosted beta.'}</span></div>`;
       document.querySelector('#recordingSafety').textContent = storageError
         ? 'Could not save this file on this device'
@@ -1863,7 +1912,9 @@
           renderWarnings(event.qualityWarnings || []);
           document.querySelector('#captureState').textContent = 'Transcript ready';
           document.querySelector('#captureTimer').textContent = clock(event.durationSeconds);
-          document.querySelector('#transcriptMeta').textContent = `${clock(event.durationSeconds)} lecture · ${event.processingSeconds}s local · ${session.cards.length} cards · review required`;
+          const readyCards = session.cards.filter(card => card.status !== 'provisional').length;
+          const checkCards = session.cards.length - readyCards;
+          document.querySelector('#transcriptMeta').textContent = `${clock(event.durationSeconds)} lecture · ${event.processingSeconds}s local · ${readyCards} cards ready${checkCards ? ` · ${checkCards} need a check` : ''}`;
           document.querySelector('#copyTranscript').disabled = false;
           drawLectureProgress(event.durationSeconds, event.durationSeconds);
           const verifiedCount = session.notes.filter(note => note.status !== 'provisional').length;
@@ -1897,7 +1948,7 @@
     const units = `${Number(sourceItem.unitCount || 0).toLocaleString()} ${sourceItem.unitLabel || 'items'}`;
     const words = `${Number(sourceItem.wordCount || 0).toLocaleString()} words`;
     const objectives = sourceItem.objectiveCount ? ` · ${sourceItem.objectiveCount} objective cues` : '';
-    const drafts = sourceItem.draftCards?.length ? ` · ${sourceItem.draftCards.length} card drafts` : '';
+    const drafts = sourceItem.draftCards?.length ? ` · ${sourceItem.draftCards.length} cards ready` : '';
     const processing = sourceItem.sample ? 'example' : (sourceItem.storage === 'session' ? 'available this session' : 'saved in this browser');
     return `${sourceItem.kind} · ${units} · ${words}${objectives}${drafts} · ${processing}`;
   }
@@ -1916,7 +1967,7 @@
   }
 
   function sourceRow(sourceItem, options = {}) {
-    const status = sourceItem.sample ? 'Example' : (sourceItem.draftCards?.length ? `${sourceItem.draftCards.length} drafts` : 'Parsed');
+    const status = sourceItem.sample ? 'Example' : (sourceItem.draftCards?.length ? `${sourceItem.draftCards.length} cards` : 'Parsed');
     const replace = options.syllabus
       ? '<label for="syllabusInput" class="button" role="button" tabindex="0">Replace</label>'
       : '';
@@ -2023,7 +2074,7 @@
         syncLectureCards(unique);
       }
       showToast(sourceCards.length
-        ? `${file.name} parsed · ${sourceCards.length} cards ready for review`
+        ? `${file.name} parsed · ${sourceCards.length} cards ready`
         : `${file.name} parsed locally`);
       return payload.source;
     } catch (error) {
@@ -2083,6 +2134,7 @@
 
   async function toggleRecording() {
     const button = document.querySelector('#recordButton');
+    const titleInput = document.querySelector('#recordingTitle');
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
       mediaRecorder.stop();
       button.classList.remove('recording');
@@ -2106,6 +2158,18 @@
       return;
     }
 
+    const requestedTitle = cleanLectureTitle(titleInput.value);
+    if (!requestedTitle) {
+      titleInput.setAttribute('aria-invalid', 'true');
+      titleInput.focus();
+      showToast('Name this lecture before recording');
+      return;
+    }
+    titleInput.removeAttribute('aria-invalid');
+    titleInput.value = requestedTitle;
+    titleInput.disabled = true;
+    activeRecordingTitle = requestedTitle;
+
     try {
       microphoneStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const chunks = [];
@@ -2118,11 +2182,18 @@
       mediaRecorder.addEventListener('dataavailable', event => {
         if (event.data.size) chunks.push(event.data);
       });
-      mediaRecorder.addEventListener('stop', () => {
+      mediaRecorder.addEventListener('stop', async () => {
         const blob = new Blob(chunks, { type: mediaRecorder.mimeType || 'audio/webm' });
         const savedMarkers = [...lectureMarkers];
+        const savedTitle = activeRecordingTitle;
         mediaRecorder = null;
-        processAudio(blob, `lecture-${Date.now()}.webm`, savedMarkers, { origin: 'recording' });
+        try {
+          await processAudio(blob, recordingFilename(savedTitle, blob.type), savedMarkers, { origin: 'recording', title: savedTitle });
+        } finally {
+          activeRecordingTitle = '';
+          titleInput.disabled = false;
+          titleInput.value = defaultRecordingTitle();
+        }
       }, { once: true });
       mediaRecorder.start(1000);
       recordingStartedAt = Date.now();
@@ -2150,6 +2221,8 @@
         ? 'Recording to your device library · screen kept awake'
         : 'Recording to your device library · keep this screen open';
     } catch (error) {
+      activeRecordingTitle = '';
+      titleInput.disabled = false;
       document.querySelector('#captureState').textContent = 'Microphone unavailable';
       showToast('Microphone access was not granted');
     }
@@ -2365,15 +2438,27 @@
   document.querySelector('#audioInput').addEventListener('change', event => {
     const file = event.target.files[0];
     if (!file) return;
-    processAudio(file, file.name, [], { origin: 'upload' });
+    processAudio(file, file.name, [], { origin: 'upload', title: lectureName(file.name) });
     event.target.value = '';
   });
   document.querySelector('#mediaLibraryList').addEventListener('click', async event => {
     const openButton = event.target.closest('[data-open-media]');
+    const renameButton = event.target.closest('[data-rename-media]');
+    const cancelRenameButton = event.target.closest('[data-cancel-rename]');
     const deleteButton = event.target.closest('[data-delete-media]');
     try {
       if (openButton) {
         await openMediaPreview(openButton.dataset.openMedia);
+        return;
+      }
+      if (renameButton) {
+        editingMediaId = renameButton.dataset.renameMedia;
+        await renderMediaLibrary();
+        return;
+      }
+      if (cancelRenameButton) {
+        editingMediaId = null;
+        await renderMediaLibrary();
         return;
       }
       if (!deleteButton) return;
@@ -2384,6 +2469,21 @@
       showToast('Lecture removed from this device');
     } catch (error) {
       showToast(error.message || 'The lecture library could not be updated');
+    }
+  });
+  document.querySelector('#mediaLibraryList').addEventListener('submit', async event => {
+    const form = event.target.closest('[data-rename-form]');
+    if (!form) return;
+    event.preventDefault();
+    const title = cleanLectureTitle(new FormData(form).get('title'));
+    if (!title) return form.querySelector('input')?.focus();
+    try {
+      await updateMediaAssetTitle(form.dataset.renameForm, title);
+      editingMediaId = null;
+      await renderMediaLibrary();
+      showToast('Lecture renamed');
+    } catch (error) {
+      showToast(error.message || 'The lecture name could not be saved');
     }
   });
   document.querySelector('#closeMediaPlayer').addEventListener('click', closeMediaPreview);
@@ -2535,7 +2635,7 @@
     card.reviewStatus = action === 'approve' ? 'approved' : 'skipped';
     saveLectureReview();
     renderLectureDraftQueue();
-    showToast(action === 'approve' ? 'Lecture card accepted' : 'Lecture card left out');
+    showToast(action === 'approve' ? 'Card added to the ready set' : 'Card left out');
   });
   document.querySelector('#reviewAudioCards').addEventListener('click', () => {
     window.setTimeout(() => document.querySelector('#lectureDraftSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
@@ -2546,16 +2646,28 @@
     if (!state.selectedTypes.length) return showToast('Choose at least one card type');
     if (!state.includeSampleMaterial) {
       const drafts = state.lectureCards.filter(card => card.reviewStatus === 'waiting').length;
+      const ready = state.lectureCards.filter(card => card.reviewStatus === 'approved').length;
+      if (ready) {
+        navigate('cards');
+        return showToast(`${ready} ready card${ready === 1 ? '' : 's'} opened`);
+      }
       if (drafts) {
         navigate('queue');
         return showToast(`${drafts} card draft${drafts === 1 ? '' : 's'} ready for review`);
       }
-      return showToast('Add a source that produces card drafts first');
+      return showToast('Add a source that produces ready cards first');
     }
+    records.forEach(record => state.selectedTypes.forEach(field => {
+      const key = keyFor(record, field);
+      if (state.statuses[key] !== 'Skipped') state.statuses[key] = 'Approved';
+    }));
     if (!state.selectedTypes.includes(state.field)) state.field = state.selectedTypes[0];
     document.querySelector('#classCardWorkspace').hidden = false;
     document.querySelector('#toggleClassCards').textContent = 'Close the full class card library';
+    updateReviewSurface();
+    renderEditor();
     navigate('cards');
+    showToast(`${collectApprovedCards().length} source-matched cards ready`);
   });
 
   document.querySelector('#toggleClassCards').addEventListener('click', () => {
@@ -2576,6 +2688,7 @@
 
   document.querySelector('#saveCard').addEventListener('click', () => saveCurrent(false));
   document.querySelector('#exportAnki').addEventListener('click', exportApprovedCards);
+  document.querySelector('#lectureExportAnki').addEventListener('click', exportApprovedCards);
   document.querySelector('#skipCard').addEventListener('click', () => {
     saveCurrent(true);
     state.statuses[keyFor(currentRecord())] = 'Skipped';
@@ -2587,7 +2700,7 @@
     saveCurrent(true);
     state.statuses[keyFor(currentRecord())] = 'Approved';
     updateReviewSurface();
-    showToast('Card approved');
+    showToast('Card kept in the ready set');
     advanceRecord();
   });
 
@@ -2652,6 +2765,7 @@
   document.querySelector('#examDateInput').value = nextExamEvent()?.date || dateAfter(12);
   document.querySelector('#calendarEventDate').value = dateAfter(1);
   document.querySelector('#profileEventDate').value = dateAfter(1);
+  document.querySelector('#recordingTitle').value = defaultRecordingTitle();
   renderClassPlanner();
   renderProfile();
   syncBillingSummary();
