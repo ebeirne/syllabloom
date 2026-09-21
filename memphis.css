@@ -80,21 +80,33 @@ body,
 .button.primary::after,
 .setup-next::after,
 #finishSetup::after {
+  content: "➜" !important;
   width: 27px;
   height: 27px;
-  background: var(--ink) !important;
-  border: 0;
-  border-radius: 8px;
-  color: var(--memphis-yellow);
-  box-shadow: none;
-  transform: rotate(-3deg);
+  background: var(--memphis-pink) !important;
+  border: 1.5px solid var(--ink);
+  border-radius: 9px 13px 10px 12px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 900;
+  box-shadow: 2px 2px 0 var(--ink);
+  transform: rotate(-5deg);
 }
 
 .marketing-link-button span {
-  background: var(--ink) !important;
-  border-radius: 8px !important;
-  color: var(--memphis-pink) !important;
-  transform: rotate(3deg);
+  background: var(--memphis-yellow) !important;
+  border: 1.5px solid var(--ink);
+  border-radius: 12px 9px 13px 10px !important;
+  color: var(--ink) !important;
+  font-size: 0;
+  box-shadow: 2px 2px 0 var(--ink);
+  transform: rotate(5deg);
+}
+
+.marketing-link-button span::before {
+  content: "➜";
+  font-size: 14px;
+  font-weight: 900;
 }
 
 .button:focus-visible,
