@@ -1,0 +1,14 @@
+.vercel/
+__pycache__/
+*.pyc
+server.*.log
+.pptx-build/
+test-output/
+test-audio/full-length-lecture-audio.m4a
+.models/
+.venv/
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db

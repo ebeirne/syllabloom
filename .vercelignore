@@ -1,0 +1,8 @@
+__pycache__
+.pptx-build
+data/sessions
+data/latest-session.json
+server.*.log
+test-audio/full-length-lecture-audio.m4a
+test-output
+*.md

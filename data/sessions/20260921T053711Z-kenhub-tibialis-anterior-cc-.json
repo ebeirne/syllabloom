@@ -1,0 +1,220 @@
+{
+  "id": "20260921T053711Z-kenhub-tibialis-anterior-cc-",
+  "savedAt": "2026-09-21T05:37:11.649891+00:00",
+  "filename": "kenhub-tibialis-anterior-cc-by-3.webm",
+  "durationSeconds": 105.0,
+  "processingSeconds": 15.75,
+  "completedAt": "2026-09-21T05:37:11.649891+00:00",
+  "transcript": "Hey everyone, it's Matt from Kenhub, and in this tutorial we will discuss the tibialis anterior muscle. The tibialis anterior muscle is a lower leg muscle that lies anteriorly, as the name suggests, and is part of a group of extensor muscles. This muscle runs mediocotally from the lateral tibia, the interosseous membrane, and crural fascia. At the height of the lower tibia, it merges into a tendon which is led by both extensor retinacula of the foot and finally inserts at the planter side of the medial cuneiform and first metatarsal bone. The tibialis anterior muscle serves as the leading muscle for the neurovascular pathway running towards the ankle, which includes the deep fibular nerve and the interior tibial artery and vein. The main task of the anterior muscles of the lower leg is the dorsal extension of the upper ankle joint. Additionally, the tibialis anterior muscle causes a weak inversion, also known as supination. This video is more fun than reading a textbook, right? If you want more videos, interactive quizzes, articles, and an atlas of human anatomy, click on the Take Me to Kenhub button. It is time to say goodbye to your old textbooks and say hello to your new anatomy learning partner, Kenhub. See you there!",
+  "segments": [
+    {
+      "start": 0.24,
+      "end": 5.8,
+      "text": "Hey everyone, it's Matt from Kenhub, and in this tutorial we will discuss the tibialis",
+      "avgLogprob": -0.144,
+      "needsReview": false
+    },
+    {
+      "start": 5.8,
+      "end": 10.66,
+      "text": "anterior muscle.",
+      "avgLogprob": -0.144,
+      "needsReview": false
+    },
+    {
+      "start": 10.66,
+      "end": 16.94,
+      "text": "The tibialis anterior muscle is a lower leg muscle that lies anteriorly, as the name suggests,",
+      "avgLogprob": -0.144,
+      "needsReview": false
+    },
+    {
+      "start": 16.94,
+      "end": 21.77,
+      "text": "and is part of a group of extensor muscles.",
+      "avgLogprob": -0.144,
+      "needsReview": false
+    },
+    {
+      "start": 21.77,
+      "end": 30.17,
+      "text": "This muscle runs mediocotally from the lateral tibia, the interosseous membrane,",
+      "avgLogprob": -0.144,
+      "needsReview": false
+    },
+    {
+      "start": 30.17,
+      "end": 33.7,
+      "text": "and crural fascia.",
+      "avgLogprob": -0.144,
+      "needsReview": false
+    },
+    {
+      "start": 33.7,
+      "end": 38.76,
+      "text": "At the height of the lower tibia, it merges into a tendon which is led by both extensor",
+      "avgLogprob": -0.108,
+      "needsReview": false
+    },
+    {
+      "start": 38.76,
+      "end": 46.18,
+      "text": "retinacula of the foot and finally inserts at the planter side of the medial cuneiform",
+      "avgLogprob": -0.108,
+      "needsReview": false
+    },
+    {
+      "start": 46.18,
+      "end": 51.0,
+      "text": "and first metatarsal bone.",
+      "avgLogprob": -0.108,
+      "needsReview": false
+    },
+    {
+      "start": 51.0,
+      "end": 55.88,
+      "text": "The tibialis anterior muscle serves as the leading muscle for the neurovascular pathway",
+      "avgLogprob": -0.108,
+      "needsReview": false
+    },
+    {
+      "start": 55.88,
+      "end": 61.36,
+      "text": "running towards the ankle, which includes the deep fibular nerve and the interior",
+      "avgLogprob": -0.108,
+      "needsReview": false
+    },
+    {
+      "start": 61.36,
+      "end": 65.24,
+      "text": "tibial artery and vein.",
+      "avgLogprob": -0.108,
+      "needsReview": false
+    },
+    {
+      "start": 65.24,
+      "end": 69.68,
+      "text": "The main task of the anterior muscles of the lower leg is the dorsal extension of the",
+      "avgLogprob": -0.142,
+      "needsReview": false
+    },
+    {
+      "start": 69.68,
+      "end": 71.16,
+      "text": "upper ankle joint.",
+      "avgLogprob": -0.142,
+      "needsReview": false
+    },
+    {
+      "start": 71.16,
+      "end": 81.95,
+      "text": "Additionally, the tibialis anterior muscle causes a weak inversion, also known as supination.",
+      "avgLogprob": -0.142,
+      "needsReview": false
+    },
+    {
+      "start": 81.95,
+      "end": 85.37,
+      "text": "This video is more fun than reading a textbook, right?",
+      "avgLogprob": -0.142,
+      "needsReview": false
+    },
+    {
+      "start": 85.37,
+      "end": 91.59,
+      "text": "If you want more videos, interactive quizzes, articles, and an atlas of human anatomy,",
+      "avgLogprob": -0.142,
+      "needsReview": false
+    },
+    {
+      "start": 91.59,
+      "end": 94.37,
+      "text": "click on the Take Me to Kenhub button.",
+      "avgLogprob": -0.142,
+      "needsReview": false
+    },
+    {
+      "start": 94.37,
+      "end": 99.13,
+      "text": "It is time to say goodbye to your old textbooks and say hello to your new anatomy learning",
+      "avgLogprob": -0.23,
+      "needsReview": false
+    },
+    {
+      "start": 99.13,
+      "end": 101.13,
+      "text": "partner, Kenhub.",
+      "avgLogprob": -0.23,
+      "needsReview": false
+    },
+    {
+      "start": 101.13,
+      "end": 101.65,
+      "text": "See you there!",
+      "avgLogprob": -0.23,
+      "needsReview": false
+    }
+  ],
+  "concepts": [
+    {
+      "name": "Tibialis anterior",
+      "status": "verified"
+    }
+  ],
+  "notes": [
+    {
+      "title": "Tibialis anterior",
+      "section": "MUSCLES ACTING ON THE LEG, ANKLE AND FOOT",
+      "heardAt": 5.8,
+      "lines": [
+        "Attachments: Lateral condyle of tibia, lateral margin of tibia and interosseous membrane to medial cuneiform and first metatarsal",
+        "Action: Dorsiflexes and inverts foot",
+        "Innervation: Deep fibular (peroneal)"
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "muscle": "Tibialis anterior",
+      "field": "attachment",
+      "front": "What are the attachments of Tibialis anterior?",
+      "back": "Lateral condyle of tibia, lateral margin of tibia and interosseous membrane to medial cuneiform and first metatarsal",
+      "section": "MUSCLES ACTING ON THE LEG, ANKLE AND FOOT",
+      "source": "List of muscles_Fall 2023.docx"
+    },
+    {
+      "muscle": "Tibialis anterior",
+      "field": "action",
+      "front": "What is the action of Tibialis anterior?",
+      "back": "Dorsiflexes and inverts foot",
+      "section": "MUSCLES ACTING ON THE LEG, ANKLE AND FOOT",
+      "source": "List of muscles_Fall 2023.docx"
+    },
+    {
+      "muscle": "Tibialis anterior",
+      "field": "innervation",
+      "front": "What is the innervation of Tibialis anterior?",
+      "back": "Deep fibular (peroneal)",
+      "section": "MUSCLES ACTING ON THE LEG, ANKLE AND FOOT",
+      "source": "List of muscles_Fall 2023.docx"
+    }
+  ],
+  "qualityWarnings": [
+    {
+      "time": 16.94,
+      "term": "mediocotally",
+      "message": "Unrecognized anatomical term; compare this phrase with the lecture audio."
+    },
+    {
+      "time": 33.7,
+      "term": "planter",
+      "message": "Possible anatomy term: “planter” may be “plantar”."
+    },
+    {
+      "time": 55.88,
+      "term": "interior tibial",
+      "message": "Possible vessel name: “interior tibial” may be “anterior tibial”."
+    }
+  ],
+  "sourceMatch": "matched"
+}

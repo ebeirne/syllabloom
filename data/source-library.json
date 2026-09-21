@@ -1,0 +1,145 @@
+[
+  {
+    "id": "6915eff11aa4",
+    "name": "List of muscles_Fall 2023.docx",
+    "kind": "material",
+    "format": "DOCX",
+    "wordCount": 4242,
+    "unitLabel": "paragraphs",
+    "unitCount": 810,
+    "headings": [
+      "THE MUSCULAR SYSTEM",
+      "MUSCLES OF FACIAL EXPRESSION",
+      "MUSCLES OF MASTICATION",
+      "SUPRAHYOID GROUP:",
+      "INFRAHYOID GROUP:",
+      "MUSCLES ACTING ON VERTEBRAL COLUMN",
+      "MUSCLES OF THORAX",
+      "MUSCLES OF ABDOMINAL WALL"
+    ],
+    "objectiveCount": 0,
+    "preview": [
+      "THE MUSCULAR SYSTEM",
+      "MUSCLES OF FACIAL EXPRESSION",
+      "Anterior auricularis",
+      "Galea aponeurosis to cartilage of auricle",
+      "Draws auricle anteriorly and superiorly"
+    ],
+    "fingerprint": "6915eff11aa4c9f36526a0c824441b48031cb6767213be1b3b5b0aed8d130fad",
+    "addedAt": "2026-09-21T05:36:04.004272+00:00",
+    "localOnly": true
+  },
+  {
+    "id": "0d69d8fb8c9e",
+    "name": "rounds-medical-slide-import-test.pptx",
+    "kind": "material",
+    "format": "PPTX",
+    "wordCount": 230,
+    "unitLabel": "slides",
+    "unitCount": 5,
+    "headings": [
+      "ROUNDS",
+      "LOWER LIMB ANATOMY",
+      "SOURCE SIGNALS",
+      "ROUNDS",
+      "ANTERIOR LEG COMPARTMENT",
+      "ATTACHMENT",
+      "ACTION",
+      "INNERVATION"
+    ],
+    "objectiveCount": 2,
+    "preview": [
+      "Slide 1",
+      "ROUNDS",
+      "LOWER LIMB ANATOMY",
+      "01",
+      "Anterior compartment of the leg"
+    ],
+    "draftCards": [
+      {
+        "front": "Where does Tibialis anterior attach?",
+        "back": "Lateral condyle of tibia, lateral margin of tibia and interosseous membrane to medial cuneiform and first metatarsal",
+        "field": "attachment",
+        "section": "Anterior Leg Compartment",
+        "status": "verified",
+        "source": "rounds-medical-slide-import-test.pptx · Slide 2",
+        "slideNumber": 2
+      },
+      {
+        "front": "What is the action of Tibialis anterior?",
+        "back": "Dorsiflexes and inverts foot",
+        "field": "action",
+        "section": "Anterior Leg Compartment",
+        "status": "verified",
+        "source": "rounds-medical-slide-import-test.pptx · Slide 2",
+        "slideNumber": 2
+      },
+      {
+        "front": "What innervates Tibialis anterior?",
+        "back": "Deep fibular (peroneal)",
+        "field": "innervation",
+        "section": "Anterior Leg Compartment",
+        "status": "verified",
+        "source": "rounds-medical-slide-import-test.pptx · Slide 2",
+        "slideNumber": 2
+      },
+      {
+        "front": "Where does Extensor digitorum longus attach?",
+        "back": "Lateral condyle of tibia, shaft of fibula and interosseous membrane to middle and distal phalanges II–V",
+        "field": "attachment",
+        "section": "Anterior Leg Compartment",
+        "status": "verified",
+        "source": "rounds-medical-slide-import-test.pptx · Slide 3",
+        "slideNumber": 3
+      },
+      {
+        "front": "What is the action of Extensor digitorum longus?",
+        "back": "Extends toes and dorsiflexes foot",
+        "field": "action",
+        "section": "Anterior Leg Compartment",
+        "status": "verified",
+        "source": "rounds-medical-slide-import-test.pptx · Slide 3",
+        "slideNumber": 3
+      },
+      {
+        "front": "What innervates Extensor digitorum longus?",
+        "back": "Deep fibular (peroneal)",
+        "field": "innervation",
+        "section": "Anterior Leg Compartment",
+        "status": "verified",
+        "source": "rounds-medical-slide-import-test.pptx · Slide 3",
+        "slideNumber": 3
+      },
+      {
+        "front": "Where does Extensor hallucis longus attach?",
+        "back": "Anterior surface of middle fibula and interosseous membrane to distal phalanx I",
+        "field": "attachment",
+        "section": "Anterior Leg Compartment",
+        "status": "verified",
+        "source": "rounds-medical-slide-import-test.pptx · Slide 4",
+        "slideNumber": 4
+      },
+      {
+        "front": "What is the action of Extensor hallucis longus?",
+        "back": "Extends great toe and dorsiflexes foot",
+        "field": "action",
+        "section": "Anterior Leg Compartment",
+        "status": "verified",
+        "source": "rounds-medical-slide-import-test.pptx · Slide 4",
+        "slideNumber": 4
+      },
+      {
+        "front": "What innervates Extensor hallucis longus?",
+        "back": "Deep fibular (peroneal)",
+        "field": "innervation",
+        "section": "Anterior Leg Compartment",
+        "status": "verified",
+        "source": "rounds-medical-slide-import-test.pptx · Slide 4",
+        "slideNumber": 4
+      }
+    ],
+    "fingerprint": "0d69d8fb8c9efff0d70a788cfd198d435dc8658e5cf24c8901fa128c51a92107",
+    "addedAt": "2026-09-21T10:45:07.088190+00:00",
+    "localOnly": true
+  }
+]
