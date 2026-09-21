@@ -971,6 +971,15 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
                 }
             )
             return
+        if request_path == "/api/auth-config":
+            publishable_key = os.environ.get("CLERK_PUBLISHABLE_KEY", "").strip()
+            self.send_json(
+                {
+                    "configured": publishable_key.startswith("pk_"),
+                    "publishableKey": publishable_key,
+                }
+            )
+            return
         if request_path == "/api/sources":
             self.send_json({"sources": read_source_library()})
             return

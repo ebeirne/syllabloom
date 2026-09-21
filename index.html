@@ -3514,9 +3514,10 @@
         <a href="#how-it-works">How it works</a>
         <a href="#anki-first">Anki</a>
         <a href="#made-for-class">For every class</a>
+        <a href="#pricing">Pricing</a>
       </nav>
       <div class="marketing-nav-actions">
-        <button class="marketing-text-button" data-open-sample>Open sample class</button>
+        <button class="marketing-text-button marketing-sign-in" data-auth-open>Sign in</button>
         <button class="button primary marketing-get-started" data-start-onboarding>Get started</button>
       </div>
     </header>
@@ -3635,6 +3636,45 @@
             <p>A short baseline and every later answer refine the next session.</p>
           </article>
         </div>
+      </section>
+
+      <section id="pricing" class="pricing-section" aria-labelledby="pricingTitle">
+        <div class="pricing-heading">
+          <div>
+            <h2 id="pricingTitle">One class is free. Make it count.</h2>
+            <p>Use the full class-to-Anki loop before paying. Upgrade when Syllabloom earns a place in the rest of your semester.</p>
+          </div>
+          <div class="pricing-note">
+            <img class="pricing-companion character-cutout" src="assets/rounds-mascot-celebrate.webp" width="900" height="900" loading="lazy" decoding="async" alt="The Syllabloom companion holding finished study cards" />
+            <span>Built for student budgets</span>
+          </div>
+        </div>
+        <div class="pricing-board">
+          <article class="price-plan price-plan-free">
+            <header><div><h3>Free</h3><p>Your hardest class, start to finish.</p></div><strong>$0</strong></header>
+            <ul>
+              <li>1 active class</li>
+              <li>Slides, documents, and syllabus mapping</li>
+              <li>Editable cards and Anki export</li>
+              <li>60 live lecture minutes each month</li>
+            </ul>
+            <button class="button price-action" data-start-onboarding>Start my free class</button>
+          </article>
+          <article class="price-plan price-plan-plus">
+            <header><div><h3>Student</h3><p>Your whole course load in one loop.</p></div><div class="price-amount"><strong>$9</strong><span>per month<br />billed yearly</span></div></header>
+            <ul>
+              <li>Unlimited active classes</li>
+              <li>20 live lecture hours each month</li>
+              <li>Unlimited slide and document imports</li>
+              <li>Class calendar, weak-topic plan, and Anki presets</li>
+            </ul>
+            <div class="price-plan-footer">
+              <button class="button primary price-action" data-auth-open>Join the beta</button>
+              <span>$12 month to month</span>
+            </div>
+          </article>
+        </div>
+        <p class="pricing-footnote">No card required for the free class. Lecture limits keep transcription costs predictable while card editing and Anki export stay useful.</p>
       </section>
 
       <section class="marketing-final-cta">
@@ -3780,7 +3820,12 @@
   <div id="mainApp" class="app" inert aria-hidden="true">
     <aside class="sidebar">
       <button class="brand brand-button" data-back-home aria-label="Back to Syllabloom home"><span class="brand-mark"><img src="assets/syllabloom-mark.svg" width="48" height="48" alt="" /></span><span>Syllabloom</span></button>
-      <button id="classSwitcher" class="class-switcher"><span><strong id="currentClassName">Human Anatomy</strong><span id="currentClassTerm">Fall 2023</span></span><b>⌄</b></button>
+      <button id="classSwitcher" class="class-switcher" aria-label="Open Human Anatomy class materials">
+        <span><strong id="currentClassName">Human Anatomy</strong><span id="currentClassTerm">Fall 2023</span></span>
+        <span class="class-switcher-arrow" aria-hidden="true">
+          <svg viewBox="0 0 28 28" role="presentation"><path d="M7.5 11.2 14 17l6.5-5.8" /></svg>
+        </span>
+      </button>
       <nav aria-label="Main navigation">
         <button class="nav-button active" data-view="home"><small>01</small><span>Today</span></button>
         <button class="nav-button" data-view="capture"><small>02</small><span>Lecture</span></button>
@@ -4482,8 +4527,48 @@
     </form>
   </dialog>
 
+  <dialog id="classLimitDialog" class="account-dialog class-limit-dialog" aria-labelledby="classLimitTitle">
+    <div class="account-dialog-shell">
+      <button class="dialog-close account-dialog-close" type="button" data-close-class-limit aria-label="Close class limit message">Close</button>
+      <div class="account-dialog-art" aria-hidden="true">
+        <img class="character-cutout" src="assets/rounds-mascot-anki.webp" width="900" height="900" alt="" />
+      </div>
+      <div class="account-dialog-copy">
+        <span class="account-kicker">Your free class is in use</span>
+        <h1 id="classLimitTitle">Keep this class free, or bring the whole semester.</h1>
+        <p>The Free plan includes one complete class. Student unlocks unlimited classes without changing your Anki workflow.</p>
+        <div class="class-limit-meter"><span><b></b></span><strong id="classLimitReadout">1 of 1 free class used</strong></div>
+        <div class="account-dialog-actions">
+          <button class="button primary" type="button" data-see-pricing>See Student pricing</button>
+          <button class="button" type="button" data-close-class-limit>Stay with one class</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="authDialog" class="account-dialog auth-dialog" aria-labelledby="authTitle">
+    <div class="account-dialog-shell">
+      <button class="dialog-close account-dialog-close" type="button" data-close-auth aria-label="Close sign in">Close</button>
+      <div class="account-dialog-art" aria-hidden="true">
+        <img class="character-cutout" src="assets/rounds-mascot-listening.webp" width="900" height="900" alt="" />
+      </div>
+      <div class="account-dialog-copy">
+        <span class="account-kicker">No password to remember</span>
+        <h1 id="authTitle">Sign in with your email.</h1>
+        <p>We use a one-time email code. Your class, Anki settings, and study history stay attached to your account.</p>
+        <div id="clerkAuthMount" class="clerk-auth-mount" hidden></div>
+        <div id="authNotConfigured" class="auth-not-configured" role="status">
+          <strong>Email sign-in is staged for the beta.</strong>
+          <span>Connect the Clerk publishable key to send real one-time codes. This build will not pretend an email was sent.</span>
+        </div>
+        <button class="button account-dialog-secondary" type="button" data-close-auth>Keep exploring</button>
+      </div>
+    </div>
+  </dialog>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="muscle-data.js?v=20260921-loop"></script>
-  <script src="app.js?v=20260921-syllabloom-beta-4"></script>
+  <script src="auth.js?v=20260921-email-beta-1"></script>
+  <script src="app.js?v=20260921-syllabloom-beta-5"></script>
 </body>
 </html>

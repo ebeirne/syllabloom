@@ -106,7 +106,17 @@
     calendarEvents: storedJson('syllabloom-calendar-events', initialCalendarEvents),
     calendarCursor: new Date(),
     dailyStudyMinutes: 35,
-    selectedTypes: ['attachment', 'action', 'innervation']
+    selectedTypes: ['attachment', 'action', 'innervation'],
+    creatingClass: false,
+    account: {
+      signedIn: false,
+      email: '',
+      userId: '',
+      plan: 'free',
+      classLimit: 1,
+      classesUsed: 0,
+      ...storedJson('syllabloom-account', {})
+    }
   };
 
   const assessmentQuestions = [
@@ -628,8 +638,78 @@
     showSetupStep(step);
   }
 
+  function saveAccount() {
+    localStorage.setItem('syllabloom-account', JSON.stringify(state.account));
+  }
+
+  function showClassLimit() {
+    const dialog = document.querySelector('#classLimitDialog');
+    const used = Math.max(1, Number(state.account.classesUsed) || 0);
+    const limit = Math.max(1, Number(state.account.classLimit) || 1);
+    document.querySelector('#classLimitReadout').textContent = `${used} of ${limit} free class used`;
+    dialog.showModal();
+  }
+
+  function startClassSetup() {
+    const limit = state.account.plan === 'student' ? Number.MAX_SAFE_INTEGER : Math.max(1, Number(state.account.classLimit) || 1);
+    if ((Number(state.account.classesUsed) || 0) >= limit) {
+      showClassLimit();
+      return;
+    }
+    state.creatingClass = true;
+    openOnboarding(1);
+  }
+
+  function showPricing() {
+    document.querySelector('#classLimitDialog').close();
+    showLanding();
+    window.setTimeout(() => document.querySelector('#pricing').scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
+  }
+
+  function initScrollMotion() {
+    const groups = [
+      ['.marketing-statement > p', '.statement-path'],
+      ['#how-it-works .marketing-section-heading', '#how-it-works .loop-step', '#how-it-works .loop-return'],
+      ['#anki-first .anki-first-copy', '#anki-first .anki-export-demo'],
+      ['#made-for-class .marketing-section-heading', '#made-for-class .subject-strip', '#made-for-class .class-feature'],
+      ['#pricing .pricing-heading > div:first-child', '#pricing .pricing-note', '#pricing .price-plan', '#pricing .pricing-footnote'],
+      ['.marketing-final-cta > div', '.marketing-final-cta .cta-companion', '.marketing-final-cta .button']
+    ];
+    const targets = [];
+    groups.forEach(selectors => {
+      let position = 0;
+      selectors.forEach(selector => {
+        document.querySelectorAll(selector).forEach(element => {
+          element.classList.add('scroll-reveal');
+          if (element.matches('.anki-export-demo, .pricing-note, .price-plan, .class-feature, .cta-companion')) element.classList.add('reveal-pop');
+          if (element.matches('.marketing-section-heading, .anki-first-copy')) element.classList.add('reveal-from-left');
+          element.style.setProperty('--reveal-delay', `${Math.min(position * 45, 180)}ms`);
+          targets.push(element);
+          position += 1;
+        });
+      });
+    });
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.body.classList.add('motion-ready');
+    if (reduceMotion || !('IntersectionObserver' in window)) {
+      targets.forEach(element => element.classList.add('is-visible'));
+      return;
+    }
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('is-visible');
+        observer.unobserve(entry.target);
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -7% 0px' });
+    targets.forEach(element => observer.observe(element));
+  }
+
   function closeOnboarding() {
     localStorage.setItem('rounds-onboarded', '1');
+    state.creatingClass = false;
     document.querySelector('#landing').classList.add('hidden');
     document.querySelector('#onboarding').classList.add('hidden');
     const app = document.querySelector('#mainApp');
@@ -640,6 +720,7 @@
   }
 
   function showLanding() {
+    state.creatingClass = false;
     document.querySelector('#landing').classList.remove('hidden');
     document.querySelector('#onboarding').classList.add('hidden');
     const app = document.querySelector('#mainApp');
@@ -1583,7 +1664,7 @@
 
   document.querySelectorAll('.nav-button').forEach(button => button.addEventListener('click', () => navigate(button.dataset.view)));
   document.querySelectorAll('[data-go]').forEach(button => button.addEventListener('click', () => navigate(button.dataset.go)));
-  document.querySelectorAll('[data-start-onboarding]').forEach(button => button.addEventListener('click', () => openOnboarding(1)));
+  document.querySelectorAll('[data-start-onboarding]').forEach(button => button.addEventListener('click', startClassSetup));
   document.querySelectorAll('[data-open-sample]').forEach(button => button.addEventListener('click', closeOnboarding));
   document.querySelectorAll('[data-back-home]').forEach(button => button.addEventListener('click', showLanding));
   document.querySelector('#mobileNav').addEventListener('change', event => navigate(event.target.value));
@@ -1664,9 +1745,21 @@
   document.querySelectorAll('.setup-next').forEach(button => button.addEventListener('click', () => showSetupStep(state.setupStep + 1)));
   document.querySelectorAll('.setup-back').forEach(button => button.addEventListener('click', () => showSetupStep(state.setupStep - 1)));
   document.querySelector('#previewClass').addEventListener('click', closeOnboarding);
-  document.querySelector('#addClass').addEventListener('click', () => openOnboarding(1));
-  document.querySelector('#addClassFromSource').addEventListener('click', () => openOnboarding(1));
+  document.querySelector('#addClass').addEventListener('click', startClassSetup);
+  document.querySelector('#addClassFromSource').addEventListener('click', startClassSetup);
   document.querySelector('#classSwitcher').addEventListener('click', () => navigate('source'));
+  document.querySelectorAll('[data-close-class-limit]').forEach(button => button.addEventListener('click', () => document.querySelector('#classLimitDialog').close()));
+  document.querySelector('[data-see-pricing]').addEventListener('click', showPricing);
+  document.querySelector('#classLimitDialog').addEventListener('click', event => {
+    if (event.target === event.currentTarget) event.currentTarget.close();
+  });
+  window.addEventListener('syllabloom:auth-change', event => {
+    const detail = event.detail || {};
+    state.account.signedIn = Boolean(detail.signedIn);
+    state.account.email = detail.email || '';
+    state.account.userId = detail.userId || '';
+    saveAccount();
+  });
   document.querySelectorAll('label[role="button"]').forEach(label => label.addEventListener('keydown', event => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     event.preventDefault();
@@ -1755,6 +1848,11 @@
       ? 'Demo syllabus used for this prototype'
       : 'Added during class setup · ready for the syllabus parser';
     document.querySelector('#syllabusStatus').textContent = state.syllabusName === 'Demo syllabus' ? 'Mapped' : 'Selected';
+    document.querySelector('#classSwitcher').setAttribute('aria-label', `Open ${className} class materials`);
+    if (state.creatingClass) {
+      state.account.classesUsed = Math.max(1, Number(state.account.classesUsed) || 0);
+      saveAccount();
+    }
     closeOnboarding();
     showToast(`${className} is ready`);
   });
@@ -1885,6 +1983,7 @@
   renderClassPlanner();
   updateWorkflowCompanion('home');
   showLanding();
+  initScrollMotion();
   detectRuntimeCapabilities();
   loadStoredSources();
   restoreLatestSession();
