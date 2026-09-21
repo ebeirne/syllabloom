@@ -36,10 +36,16 @@
       elements: {
         rootBox: { width: '100%' },
         cardBox: { width: '100%', boxShadow: 'none' },
-        card: { width: '100%', boxShadow: 'none', border: '1.5px solid #2c2e2a', borderRadius: '28px' },
-        navbar: { background: '#f5f1e4' },
+        card: { width: '100%', background: '#fffdf6', boxShadow: '7px 7px 0 #2c2e2a', border: '2px solid #2c2e2a', borderRadius: '34px' },
+        modalContent: { borderRadius: '34px' },
+        modalCloseButton: { width: '42px', height: '42px', background: '#f5e211', border: '1.5px solid #2c2e2a', borderRadius: '50%', color: '#2c2e2a' },
+        navbar: { background: '#f6b9d2', borderRight: '1.5px solid #2c2e2a' },
         navbarButton: { color: '#2c2e2a', fontWeight: '750' },
-        navbarButtonActive: { background: '#f5e211', color: '#2c2e2a' },
+        navbarButtonActive: { background: '#f5e211', border: '1.5px solid #2c2e2a', borderRadius: '999px', color: '#2c2e2a' },
+        avatarBox: { overflow: 'hidden', border: '2px solid #2c2e2a', borderRadius: '50%', boxShadow: '3px 3px 0 #f5e211' },
+        userPreviewAvatarBox: { overflow: 'hidden', border: '2px solid #2c2e2a', borderRadius: '50%', boxShadow: '3px 3px 0 #f5e211' },
+        profileSection: { borderBottom: '1px solid rgba(44,46,42,.18)' },
+        profileSectionPrimaryButton: { color: '#2f6b42', fontWeight: '800' },
         formButtonPrimary: {
           background: '#f5e211',
           border: '1.5px solid #2c2e2a',
@@ -48,6 +54,31 @@
           color: '#2c2e2a',
           fontWeight: '850'
         }
+      }
+    };
+  }
+
+  function billingAppearance() {
+    const base = sharedAppearance();
+    return {
+      ...base,
+      variables: {
+        ...base.variables,
+        colorPrimary: '#f5e211',
+        colorTextOnPrimary: '#2c2e2a',
+        colorBackground: '#fffdf6',
+        colorInputBackground: '#fffdf6',
+        borderRadius: '22px'
+      },
+      elements: {
+        ...base.elements,
+        card: { width: '100%', background: '#fffdf6', border: '2px solid #2c2e2a', borderRadius: '30px', boxShadow: '5px 5px 0 #2c2e2a' },
+        badge: { background: '#f6b9d2', border: '1px solid #2c2e2a', borderRadius: '999px', color: '#2c2e2a', fontWeight: '800' },
+        pricingTableCard: { background: '#fffdf6', border: '2px solid #2c2e2a', borderRadius: '30px', boxShadow: '5px 5px 0 #2c2e2a' },
+        pricingTableCardHeader: { background: '#f6b9d2', borderBottom: '1.5px solid #2c2e2a' },
+        pricingTableCardTitle: { color: '#2c2e2a', fontWeight: '850' },
+        pricingTableCardButton: { background: '#f5e211', border: '1.5px solid #2c2e2a', borderRadius: '999px', boxShadow: '3px 3px 0 #2c2e2a', color: '#2c2e2a', fontWeight: '850' },
+        formButtonPrimary: { minHeight: '50px', background: '#f5e211', border: '1.5px solid #2c2e2a', borderRadius: '999px', boxShadow: '3px 3px 0 #2c2e2a', color: '#2c2e2a', fontWeight: '850' }
       }
     };
   }
@@ -183,12 +214,13 @@
       if (!plans.length) return { ready: false, reason: 'no-plans' };
       if (billingMount && billingMount !== node) clerk.unmountPricingTable(billingMount);
       if (billingMount !== node) {
+        const appearance = billingAppearance();
         clerk.mountPricingTable(node, {
           for: 'user',
           highlightedPlan: 'student',
           newSubscriptionRedirectUrl: `${window.location.origin}/#profile`,
-          appearance: sharedAppearance(),
-          checkoutProps: { appearance: sharedAppearance() }
+          appearance,
+          checkoutProps: { appearance }
         });
         billingMount = node;
       }

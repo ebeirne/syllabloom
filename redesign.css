@@ -29,6 +29,7 @@
   --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --motion-ease-in: cubic-bezier(0.4, 0, 1, 1);
   --motion-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --select-mark: url("assets/select-chevron.svg");
 }
 
 /* Profile and billing pages */
@@ -1697,8 +1698,16 @@
 
 .deadline-form-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1.3fr) minmax(118px, 0.7fr);
   gap: 10px;
+}
+
+.deadline-form-row label {
+  min-width: 0;
+}
+
+#calendarEventType {
+  min-width: 118px;
 }
 
 .deadline-form .button {
@@ -7041,6 +7050,462 @@ button.mobile-class {
 
 #study .rating[data-rating="Again"] {
   background: var(--work-clay) !important;
+}
+
+/* Account polish: hand-drawn controls, larger hierarchy, and circular identity. */
+
+select {
+  min-height: 52px;
+  padding-right: 42px !important;
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: var(--paper) !important;
+  background-image: var(--select-mark) !important;
+  background-repeat: no-repeat !important;
+  background-position: right 6px center !important;
+  background-size: 30px 30px !important;
+  border: 1.5px solid var(--ink) !important;
+  border-radius: 18px 22px 17px 23px !important;
+  color: var(--ink) !important;
+  font-weight: 690;
+  cursor: pointer;
+}
+
+select.text-input,
+select.source-kind,
+.release-plan-controls select,
+.easy-days select,
+#mobileNav {
+  padding-right: 42px !important;
+  background-color: var(--paper) !important;
+  background-image: var(--select-mark) !important;
+  background-repeat: no-repeat !important;
+  background-position: right 6px center !important;
+  background-size: 30px 30px !important;
+}
+
+select:hover {
+  background-position: right 7px center !important;
+}
+
+select:focus-visible {
+  box-shadow: 3px 3px 0 var(--pink);
+}
+
+select option {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.calendar-controls {
+  align-items: center;
+  gap: 9px;
+}
+
+.calendar-controls .button {
+  min-height: 48px !important;
+  border-width: 1.5px !important;
+}
+
+.calendar-controls #calendarToday {
+  min-width: 86px;
+  padding: 0 20px !important;
+  background: var(--paper) !important;
+  border-radius: var(--radius-control) !important;
+  box-shadow: 3px 3px 0 var(--grass) !important;
+  font-weight: 820;
+}
+
+.calendar-controls .calendar-arrow-button {
+  width: 52px;
+  min-width: 52px;
+  padding: 0 !important;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 48% 52% 45% 55% !important;
+  color: var(--ink) !important;
+  transition: transform var(--motion-fast) var(--motion-ease-out), box-shadow var(--motion-fast) var(--motion-ease-out);
+}
+
+.calendar-controls .calendar-arrow-button-left {
+  background: var(--pink) !important;
+  box-shadow: 3px 3px 0 var(--sun) !important;
+  transform: rotate(-2deg);
+}
+
+.calendar-controls .calendar-arrow-button-right {
+  background: var(--sun) !important;
+  box-shadow: 3px 3px 0 var(--pink) !important;
+  transform: rotate(2deg);
+}
+
+.calendar-controls .calendar-arrow-button svg {
+  width: 25px;
+  height: 25px;
+  overflow: visible;
+}
+
+.calendar-controls .calendar-arrow-button path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.35;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.calendar-controls .calendar-arrow-button:hover {
+  transform: translateY(-2px) rotate(0deg);
+}
+
+.calendar-controls .calendar-arrow-button:active {
+  box-shadow: 1px 1px 0 var(--ink) !important;
+  transform: translate(2px, 2px) rotate(0deg);
+}
+
+.account-page {
+  width: min(1280px, 100%);
+}
+
+.account-page-head {
+  min-height: 380px;
+  padding: 64px 62px;
+  grid-template-columns: minmax(0, 1fr) 390px;
+}
+
+.account-page-path {
+  width: fit-content;
+  margin-bottom: 24px;
+  padding: 10px 15px 9px;
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius-control);
+  box-shadow: 3px 3px 0 var(--sun);
+  font-size: 13px;
+  font-weight: 850;
+  letter-spacing: 0.075em;
+}
+
+.billing-page-head .account-page-path {
+  box-shadow: 3px 3px 0 var(--grass);
+}
+
+.account-page-head h1 {
+  max-width: 11ch;
+  font-size: clamp(60px, 6.5vw, 88px);
+}
+
+.account-page-head p:last-child {
+  max-width: 58ch;
+  font-size: 18px;
+}
+
+.account-page-companion {
+  width: 405px;
+  right: 18px;
+  bottom: -72px;
+}
+
+.billing-page-head {
+  isolation: isolate;
+}
+
+.billing-page-head::before {
+  content: "";
+  width: 190px;
+  height: 190px;
+  position: absolute;
+  top: -62px;
+  right: 150px;
+  z-index: -1;
+  background: var(--sun);
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+}
+
+.billing-page-head::after {
+  content: "";
+  width: 34px;
+  height: 128px;
+  position: absolute;
+  left: 33px;
+  bottom: -42px;
+  z-index: -1;
+  background: var(--grass);
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  transform: rotate(36deg);
+}
+
+.billing-page-head .account-page-companion {
+  width: 370px;
+  right: 28px;
+  bottom: -62px;
+}
+
+.account-tabs {
+  margin: 38px 0;
+  padding: 7px;
+  box-shadow: 3px 3px 0 var(--pink);
+}
+
+.account-tabs button {
+  min-height: 50px;
+  padding: 0 32px;
+  font-size: 16px;
+}
+
+.profile-layout {
+  gap: 26px;
+}
+
+.profile-card {
+  padding: 38px;
+}
+
+.profile-identity-card {
+  min-height: 200px;
+  gap: 28px;
+}
+
+.profile-avatar-wrap {
+  width: 108px;
+  height: 108px;
+  overflow: hidden;
+  background: var(--pink);
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  box-shadow: 4px 4px 0 var(--sun);
+  transform: none;
+}
+
+.profile-avatar-wrap img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.profile-avatar-wrap img[src$="syllabloom-mark.svg"] {
+  padding: 16px;
+  background: var(--grass);
+  object-fit: contain;
+}
+
+.billing-current-card {
+  min-height: 190px;
+  padding: 40px 42px;
+  position: relative;
+  overflow: hidden;
+  background: var(--sun);
+}
+
+.billing-current-card::after {
+  content: "";
+  width: 92px;
+  height: 92px;
+  position: absolute;
+  right: -24px;
+  bottom: -28px;
+  background: var(--pink);
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+}
+
+.billing-current-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.billing-current-card .tier-badge {
+  background: var(--pink);
+}
+
+.billing-current-card p {
+  color: #3f423c;
+}
+
+.billing-plans-shell {
+  padding: 44px;
+  position: relative;
+  overflow: hidden;
+  background: #fffdf6;
+}
+
+.billing-plans-shell::before {
+  content: "";
+  width: 110px;
+  height: 28px;
+  position: absolute;
+  top: 18px;
+  right: -28px;
+  background: var(--grass);
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius-control);
+  transform: rotate(20deg);
+}
+
+.billing-plans-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
+.billing-status {
+  background: var(--sun);
+  color: var(--ink);
+  box-shadow: 2px 2px 0 var(--pink);
+}
+
+.billing-plan-fallback {
+  gap: 22px;
+}
+
+.billing-plan-fallback article {
+  min-height: 430px;
+  padding: 34px;
+  border-width: 2px;
+  box-shadow: 4px 4px 0 var(--pink);
+}
+
+.billing-plan-fallback article.student-plan-preview {
+  background: var(--grass);
+  box-shadow: 5px 5px 0 var(--sun);
+  transform: rotate(0.4deg);
+}
+
+.billing-plan-fallback article.student-plan-preview > span {
+  background: var(--sun);
+}
+
+.billing-plan-fallback article.student-plan-preview p,
+.billing-plan-fallback article.student-plan-preview li,
+.billing-plan-fallback article.student-plan-preview strong,
+.billing-plan-fallback article.student-plan-preview small {
+  color: #183522;
+}
+
+.billing-plan-fallback article.student-plan-preview li::before {
+  color: var(--ink);
+}
+
+.billing-plan-fallback article.student-plan-preview .button.primary {
+  background: var(--pink) !important;
+  box-shadow: 4px 4px 0 var(--ink) !important;
+}
+
+.billing-page .cl-card,
+.billing-page [class*="cl-pricingTableCard"] {
+  background: #fffdf6 !important;
+  border: 2px solid var(--ink) !important;
+  border-radius: 30px !important;
+  box-shadow: 5px 5px 0 var(--ink) !important;
+}
+
+.billing-page [class*="cl-pricingTableCard"]:last-child {
+  background: var(--grass) !important;
+  box-shadow: 5px 5px 0 var(--sun) !important;
+}
+
+.billing-page .cl-formButtonPrimary,
+.billing-page [class*="cl-pricingTable"] button:not([disabled]) {
+  background: var(--pink) !important;
+  border: 1.5px solid var(--ink) !important;
+  border-radius: var(--radius-control) !important;
+  box-shadow: 3px 3px 0 var(--ink) !important;
+  color: var(--ink) !important;
+  font-weight: 850 !important;
+}
+
+.billing-page .cl-avatarBox,
+.billing-page .cl-userPreviewAvatarBox,
+.billing-page .cl-userButtonAvatarBox {
+  overflow: hidden !important;
+  border: 2px solid var(--ink) !important;
+  border-radius: 50% !important;
+  box-shadow: 3px 3px 0 var(--sun) !important;
+}
+
+@media (max-width: 980px) {
+  .account-page-head {
+    grid-template-columns: minmax(0, 1fr) 280px;
+  }
+
+  .account-page-companion,
+  .billing-page-head .account-page-companion {
+    width: 310px;
+  }
+}
+
+@media (max-width: 760px) {
+  select {
+    min-height: 56px;
+    padding-right: 44px !important;
+  }
+
+  .calendar-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .calendar-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .calendar-controls #calendarToday {
+    flex: 1;
+  }
+
+  .account-page-head,
+  .billing-page-head {
+    min-height: 480px;
+    padding: 38px 26px 205px;
+  }
+
+  .account-page-path {
+    margin-bottom: 22px;
+    font-size: 12px;
+  }
+
+  .account-page-head h1 {
+    font-size: clamp(52px, 15vw, 68px);
+  }
+
+  .account-page-companion,
+  .billing-page-head .account-page-companion {
+    width: 275px;
+    right: 50%;
+    bottom: -58px;
+  }
+
+  .billing-page-head::before {
+    width: 130px;
+    height: 130px;
+    top: -42px;
+    right: -28px;
+  }
+
+  .account-tabs button {
+    min-height: 52px;
+    padding: 0 18px;
+  }
+
+  .profile-card,
+  .billing-plans-shell {
+    padding: 28px 22px;
+  }
+
+  .profile-avatar-wrap {
+    width: 82px;
+    height: 82px;
+  }
+
+  .billing-current-card {
+    padding: 30px 24px;
+  }
+
+  .billing-plan-fallback article.student-plan-preview {
+    transform: none;
+  }
 }
 
 #study .rating[data-rating="Hard"] {
