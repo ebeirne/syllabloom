@@ -225,6 +225,10 @@ textarea:focus-visible {
   overflow: hidden;
 }
 
+.anki-first-section .anki-first-copy h2 {
+  color: var(--paper) !important;
+}
+
 .anki-first-section::before {
   content: "";
   width: 220px;
