@@ -23,6 +23,12 @@
   --radius-card: 50px;
   --radius-control: 999px;
   --hairline: 1px solid rgba(44, 46, 42, 0.18);
+  --motion-fast: 120ms;
+  --motion-default: 200ms;
+  --motion-slow: 320ms;
+  --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --motion-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Account, pricing, and motion pass */
@@ -4148,7 +4154,7 @@ textarea {
 }
 
 .motion-item {
-  will-change: opacity, translate, scale;
+  will-change: opacity, transform;
 }
 
 .motion-item.is-visible {

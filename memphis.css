@@ -24,6 +24,262 @@
   --hairline: 1px solid rgba(23, 24, 22, 0.2);
 }
 
+/* Branded account entry: the Clerk form behaves like part of the study world. */
+
+.auth-dialog {
+  width: min(980px, calc(100% - 30px));
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.auth-dialog .account-dialog-shell {
+  min-height: 610px;
+  grid-template-columns: minmax(330px, 0.92fr) minmax(470px, 1.08fr);
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 40px 48px 38px 46px;
+  box-shadow: 8px 8px 0 var(--ink);
+  transform-origin: center;
+}
+
+.auth-dialog .account-dialog-art {
+  min-height: 610px;
+  background: var(--memphis-pink) !important;
+  border-right: 2px solid var(--ink);
+}
+
+.auth-dialog .account-dialog-art::before {
+  width: 194px;
+  height: 194px;
+  top: 54px;
+  left: -70px;
+  background: var(--memphis-yellow);
+}
+
+.auth-dialog .account-dialog-art::after {
+  width: 96px;
+  height: 280px;
+  right: -46px;
+  bottom: -58px;
+  background: var(--memphis-aqua);
+}
+
+.auth-dialog .account-dialog-art img {
+  width: 128%;
+  right: -18%;
+  bottom: -6%;
+  filter: drop-shadow(0 14px 0 rgba(23, 24, 22, 0.12));
+}
+
+.auth-art-card {
+  min-width: 146px;
+  padding: 11px 13px;
+  position: absolute;
+  z-index: 3;
+  display: grid;
+  gap: 3px;
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  border-radius: 14px 18px 13px 16px;
+  box-shadow: 4px 4px 0 var(--ink);
+  color: var(--ink);
+}
+
+.auth-art-card small {
+  color: var(--grass-dark);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.auth-art-card strong {
+  font-size: 12px;
+}
+
+.auth-art-card-source {
+  top: 30px;
+  right: 24px;
+  transform: rotate(3deg);
+}
+
+.auth-art-card-export {
+  right: 18px;
+  bottom: 28px;
+  background: var(--memphis-yellow);
+  transform: rotate(-3deg);
+}
+
+.auth-dialog .account-dialog-copy {
+  padding: 48px 52px 34px;
+}
+
+.auth-dialog .account-dialog-copy h1 {
+  max-width: 12ch;
+  margin: 18px 0 12px;
+  font-size: clamp(38px, 4.5vw, 54px);
+}
+
+.auth-dialog .account-dialog-copy > p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.auth-trust-line {
+  width: 100%;
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.auth-trust-line span {
+  padding: 7px 10px;
+  background: var(--memphis-aqua);
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.auth-trust-line span:last-child {
+  background: var(--memphis-pink-soft);
+}
+
+.auth-dialog .clerk-auth-mount {
+  margin-top: 18px;
+  padding: 18px;
+  background: #fffaf0;
+  border: 1.5px solid var(--ink);
+  border-radius: 22px 18px 24px 20px;
+  box-shadow: 5px 5px 0 var(--memphis-aqua);
+}
+
+.auth-dialog .account-dialog-secondary {
+  min-height: 44px !important;
+  margin-top: 14px;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--muted) !important;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.auth-dialog .account-dialog-close {
+  min-width: 72px;
+  min-height: 40px;
+  background: var(--paper) !important;
+  border: 1.5px solid var(--ink) !important;
+  border-radius: 12px 16px 11px 15px !important;
+  box-shadow: 3px 3px 0 var(--ink) !important;
+  font-size: 12px;
+  font-weight: 850;
+  transition: transform var(--motion-fast) var(--motion-ease-out), box-shadow var(--motion-fast) var(--motion-ease-out);
+}
+
+.auth-dialog .account-dialog-close:hover {
+  box-shadow: 1px 1px 0 var(--ink) !important;
+  transform: translate3d(2px, 2px, 0) rotate(1deg);
+}
+
+.cl-formButtonPrimary,
+.cl-socialButtonsBlockButton,
+.cl-formFieldInput,
+.cl-otpCodeFieldInput {
+  transition: transform var(--motion-fast) var(--motion-ease-out), box-shadow var(--motion-fast) var(--motion-ease-out), background-color var(--motion-fast) var(--motion-ease-out) !important;
+}
+
+.cl-formButtonPrimary:hover,
+.cl-socialButtonsBlockButton:hover {
+  transform: translate3d(-1px, -1px, 0) !important;
+}
+
+.cl-formButtonPrimary:active,
+.cl-socialButtonsBlockButton:active {
+  transform: translate3d(2px, 2px, 0) scale(0.99) !important;
+  box-shadow: 1px 1px 0 var(--ink) !important;
+}
+
+.cl-formFieldInput:focus,
+.cl-otpCodeFieldInput:focus {
+  outline: 3px solid var(--memphis-blue) !important;
+  outline-offset: 2px;
+}
+
+.character-cutout {
+  transform-origin: 50% 82%;
+  backface-visibility: hidden;
+}
+
+@media (max-width: 760px) {
+  .auth-dialog {
+    width: calc(100% - 16px);
+    max-height: calc(100dvh - 16px);
+  }
+
+  .auth-dialog .account-dialog-shell {
+    grid-template-columns: 1fr;
+    border-radius: 28px 32px 26px 30px;
+    box-shadow: 5px 5px 0 var(--ink);
+  }
+
+  .auth-dialog .account-dialog-art {
+    min-height: 182px;
+    border-right: 0;
+    border-bottom: 2px solid var(--ink);
+  }
+
+  .auth-dialog .account-dialog-art img {
+    width: 230px;
+    right: 50%;
+    bottom: -54px;
+    transform: translateX(50%);
+  }
+
+  .auth-art-card {
+    min-width: 118px;
+    padding: 8px 10px;
+  }
+
+  .auth-art-card-source {
+    display: none;
+  }
+
+  .auth-art-card-export {
+    right: auto;
+    bottom: 14px;
+    left: 12px;
+  }
+
+  .auth-dialog .account-dialog-copy {
+    padding: 30px 20px 22px;
+  }
+
+  .auth-dialog .account-dialog-copy h1 {
+    margin: 15px 0 10px;
+    font-size: 38px;
+  }
+
+  .auth-dialog .clerk-auth-mount {
+    padding: 14px;
+    border-radius: 18px 15px 20px 17px;
+    box-shadow: 4px 4px 0 var(--memphis-aqua);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .character-cutout,
+  .account-dialog-shell,
+  .cl-formButtonPrimary,
+  .cl-socialButtonsBlockButton,
+  .cl-formFieldInput,
+  .cl-otpCodeFieldInput {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 body,
 .marketing-home,
 .app,

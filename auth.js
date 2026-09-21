@@ -6,12 +6,23 @@
   let clerk = null;
   let signInMounted = false;
   let configured = false;
+  let closing = false;
 
   window.SyllabloomAuth = {
     get configured() { return configured; },
     get signedIn() { return Boolean(clerk?.isSignedIn); },
     open: openDialog
   };
+
+  async function closeDialog() {
+    if (!dialog.open || closing) return;
+    closing = true;
+    if (window.SyllabloomMotion?.closeAuth) {
+      await window.SyllabloomMotion.closeAuth(dialog);
+    }
+    if (dialog.open) dialog.close();
+    closing = false;
+  }
 
   function openDialog() {
     if (clerk?.isSignedIn) {
@@ -22,13 +33,21 @@
       clerk.mountSignIn(mount, {
         routing: 'virtual',
         appearance: {
+          options: {
+            socialButtonsPlacement: 'bottom',
+            socialButtonsVariant: 'blockButton'
+          },
           variables: {
-            colorPrimary: '#526d60',
-            colorText: '#252a27',
-            colorBackground: '#fbfaf6',
-            colorInputBackground: '#f3f1ea',
-            colorNeutral: '#66716b',
-            borderRadius: '14px',
+            colorPrimary: '#171816',
+            colorText: '#171816',
+            colorTextOnPrimary: '#171816',
+            colorBackground: '#fffdf6',
+            colorInputBackground: '#fffdf6',
+            colorInputText: '#171816',
+            colorNeutral: '#575a52',
+            colorRing: '#3677c7',
+            borderRadius: '18px',
+            spacingUnit: '16px',
             fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif'
           },
           elements: {
@@ -36,13 +55,68 @@
             cardBox: { width: '100%', boxShadow: 'none' },
             card: { width: '100%', padding: '0', boxShadow: 'none', border: '0' },
             header: { display: 'none' },
-            footer: { background: 'transparent' }
+            main: { gap: '14px' },
+            form: { gap: '14px' },
+            formFieldLabel: { color: '#171816', fontSize: '12px', fontWeight: '800' },
+            formFieldInput: {
+              minHeight: '52px',
+              background: '#fffdf6',
+              border: '1.5px solid #171816',
+              borderRadius: '15px',
+              boxShadow: '3px 3px 0 #a8e3dc',
+              color: '#171816',
+              fontSize: '15px'
+            },
+            formButtonPrimary: {
+              minHeight: '52px',
+              background: '#f6df19',
+              border: '1.5px solid #171816',
+              borderRadius: '14px',
+              boxShadow: '4px 4px 0 #171816',
+              color: '#171816',
+              fontSize: '14px',
+              fontWeight: '850'
+            },
+            socialButtonsBlockButton: {
+              minHeight: '50px',
+              background: '#f8cfdd',
+              border: '1.5px solid #171816',
+              borderRadius: '14px',
+              boxShadow: '3px 3px 0 #171816',
+              color: '#171816',
+              fontWeight: '760'
+            },
+            dividerLine: { background: '#cbc2ae' },
+            dividerText: { color: '#575a52', fontSize: '11px', fontWeight: '750' },
+            footer: { background: 'transparent' },
+            footerActionLink: { color: '#11633e', fontWeight: '850' },
+            identityPreview: {
+              background: '#a8e3dc',
+              border: '1.5px solid #171816',
+              borderRadius: '15px'
+            },
+            otpCodeFieldInput: {
+              border: '1.5px solid #171816',
+              borderRadius: '12px',
+              boxShadow: '2px 2px 0 #a8e3dc'
+            },
+            formResendCodeLink: { color: '#11633e', fontWeight: '850' },
+            backLink: { color: '#11633e', fontWeight: '850' },
+            alert: {
+              background: '#f8cfdd',
+              border: '1.5px solid #171816',
+              borderRadius: '14px',
+              color: '#171816'
+            }
           }
         }
       });
       signInMounted = true;
     }
-    if (!dialog.open) dialog.showModal();
+    if (!dialog.open) {
+      dialog.showModal();
+      requestAnimationFrame(() => window.SyllabloomMotion?.openAuth?.(dialog));
+    }
   }
 
   function updateAuthState() {
@@ -59,7 +133,7 @@
         userId: clerk?.user?.id || ''
       }
     }));
-    if (signedIn && dialog.open) dialog.close();
+    if (signedIn && dialog.open) closeDialog();
   }
 
   function loadScript(source, attributes = {}) {
@@ -111,9 +185,13 @@
     button.dataset.defaultLabel = button.textContent.trim();
     button.addEventListener('click', openDialog);
   });
-  document.querySelectorAll('[data-close-auth]').forEach(button => button.addEventListener('click', () => dialog.close()));
+  document.querySelectorAll('[data-close-auth]').forEach(button => button.addEventListener('click', closeDialog));
   dialog.addEventListener('click', event => {
-    if (event.target === event.currentTarget) dialog.close();
+    if (event.target === event.currentTarget) closeDialog();
+  });
+  dialog.addEventListener('cancel', event => {
+    event.preventDefault();
+    closeDialog();
   });
   window.addEventListener('syllabloom:auth-request', openDialog);
 
