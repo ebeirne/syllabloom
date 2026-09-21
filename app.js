@@ -1,6 +1,40 @@
 (() => {
   const source = window.MUSCLE_SOURCE;
   const records = source.records;
+  const savedClassProfile = storedJson('syllabloom-class-profile', {
+    mode: 'sample',
+    className: 'Human Anatomy',
+    term: 'Fall 2023',
+    syllabusName: 'Anatomy syllabus example',
+    useDemoSyllabus: true,
+    includeSampleMaterial: true
+  });
+  const demoSyllabusSource = {
+    id: 'demo-anatomy-syllabus',
+    name: 'Anatomy syllabus example',
+    kind: 'syllabus',
+    format: 'EXAMPLE',
+    unitCount: 14,
+    unitLabel: 'course dates',
+    wordCount: 860,
+    objectiveCount: 8,
+    draftCards: [],
+    sample: true,
+    storage: 'example'
+  };
+  const sampleMaterialSource = {
+    id: 'sample-muscles-fall-2023',
+    name: source.document,
+    kind: 'material',
+    format: 'DOCX',
+    unitCount: source.muscleCount,
+    unitLabel: 'muscles',
+    wordCount: 2380,
+    objectiveCount: 0,
+    draftCards: [],
+    sample: true,
+    storage: 'example'
+  };
 
   function storedJson(key, fallback) {
     try {
@@ -95,12 +129,17 @@
     reviewCount: 146,
     planCorrections: 0,
     setupStep: 1,
-    syllabusName: 'Demo syllabus',
+    className: savedClassProfile.className || 'Human Anatomy',
+    classTerm: savedClassProfile.term || 'Fall 2023',
+    classMode: savedClassProfile.mode || 'sample',
+    syllabusName: savedClassProfile.syllabusName || 'No syllabus added',
+    useDemoSyllabus: Boolean(savedClassProfile.useDemoSyllabus),
+    includeSampleMaterial: savedClassProfile.includeSampleMaterial !== false,
     assessmentIndex: 0,
     assessmentScore: 0,
     baselineScore: 62,
     lectureCards: [],
-    sources: [],
+    sources: storedJson('syllabloom-sources', []),
     latestSessionId: null,
     anki: { ...defaultAnkiPreferences, ...storedJson('syllabloom-anki-preferences', {}) },
     calendarEvents: storedJson('syllabloom-calendar-events', initialCalendarEvents),
@@ -108,6 +147,9 @@
     dailyStudyMinutes: 35,
     selectedTypes: ['attachment', 'action', 'innervation'],
     creatingClass: false,
+    pendingClassSetup: false,
+    missCounts: storedJson('syllabloom-miss-counts', {}),
+    missedItem: null,
     account: {
       signedIn: false,
       email: '',
@@ -621,7 +663,15 @@
       document.querySelector('#summaryClass').textContent = className;
       document.querySelector('#summaryTerm').textContent = term;
       document.querySelector('#summarySyllabus').textContent = state.syllabusName;
+      document.querySelector('#summarySyllabusMeta').textContent = activeSyllabus()
+        ? 'Calendar and objectives are ready to map'
+        : 'Calendar and objectives can be added later';
       document.querySelector('#summaryBaseline').textContent = `${state.baselineScore}% starting point`;
+      document.querySelector('#summaryBaselineMeta').textContent = state.baselineScore === 100
+        ? 'Start with new material and let later misses refine the plan'
+        : state.baselineScore === 0
+          ? 'Foundation review shapes the first session'
+          : 'Missed topics shape the first session';
       document.querySelector('#summaryAnki').textContent = `${state.anki.format} · ${state.anki.newPerDay} new per day`;
     }
     document.querySelector('#onboarding').scrollTo({ top: 0, behavior: 'auto' });
@@ -642,6 +692,63 @@
     localStorage.setItem('syllabloom-account', JSON.stringify(state.account));
   }
 
+  function setClassLabels(className, term) {
+    state.className = className;
+    state.classTerm = term;
+    document.querySelector('#currentClassName').textContent = className;
+    document.querySelector('#currentClassNameMobile').textContent = className;
+    document.querySelector('#currentClassTerm').textContent = term;
+    document.querySelectorAll('[data-class-name]').forEach(element => { element.textContent = className; });
+    document.querySelector('#classSwitcher').setAttribute('aria-label', `Open ${className} class materials`);
+  }
+
+  function persistClassProfile() {
+    localStorage.setItem('syllabloom-class-profile', JSON.stringify({
+      mode: state.classMode,
+      className: state.className,
+      term: state.classTerm,
+      syllabusName: state.syllabusName,
+      useDemoSyllabus: state.useDemoSyllabus,
+      includeSampleMaterial: state.includeSampleMaterial
+    }));
+  }
+
+  function prepareNewClassSetup() {
+    state.classMode = 'custom';
+    state.includeSampleMaterial = false;
+    state.useDemoSyllabus = false;
+    state.syllabusName = 'No syllabus added';
+    state.sources = [];
+    state.lectureCards = [];
+    state.statuses = {};
+    state.edits = {};
+    state.studyIndex = 0;
+    state.anki.deck = '';
+    state.anki.tags = '';
+    persistClassSources();
+    document.querySelector('#classNameInput').value = '';
+    document.querySelector('#termInput').value = '';
+    document.querySelector('#ankiDeckName').value = '';
+    document.querySelector('#ankiTags').value = '';
+    renderStoredSources();
+  }
+
+  function loadSampleClass() {
+    state.classMode = 'sample';
+    state.includeSampleMaterial = true;
+    state.useDemoSyllabus = true;
+    state.syllabusName = demoSyllabusSource.name;
+    state.sources = [];
+    state.lectureCards = [];
+    state.studyIndex = 0;
+    state.anki.deck = 'Human Anatomy';
+    state.anki.tags = 'human-anatomy::fall-2023';
+    setClassLabels('Human Anatomy', 'Fall 2023');
+    renderSource();
+    updateGenerationCount();
+    closeOnboarding();
+  }
+
   function showClassLimit() {
     const dialog = document.querySelector('#classLimitDialog');
     const used = Math.max(1, Number(state.account.classesUsed) || 0);
@@ -651,11 +758,17 @@
   }
 
   function startClassSetup() {
+    if (!state.account.signedIn) {
+      state.pendingClassSetup = true;
+      window.dispatchEvent(new CustomEvent('syllabloom:auth-request', { detail: { intent: 'create-class' } }));
+      return;
+    }
     const limit = state.account.plan === 'student' ? Number.MAX_SAFE_INTEGER : Math.max(1, Number(state.account.classLimit) || 1);
     if ((Number(state.account.classesUsed) || 0) >= limit) {
       showClassLimit();
       return;
     }
+    prepareNewClassSetup();
     state.creatingClass = true;
     openOnboarding(1);
   }
@@ -712,24 +825,24 @@
   }
 
   function renderSource() {
-    document.querySelector('#sourceCount').textContent = source.muscleCount;
     updateReviewSurface();
-    document.querySelector('#homeMuscleCount').textContent = source.muscleCount;
-    document.querySelector('#homeCardCount').textContent = source.focusedCardCount;
-    document.querySelector('#homeSectionCount').textContent = Object.keys(source.sections).length;
-    document.querySelector('#documentName').textContent = source.document;
-    document.querySelector('#sourceMiniText').textContent = source.document.replace(/\.docx$/i, '');
+    document.querySelector('#homeMuscleCount').textContent = state.includeSampleMaterial ? source.muscleCount : state.sources.length;
+    document.querySelector('#homeCardCount').textContent = state.includeSampleMaterial ? source.focusedCardCount : state.lectureCards.length;
+    document.querySelector('#homeSectionCount').textContent = state.includeSampleMaterial ? Object.keys(source.sections).length : state.sources.filter(item => item.kind === 'material').length;
 
     document.querySelector('#schema').innerHTML = source.schema.map(label => `<div>${label}</div>`).join('');
     document.querySelector('#sectionList').innerHTML = Object.entries(source.sections)
       .map(([section, count]) => `<div class="section-row"><strong>${section}</strong><span>${count} muscles</span></div>`)
       .join('');
+    renderStoredSources();
   }
 
   function updateGenerationCount() {
     const selected = [...document.querySelectorAll('.card-type:checked')].map(input => input.value);
     state.selectedTypes = selected;
-    document.querySelector('#generationCount').textContent = source.muscleCount * selected.length;
+    document.querySelector('#generationCount').textContent = state.includeSampleMaterial
+      ? source.muscleCount * selected.length
+      : state.lectureCards.length;
   }
 
   function filteredRecords() {
@@ -804,16 +917,19 @@
 
   function studyCards() {
     const approved = [];
-    Object.entries(state.statuses).forEach(([key, status]) => {
-      if (status !== 'Approved') return;
-      const [id, field] = key.split('-');
-      const record = records.find(item => item.id === Number(id));
-      if (record) approved.push({ record, field });
-    });
+    if (state.includeSampleMaterial) {
+      Object.entries(state.statuses).forEach(([key, status]) => {
+        if (status !== 'Approved') return;
+        const [id, field] = key.split('-');
+        const record = records.find(item => item.id === Number(id));
+        if (record) approved.push({ record, field });
+      });
+    }
     state.lectureCards
       .filter(card => card.reviewStatus === 'approved')
       .forEach(card => approved.push({ directCard: card }));
     if (approved.length) return approved.slice(0, state.anki.dailyLimit);
+    if (!state.includeSampleMaterial) return [];
     const weakMaterial = records.filter(record => {
       const section = record.section.toUpperCase();
       return section.includes('ARM') || section.includes('FOREARM') || section.includes('WRIST, HAND');
@@ -822,6 +938,90 @@
       record,
       field: index % 3 === 2 ? 'innervation' : 'attachment'
     }));
+  }
+
+  function studyCardKey(item) {
+    return item.directCard ? `lecture-${item.directCard.id}` : keyFor(item.record, item.field);
+  }
+
+  function shortCue(value, maximum = 170) {
+    const clean = String(value || '').replace(/\s+/g, ' ').trim();
+    if (clean.length <= maximum) return clean;
+    return `${clean.slice(0, maximum - 3).trim()}...`;
+  }
+
+  function studyCardExplanation(item) {
+    const directCard = item.directCard;
+    if (directCard) {
+      const section = labelCase(directCard.section || 'lecture');
+      const sourceLabel = directCard.source
+        || (directCard.slideNumber ? `Lecture slides · Slide ${directCard.slideNumber}` : `Lecture transcript · ${section}`);
+      return {
+        label: fieldLabels[directCard.field] || 'source',
+        answer: directCard.back,
+        why: `This answer comes from ${sourceLabel}. Read the source wording once, cover it, then restate the idea in your own words before retrying.`,
+        cue: shortCue(directCard.back),
+        source: sourceLabel
+      };
+    }
+
+    const { record, field } = item;
+    const answer = (state.edits[keyFor(record, field)] || {}).back || answerFor(record, field);
+    const sourceLabel = `List of muscles Fall 2023.docx · ${labelCase(record.section)} · ${fieldLabels[field] || 'Source card'}`;
+    const explanation = {
+      label: (fieldLabels[field] || 'source').toLowerCase(),
+      answer,
+      source: sourceLabel,
+      why: `The course source pairs ${record.muscle} with this answer. Keep the tested fact attached to the muscle name, then say the pair aloud before retrying.`,
+      cue: `${record.muscle}: ${shortCue(answer, 130)}`
+    };
+
+    if (field === 'attachment') {
+      explanation.why = `This card tests the complete attachment path for ${record.muscle}. Keep the starting and ending structures together as one route instead of memorizing two disconnected place names.`;
+      explanation.cue = `${record.muscle}: trace the whole route from start to finish.`;
+    } else if (field === 'action') {
+      explanation.why = `The course source pairs ${record.muscle} with this movement. Recall the muscle and movement as one link, then compare it with nearby muscles before retrying.`;
+      explanation.cue = `${record.muscle} does ${shortCue(answer, 120)}.`;
+    } else if (field === 'innervation') {
+      explanation.why = `The course source assigns this nerve to ${record.muscle}. Tie the nerve to the muscle and its section so similar nerve names do not blur together.`;
+      explanation.cue = `${record.muscle} is supplied by ${shortCue(answer, 120)}.`;
+    } else if (field === 'identify') {
+      explanation.why = `The attachment, action, and innervation clues all point back to ${record.muscle}. Use the clues together before naming the muscle.`;
+      explanation.cue = `${record.muscle}: attachment, action, nerve.`;
+    }
+
+    return explanation;
+  }
+
+  function hideMissExplanation() {
+    const panel = document.querySelector('#missExplanation');
+    panel.hidden = true;
+    document.querySelector('#study .study-controls').classList.remove('is-explaining');
+    state.missedItem = null;
+  }
+
+  function showMissExplanation(item) {
+    const details = studyCardExplanation(item);
+    const key = studyCardKey(item);
+    state.missCounts[key] = (state.missCounts[key] || 0) + 1;
+    localStorage.setItem('syllabloom-miss-counts', JSON.stringify(state.missCounts));
+    state.missedItem = item;
+
+    document.querySelector('#missExplanationIntro').textContent = `You marked this ${details.label} card as missed. Here is the distinction to keep.`;
+    document.querySelector('#missCorrectAnswer').textContent = details.answer;
+    document.querySelector('#missWhyText').textContent = details.why;
+    document.querySelector('#missMemoryHook').textContent = details.cue;
+    document.querySelector('#missSourceText').textContent = details.source;
+    document.querySelector('#missRepeatNote').hidden = state.missCounts[key] < 2;
+
+    const panel = document.querySelector('#missExplanation');
+    panel.hidden = false;
+    document.querySelector('#study .study-controls').classList.add('is-explaining');
+    window.dispatchEvent(new CustomEvent('syllabloom:miss-explained', { detail: { count: state.missCounts[key] } }));
+    window.requestAnimationFrame(() => {
+      panel.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'nearest' });
+      document.querySelector('#retryMissedCard').focus({ preventScroll: true });
+    });
   }
 
   function renderAssessmentQuestion() {
@@ -852,9 +1052,14 @@
         }
         state.baselineScore = Math.round((state.assessmentScore / assessmentQuestions.length) * 100);
         document.querySelector('#baselineScore').textContent = `${state.baselineScore}%`;
+        const baselinePlan = state.assessmentScore === assessmentQuestions.length
+          ? 'Your first session will begin with new material and use later misses to adjust the plan.'
+          : state.assessmentScore === 0
+            ? 'Your first session will rebuild these foundations before adding more cards.'
+            : 'Your first session will circle back to the missed topics before adding more cards.';
         document.querySelector('#assessmentBox').innerHTML = `
           <h2>Baseline complete</h2>
-          <p>You answered ${state.assessmentScore} of ${assessmentQuestions.length} sample questions correctly. Your first session will circle back to the shaky topics before adding more cards.</p>`;
+          <p>You answered ${state.assessmentScore} of ${assessmentQuestions.length} sample questions correctly. ${baselinePlan}</p>`;
         document.querySelector('#baselineContinue').disabled = false;
       });
     }));
@@ -870,24 +1075,26 @@
 
   function collectApprovedCards() {
     const approved = [];
-    Object.entries(state.statuses).forEach(([key, status]) => {
-      if (status !== 'Approved') return;
-      const separator = key.lastIndexOf('-');
-      const id = Number(key.slice(0, separator));
-      const field = key.slice(separator + 1);
-      const record = records.find(item => item.id === id);
-      if (!record) return;
-      const edit = state.edits[key] || {};
-      const front = edit.front || questionFor(record, field);
-      const back = edit.back || answerFor(record, field);
-      const isCloze = state.anki.format === 'Cloze';
-      approved.push({
-        front: isCloze ? `${front}\n{{c1::${back}}}` : front,
-        back: isCloze ? `Source: ${record.section}` : back,
-        tags: `${state.anki.tags} ${record.section.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-        source: `List of muscles Fall 2023.docx · ${record.section}`
+    if (state.includeSampleMaterial) {
+      Object.entries(state.statuses).forEach(([key, status]) => {
+        if (status !== 'Approved') return;
+        const separator = key.lastIndexOf('-');
+        const id = Number(key.slice(0, separator));
+        const field = key.slice(separator + 1);
+        const record = records.find(item => item.id === id);
+        if (!record) return;
+        const edit = state.edits[key] || {};
+        const front = edit.front || questionFor(record, field);
+        const back = edit.back || answerFor(record, field);
+        const isCloze = state.anki.format === 'Cloze';
+        approved.push({
+          front: isCloze ? `${front}\n{{c1::${back}}}` : front,
+          back: isCloze ? `Source: ${record.section}` : back,
+          tags: `${state.anki.tags} ${record.section.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+          source: `${source.document} · ${record.section}`
+        });
       });
-    });
+    }
 
     state.lectureCards.forEach(card => {
       if (card.reviewStatus !== 'approved') return;
@@ -924,6 +1131,7 @@
       const disposition = response.headers.get('Content-Disposition') || '';
       const filename = disposition.match(/filename="([^"]+)"/)?.[1] || 'syllabloom.apkg';
       const blob = await response.blob();
+      if (!blob.size || blob.type === 'application/json') throw new Error('Anki returned an empty package');
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -943,6 +1151,14 @@
 
   function renderStudy() {
     const cards = studyCards();
+    const hasCards = cards.length > 0;
+    document.querySelector('#studyEmpty').hidden = hasCards;
+    document.querySelector('#studyMeta').hidden = !hasCards;
+    document.querySelector('#studyProgressTrack').hidden = !hasCards;
+    document.querySelector('#studyCardStage').hidden = !hasCards;
+    document.querySelector('#studyControls').hidden = !hasCards;
+    hideMissExplanation();
+    if (!hasCards) return;
     if (state.studyIndex >= cards.length) state.studyIndex = 0;
     const item = cards[state.studyIndex];
     const directCard = item.directCard;
@@ -1286,7 +1502,7 @@
     document.querySelector('#toggleTranscript').textContent = 'Hide transcript';
     document.querySelector('#lastLectureSummary').hidden = false;
     document.querySelector('#lectureTitle').textContent = lectureName(filename);
-    document.querySelector('#lectureSubtitle').textContent = 'Human Anatomy · checking source alignment';
+    document.querySelector('#lectureSubtitle').textContent = `${state.className} · checking source alignment`;
     document.querySelector('#transcriptMeta').textContent = `${filename} · checking for an audio track`;
     document.querySelector('#transcriptContent').className = 'transcript-content empty';
     document.querySelector('#transcriptContent').innerHTML = '<p>Preparing a local, progressive transcript…</p>';
@@ -1321,7 +1537,7 @@
           document.querySelector('#captureState').textContent = 'Transcribing lecture';
           document.querySelector('#captureTimer').textContent = clock(session.duration);
           document.querySelector('#transcriptMeta').textContent = `00:00 of ${clock(session.duration)} processed · notes and cards update live`;
-          document.querySelector('#lectureSubtitle').textContent = `Human Anatomy · ${clock(session.duration)} source recording`;
+          document.querySelector('#lectureSubtitle').textContent = `${state.className} · ${clock(session.duration)} source recording`;
           return;
         }
         if (event.type === 'segment') {
@@ -1354,7 +1570,7 @@
           drawLectureProgress(event.durationSeconds, event.durationSeconds);
           const verifiedCount = session.notes.filter(note => note.status !== 'provisional').length;
           const reviewCount = session.notes.length - verifiedCount;
-          document.querySelector('#lectureSubtitle').textContent = `Human Anatomy · ${clock(event.durationSeconds)} lecture · saved locally`;
+          document.querySelector('#lectureSubtitle').textContent = `${state.className} · ${clock(event.durationSeconds)} lecture · saved locally`;
           showToast(`${verifiedCount} source-matched · ${reviewCount} review-only · ${session.cards.length} cards`);
         }
       };
@@ -1380,44 +1596,104 @@
   }
 
   function sourceMeta(sourceItem) {
-    const units = `${sourceItem.unitCount.toLocaleString()} ${sourceItem.unitLabel}`;
-    const words = `${sourceItem.wordCount.toLocaleString()} words`;
+    const units = `${Number(sourceItem.unitCount || 0).toLocaleString()} ${sourceItem.unitLabel || 'items'}`;
+    const words = `${Number(sourceItem.wordCount || 0).toLocaleString()} words`;
     const objectives = sourceItem.objectiveCount ? ` · ${sourceItem.objectiveCount} objective cues` : '';
     const drafts = sourceItem.draftCards?.length ? ` · ${sourceItem.draftCards.length} card drafts` : '';
-    const processing = sourceItem.storage === 'session' ? 'session only' : 'on device';
+    const processing = sourceItem.sample ? 'example' : (sourceItem.storage === 'session' ? 'available this session' : 'saved in this browser');
     return `${sourceItem.kind} · ${units} · ${words}${objectives}${drafts} · ${processing}`;
   }
 
+  function persistClassSources() {
+    localStorage.setItem('syllabloom-sources', JSON.stringify(state.sources));
+  }
+
+  function activeSyllabus() {
+    return state.sources.find(item => item.kind === 'syllabus') || (state.useDemoSyllabus ? demoSyllabusSource : null);
+  }
+
+  function classMaterials() {
+    const uploaded = state.sources.filter(item => item.kind !== 'syllabus');
+    return state.includeSampleMaterial ? [sampleMaterialSource, ...uploaded] : uploaded;
+  }
+
+  function sourceRow(sourceItem, options = {}) {
+    const status = sourceItem.sample ? 'Example' : (sourceItem.draftCards?.length ? `${sourceItem.draftCards.length} drafts` : 'Parsed');
+    const replace = options.syllabus
+      ? '<label for="syllabusInput" class="button" role="button" tabindex="0">Replace</label>'
+      : '';
+    return `
+      <div class="surface file-row" data-source-id="${escapeHtml(sourceItem.id)}">
+        <div><strong${options.syllabus ? ' id="syllabusName"' : ''}>${escapeHtml(sourceItem.name)}</strong><span${options.syllabus ? ' id="syllabusMeta"' : ''}>${escapeHtml(sourceMeta(sourceItem))}</span></div>
+        <div class="actions">
+          <span${options.syllabus ? ' id="syllabusStatus"' : ''} class="status">${escapeHtml(status)}</span>
+          ${replace}
+          <button class="button source-remove" type="button" data-remove-source="${escapeHtml(sourceItem.id)}">Remove</button>
+        </div>
+      </div>`;
+  }
+
+  function renderOnboardingMaterials() {
+    const list = document.querySelector('#onboardingMaterialList');
+    const materials = classMaterials();
+    list.innerHTML = materials.length
+      ? materials.map(item => `
+          <div class="setup-material-row" data-onboarding-source-id="${escapeHtml(item.id)}">
+            <div><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(sourceMeta(item))}</span></div>
+            <button class="button" type="button" data-remove-source="${escapeHtml(item.id)}">Remove</button>
+          </div>`).join('')
+      : '<div class="setup-material-empty"><strong>No class materials yet.</strong><span>Add your own files or use the anatomy example to see the workflow.</span></div>';
+
+    const syllabus = activeSyllabus();
+    document.querySelector('#onboardingSyllabusName').textContent = syllabus?.name || 'Choose a syllabus';
+    document.querySelector('#onboardingSyllabusStatus').textContent = syllabus?.sample ? 'Anatomy example selected' : 'Ready to map';
+    document.querySelector('#onboardingSyllabusSelection').hidden = !syllabus;
+  }
+
   function renderStoredSources() {
-    document.querySelectorAll('.source-file-new').forEach(item => item.remove());
     const library = document.querySelector('#sourceLibrary');
-    const defaultDocument = document.querySelector('#documentName')?.closest('.file-row');
-    state.sources.forEach(sourceItem => {
-      if (sourceItem.name === document.querySelector('#documentName')?.textContent) {
-        defaultDocument.querySelector('span').textContent = sourceMeta(sourceItem);
-        defaultDocument.querySelector('.status').textContent = 'Parsed';
-        return;
-      }
-      const row = document.createElement('div');
-      row.className = 'surface file-row source-file-new';
-      row.innerHTML = `
-        <div><strong>${escapeHtml(sourceItem.name)}</strong><span>${escapeHtml(sourceMeta(sourceItem))}</span></div>
-        <span class="status">Parsed</span>`;
-      library.appendChild(row);
-    });
-    document.querySelector('#sourceCount').textContent = `${2 + state.sources.filter(item => item.name !== document.querySelector('#documentName')?.textContent).length}`;
+    const syllabus = activeSyllabus();
+    const materials = classMaterials();
+    const rows = [];
+    if (syllabus) rows.push(sourceRow(syllabus, { syllabus: true }));
+    materials.forEach(item => rows.push(sourceRow(item)));
+    library.innerHTML = rows.length
+      ? rows.join('')
+      : '<div class="surface source-library-empty"><strong>This class is empty.</strong><span>Add a syllabus, slide deck, notes, or an authorized assessment above.</span></div>';
+    const total = rows.length;
+    document.querySelector('#sourceCount').textContent = String(total);
+    document.querySelector('#sourceMiniText').textContent = materials[0]?.name?.replace(/\.[^.]+$/, '') || 'No class material';
+    document.querySelectorAll('.sample-source-detail').forEach(element => { element.hidden = !state.includeSampleMaterial; });
+    const toggle = document.querySelector('#toggleClassCards');
+    toggle.hidden = !state.includeSampleMaterial;
+    if (!state.includeSampleMaterial) document.querySelector('#classCardWorkspace').hidden = true;
+    renderOnboardingMaterials();
+  }
+
+  function removeClassSource(sourceId) {
+    if (sourceId === demoSyllabusSource.id) {
+      state.useDemoSyllabus = false;
+      state.syllabusName = 'No syllabus added';
+    } else if (sourceId === sampleMaterialSource.id) {
+      state.includeSampleMaterial = false;
+      state.statuses = {};
+      state.edits = {};
+    } else {
+      const removed = state.sources.find(item => item.id === sourceId);
+      state.sources = state.sources.filter(item => item.id !== sourceId);
+      state.lectureCards = state.lectureCards.filter(card => card.sourceId !== sourceId);
+      if (removed?.kind === 'syllabus') state.syllabusName = 'No syllabus added';
+    }
+    persistClassSources();
+    renderStoredSources();
+    updateGenerationCount();
+    updateReviewSurface();
+    renderStudy();
+    showToast('Source removed from this class');
   }
 
   async function loadStoredSources() {
-    try {
-      const response = await fetch('/api/sources');
-      if (!response.ok) return;
-      const payload = await response.json();
-      state.sources = payload.sources || [];
-      renderStoredSources();
-    } catch (_) {
-      // Static preview remains usable when the local service is not running.
-    }
+    renderStoredSources();
   }
 
   async function uploadSource(file, kind = 'material') {
@@ -1432,10 +1708,16 @@
       const response = await fetch('/api/source', { method: 'POST', body });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'The document could not be read');
+      if (kind === 'syllabus') {
+        state.sources = state.sources.filter(item => item.kind !== 'syllabus');
+        state.useDemoSyllabus = false;
+        state.syllabusName = payload.source.name;
+      }
       state.sources = state.sources.filter(item => item.id !== payload.source.id);
       state.sources.push(payload.source);
+      persistClassSources();
       renderStoredSources();
-      const sourceCards = payload.source.draftCards || [];
+      const sourceCards = (payload.source.draftCards || []).map(card => ({ ...card, sourceId: payload.source.id }));
       if (sourceCards.length) {
         state.latestSessionId = `source-${payload.source.id}`;
         const merged = [...state.lectureCards, ...sourceCards];
@@ -1456,6 +1738,7 @@
   }
 
   async function restoreLatestSession() {
+    if (state.classMode === 'custom') return;
     try {
       const response = await fetch('/api/sessions/latest');
       if (!response.ok) return;
@@ -1466,7 +1749,7 @@
       lastTranscript = session.transcript || '';
       document.querySelector('#lastLectureSummary').hidden = false;
       document.querySelector('#lectureTitle').textContent = lectureName(session.filename);
-      document.querySelector('#lectureSubtitle').textContent = `Human Anatomy · ${clock(session.durationSeconds)} lecture · saved locally`;
+      document.querySelector('#lectureSubtitle').textContent = `${state.className} · ${clock(session.durationSeconds)} lecture · saved locally`;
       document.querySelector('#captureState').textContent = 'Ready to record';
       document.querySelector('#captureTimer').textContent = '00:00';
       document.querySelector('#transcriptMeta').textContent = `${clock(session.durationSeconds)} lecture · ${session.processingSeconds}s local · restored`;
@@ -1626,7 +1909,7 @@
   document.querySelectorAll('.nav-button').forEach(button => button.addEventListener('click', () => navigate(button.dataset.view)));
   document.querySelectorAll('[data-go]').forEach(button => button.addEventListener('click', () => navigate(button.dataset.go)));
   document.querySelectorAll('[data-start-onboarding]').forEach(button => button.addEventListener('click', startClassSetup));
-  document.querySelectorAll('[data-open-sample]').forEach(button => button.addEventListener('click', closeOnboarding));
+  document.querySelectorAll('[data-open-sample]').forEach(button => button.addEventListener('click', loadSampleClass));
   document.querySelectorAll('[data-back-home]').forEach(button => button.addEventListener('click', showLanding));
   document.querySelector('#mobileNav').addEventListener('change', event => navigate(event.target.value));
   document.querySelector('#openAnkiSettings').addEventListener('click', () => openAnkiSettings(false));
@@ -1705,7 +1988,7 @@
 
   document.querySelectorAll('.setup-next').forEach(button => button.addEventListener('click', () => showSetupStep(state.setupStep + 1)));
   document.querySelectorAll('.setup-back').forEach(button => button.addEventListener('click', () => showSetupStep(state.setupStep - 1)));
-  document.querySelector('#previewClass').addEventListener('click', closeOnboarding);
+  document.querySelector('#previewClass').addEventListener('click', loadSampleClass);
   document.querySelector('#addClass').addEventListener('click', startClassSetup);
   document.querySelector('#addClassFromSource').addEventListener('click', startClassSetup);
   document.querySelector('#classSwitcher').addEventListener('click', () => navigate('source'));
@@ -1716,10 +1999,19 @@
   });
   window.addEventListener('syllabloom:auth-change', event => {
     const detail = event.detail || {};
+    const priorUserId = state.account.userId;
     state.account.signedIn = Boolean(detail.signedIn);
     state.account.email = detail.email || '';
     state.account.userId = detail.userId || '';
+    if (state.account.signedIn && state.account.userId && priorUserId !== state.account.userId) {
+      state.account.classesUsed = 0;
+      state.account.plan = 'free';
+    }
     saveAccount();
+    if (state.account.signedIn && state.pendingClassSetup) {
+      state.pendingClassSetup = false;
+      window.setTimeout(startClassSetup, 0);
+    }
   });
   document.querySelectorAll('label[role="button"]').forEach(label => label.addEventListener('keydown', event => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -1758,21 +2050,44 @@
     document.querySelector('#toggleTranscript').textContent = collapsed ? 'Show transcript' : 'Hide transcript';
   });
 
-  document.querySelector('#onboardingSyllabus').addEventListener('change', event => {
+  document.querySelector('#onboardingSyllabus').addEventListener('change', async event => {
     const file = event.target.files[0];
     if (!file) return;
     state.syllabusName = file.name;
     document.querySelector('#onboardingSyllabusName').textContent = file.name;
-    uploadSource(file, 'syllabus').catch(() => {});
+    document.querySelector('#onboardingSyllabusStatus').textContent = 'Reading syllabus';
+    document.querySelector('#onboardingSyllabusSelection').hidden = false;
+    await uploadSource(file, 'syllabus').catch(() => {});
+    event.target.value = '';
   });
   document.querySelector('#useDemoSyllabus').addEventListener('click', () => {
-    state.syllabusName = 'Demo syllabus';
-    document.querySelector('#onboardingSyllabusName').textContent = 'Demo syllabus selected';
-    showToast('Demo syllabus added');
+    state.sources = state.sources.filter(item => item.kind !== 'syllabus');
+    state.useDemoSyllabus = true;
+    state.syllabusName = demoSyllabusSource.name;
+    persistClassSources();
+    renderStoredSources();
+    showToast('Anatomy syllabus example added');
   });
-  document.querySelectorAll('.mock-connect').forEach(button => button.addEventListener('click', () => {
-    button.textContent = 'Planned';
-    button.disabled = true;
+  document.querySelector('#removeOnboardingSyllabus').addEventListener('click', () => {
+    const syllabus = activeSyllabus();
+    if (syllabus) removeClassSource(syllabus.id);
+  });
+  document.querySelector('#onboardingMaterials').addEventListener('change', async event => {
+    const files = [...event.target.files];
+    for (const file of files) {
+      await uploadSource(file, 'material').catch(() => {});
+    }
+    event.target.value = '';
+  });
+  document.querySelector('#useSampleMaterial').addEventListener('click', () => {
+    state.includeSampleMaterial = true;
+    renderStoredSources();
+    updateGenerationCount();
+    showToast('Anatomy material example added');
+  });
+  document.querySelectorAll('#sourceLibrary, #onboardingMaterialList').forEach(container => container.addEventListener('click', event => {
+    const sourceId = event.target.dataset.removeSource;
+    if (sourceId) removeClassSource(sourceId);
   }));
   document.querySelector('#startAssessment').addEventListener('click', () => {
     state.assessmentIndex = 0;
@@ -1801,15 +2116,12 @@
       else state.calendarEvents.push({ id: `exam-${Date.now()}`, date: examDate, type: 'exam', title: 'Next exam' });
       localStorage.setItem('syllabloom-calendar-events', JSON.stringify(state.calendarEvents));
     }
-    document.querySelector('#currentClassName').textContent = className;
-    document.querySelector('#currentClassNameMobile').textContent = className;
-    document.querySelector('#currentClassTerm').textContent = term;
-    document.querySelector('#syllabusName').textContent = state.syllabusName;
-    document.querySelector('#syllabusMeta').textContent = state.syllabusName === 'Demo syllabus'
-      ? 'Demo syllabus used for this prototype'
-      : 'Added during class setup · ready for the syllabus parser';
-    document.querySelector('#syllabusStatus').textContent = state.syllabusName === 'Demo syllabus' ? 'Mapped' : 'Selected';
-    document.querySelector('#classSwitcher').setAttribute('aria-label', `Open ${className} class materials`);
+    setClassLabels(className, term);
+    state.classMode = 'custom';
+    persistClassProfile();
+    persistClassSources();
+    renderSource();
+    updateGenerationCount();
     if (state.creatingClass) {
       state.account.classesUsed = Math.max(1, Number(state.account.classesUsed) || 0);
       saveAccount();
@@ -1828,16 +2140,10 @@
   document.querySelector('#syllabusInput').addEventListener('change', async event => {
     const file = event.target.files[0];
     if (!file) return;
-    document.querySelector('#syllabusName').textContent = file.name;
-    document.querySelector('#syllabusMeta').textContent = 'Reading locally…';
-    document.querySelector('#syllabusStatus').textContent = 'Reading';
     try {
-      const sourceItem = await uploadSource(file, 'syllabus');
-      document.querySelector('#syllabusMeta').textContent = sourceMeta(sourceItem);
-      document.querySelector('#syllabusStatus').textContent = 'Parsed';
+      await uploadSource(file, 'syllabus');
     } catch (_) {
-      document.querySelector('#syllabusMeta').textContent = 'Could not parse this syllabus';
-      document.querySelector('#syllabusStatus').textContent = 'Check file';
+      showToast('Could not parse this syllabus');
     }
     event.target.value = '';
   });
@@ -1878,6 +2184,14 @@
   document.querySelectorAll('.card-type').forEach(input => input.addEventListener('change', updateGenerationCount));
   document.querySelector('#generateCards').addEventListener('click', () => {
     if (!state.selectedTypes.length) return showToast('Choose at least one card type');
+    if (!state.includeSampleMaterial) {
+      const drafts = state.lectureCards.filter(card => card.reviewStatus === 'waiting').length;
+      if (drafts) {
+        navigate('queue');
+        return showToast(`${drafts} card draft${drafts === 1 ? '' : 's'} ready for review`);
+      }
+      return showToast('Add a source that produces card drafts first');
+    }
     if (!state.selectedTypes.includes(state.field)) state.field = state.selectedTypes[0];
     document.querySelector('#classCardWorkspace').hidden = false;
     document.querySelector('#toggleClassCards').textContent = 'Close the full class card library';
@@ -1925,13 +2239,49 @@
 
   document.querySelectorAll('.rating').forEach(button => button.addEventListener('click', () => {
     const cards = studyCards();
+    const item = cards[state.studyIndex];
     state.reviewCount += 1;
     document.querySelector('#reviewCount').textContent = state.reviewCount;
+    if (button.dataset.rating === 'Again') {
+      showMissExplanation(item);
+      showToast('Miss saved. Let’s make it stick.');
+      return;
+    }
     showToast(`${button.dataset.rating} recorded`);
     state.studyIndex = (state.studyIndex + 1) % cards.length;
     renderStudy();
   }));
 
+  document.querySelector('#retryMissedCard').addEventListener('click', () => {
+    hideMissExplanation();
+    document.querySelector('#studyAnswer').classList.remove('open');
+    document.querySelector('#showAnswer').style.display = 'inline-flex';
+    document.querySelector('#ratingControls').classList.remove('open');
+    document.querySelector('#showAnswer').focus();
+  });
+
+  document.querySelector('#continueAfterMiss').addEventListener('click', () => {
+    const cards = studyCards();
+    state.studyIndex = (state.studyIndex + 1) % cards.length;
+    renderStudy();
+  });
+
+  document.querySelector('#editMissedCard').addEventListener('click', () => {
+    const item = state.missedItem;
+    if (!item) return;
+    if (item.record) {
+      state.selectedId = item.record.id;
+      state.field = item.field;
+    }
+    navigate('cards');
+    if (item.directCard) {
+      window.requestAnimationFrame(() => {
+        document.querySelector(`[data-lecture-card="${CSS.escape(item.directCard.id)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+  });
+
+  setClassLabels(state.className, state.classTerm);
   renderSource();
   updateGenerationCount();
   renderEditor();

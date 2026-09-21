@@ -3500,7 +3500,7 @@
       .source-reference dd { margin: 4px 0 0; font-size: 15px; line-height: 1.5; }
     }
   </style>
-  <link rel="stylesheet" href="redesign.css?v=20260921-syllabloom-beta-3">
+  <link rel="stylesheet" href="redesign.css?v=20260921-syllabloom-beta-4">
   <link rel="stylesheet" href="memphis.css?v=20260921-syllabloom-beta-8">
 </head>
 <body>
@@ -3724,8 +3724,8 @@
           <h1>Start with one class.</h1>
           <p>Keep its syllabus, source material, quizzes, and cards together. You can add the rest later.</p>
           <div class="form-grid">
-            <div class="form-field full"><label for="classNameInput">Class name</label><input id="classNameInput" class="text-input" value="Human Anatomy" /></div>
-            <div class="form-field"><label for="termInput">Term</label><input id="termInput" class="text-input" value="Fall 2023" /></div>
+            <div class="form-field full"><label for="classNameInput">Class name</label><input id="classNameInput" class="text-input" placeholder="Organic Chemistry" autocomplete="off" /></div>
+            <div class="form-field"><label for="termInput">Term</label><input id="termInput" class="text-input" placeholder="Fall 2026" autocomplete="off" /></div>
             <div class="form-field"><label for="examDateInput">Next exam</label><input id="examDateInput" class="text-input" type="date" /></div>
           </div>
           <div class="setup-actions"><span></span><div class="setup-actions-right"><button class="button primary setup-next">Continue</button></div></div>
@@ -3739,23 +3739,28 @@
             <span>PDF or Word document</span>
           </label>
           <input id="onboardingSyllabus" type="file" accept=".pdf,.docx" hidden />
+          <div id="onboardingSyllabusSelection" class="setup-source-selection" hidden>
+            <div><strong id="onboardingSyllabusStatus">Ready to map</strong><span>Course dates and objectives will stay linked to this class.</span></div>
+            <button id="removeOnboardingSyllabus" class="button" type="button">Remove</button>
+          </div>
           <ul class="setup-list">
             <li><div><strong>Course calendar</strong><span>Lecture dates, units, and exam windows</span></div><b>Detected from syllabus</b></li>
             <li><div><strong>Learning objectives</strong><span>The concepts the course says students must master</span></div><b>Mapped to materials</b></li>
             <li><div><strong>Assessment rules</strong><span>Weights, formats, and permitted study sources</span></div><b>Used in planning</b></li>
           </ul>
-          <div class="setup-actions"><button class="button setup-back">Back</button><div class="setup-actions-right"><button id="useDemoSyllabus" class="button">Use demo syllabus</button><button class="button primary setup-next">Continue</button></div></div>
+          <div class="setup-actions"><button class="button setup-back">Back</button><div class="setup-actions-right"><button id="useDemoSyllabus" class="button">Use anatomy example</button><button class="button primary setup-next">Continue</button></div></div>
         </div>
 
         <div class="setup-panel" data-setup-panel="3">
           <h1>Add class materials</h1>
           <p>Bring in only the sources that belong to this class. Every card stays linked to the place it came from.</p>
-          <ul class="setup-list materials-list">
-            <li><div><strong>List of muscles Fall 2023.docx</strong><span>192 muscles · attachment, action, and innervation detected</span></div><b>Ready</b></li>
-            <li><div><strong>Lecture slides and recordings</strong><span>Add them after each class</span></div><button class="button mock-connect">Add later</button></li>
-            <li><div><strong>Authorized past assessments</strong><span>Used for topic and format patterns</span></div><button class="button mock-connect">Add later</button></li>
-            <li><div><strong>Anki history</strong><span>Shows what sticks, what slips, and how much you usually finish</span></div><button class="button mock-connect">Connect later</button></li>
-          </ul>
+          <div class="setup-material-actions">
+            <label for="onboardingMaterials" class="button primary" role="button" tabindex="0">Add slides, notes, or readings</label>
+            <input id="onboardingMaterials" type="file" accept=".docx,.pptx,.pdf,.txt" multiple hidden />
+            <button id="useSampleMaterial" class="button" type="button">Use anatomy example</button>
+          </div>
+          <div id="onboardingMaterialList" class="setup-material-list" aria-live="polite"></div>
+          <p class="setup-source-help">PowerPoint, Word, PDF, or text. Add only course files you are allowed to use. You can remove any file before opening the class.</p>
           <div class="setup-actions"><button class="button setup-back">Back</button><div class="setup-actions-right"><button class="button primary setup-next">Continue</button></div></div>
         </div>
 
@@ -3804,12 +3809,12 @@
         </div>
 
         <div class="setup-panel" data-setup-panel="6">
-          <h1>Your anatomy workspace is ready.</h1>
+          <h1>Your class is ready.</h1>
           <p>The class is mapped, your starting point is clear, and the cards will fit the way you already study.</p>
           <div class="setup-summary">
-            <div><strong id="summaryClass">Human Anatomy</strong><span id="summaryTerm">Fall 2023</span></div>
-            <div><strong id="summarySyllabus">Demo syllabus</strong><span>Calendar and objectives available</span></div>
-            <div><strong id="summaryBaseline">Starting check pending</strong><span>The shaky areas shape your first session</span></div>
+            <div><strong id="summaryClass">Your class</strong><span id="summaryTerm">Term not set</span></div>
+            <div><strong id="summarySyllabus">No syllabus added</strong><span id="summarySyllabusMeta">Calendar and objectives can be added later</span></div>
+            <div><strong id="summaryBaseline">Starting check pending</strong><span id="summaryBaselineMeta">Your result shapes the first session</span></div>
             <div><strong id="summaryAnki">Basic · 20 new per day</strong><span>Your exports will match these preferences</span></div>
           </div>
           <div class="setup-actions"><button class="button setup-back">Back</button><div class="setup-actions-right"><button id="finishSetup" class="button primary">Open class</button></div></div>
@@ -3865,7 +3870,7 @@
 
       <section id="capture" class="page">
         <header class="capture-toolbar">
-          <div class="breadcrumbs"><span>Human Anatomy</span><b>/</b><strong>Lecture</strong></div>
+          <div class="breadcrumbs"><span data-class-name>Human Anatomy</span><b>/</b><strong>Lecture</strong></div>
           <div class="capture-status"><span class="status-light"></span><strong>Local</strong><span>Audio stays on this computer</span></div>
         </header>
 
@@ -3951,7 +3956,7 @@
             <section>
               <div class="inspector-heading"><h3>Lecture context</h3><span>From syllabus</span></div>
               <dl class="context-list">
-                <div><dt>Class</dt><dd>Human Anatomy</dd></div>
+                <div><dt>Class</dt><dd data-class-name>Human Anatomy</dd></div>
                 <div><dt>Unit</dt><dd id="captureUnit">Waiting for audio</dd></div>
                 <div><dt>Exam</dt><dd>12 days</dd></div>
                 <div><dt>Source</dt><dd>Muscle list</dd></div>
@@ -3985,7 +3990,7 @@
 
       <section id="home" class="page active">
         <header class="app-toolbar">
-          <div class="breadcrumbs"><span>Human Anatomy</span><b>/</b><strong>Today</strong></div>
+          <div class="breadcrumbs"><span data-class-name>Human Anatomy</span><b>/</b><strong>Today</strong></div>
           <div class="toolbar-actions">
             <button data-go="source">3 sources</button>
             <span><b>12 days</b> to exam</span>
@@ -4122,7 +4127,7 @@
         <div class="page-head">
           <div>
             <h1>Class materials</h1>
-            <p class="page-description">The calendar, the facts, and the exam scope all live here. Replace the sample syllabus whenever the real one is ready.</p>
+            <p class="page-description">The calendar, the facts, and the exam scope all live here. Add, replace, or remove sources as the class changes.</p>
           </div>
           <button id="addClassFromSource" class="button">Add another class</button>
         </div>
@@ -4144,29 +4149,17 @@
           </div>
         </section>
 
-        <div id="sourceLibrary" class="file-stack">
-          <div class="surface file-row">
-            <div><strong id="syllabusName">Anatomy syllabus</strong><span id="syllabusMeta">Demo syllabus used for this prototype</span></div>
-            <div class="actions">
-              <span id="syllabusStatus" class="status">Mapped</span>
-              <label for="syllabusInput" class="button" role="button" tabindex="0">Replace</label>
-              <input id="syllabusInput" type="file" accept=".pdf,.docx" hidden />
-            </div>
-          </div>
-          <div class="surface file-row">
-            <div><strong id="documentName">List of muscles Fall 2023.docx</strong><span>Study material · included sample</span></div>
-            <span class="status">192 muscles found</span>
-          </div>
-        </div>
+        <div id="sourceLibrary" class="file-stack" aria-live="polite"></div>
+        <input id="syllabusInput" type="file" accept=".pdf,.docx" hidden />
 
-        <div class="surface course-map">
+        <div class="surface course-map sample-source-detail">
           <div><strong>12 days</strong><span>Until the demo assessment</span></div>
           <div><strong>Upper limb</strong><span>Current syllabus focus</span></div>
           <div><strong>8 objectives</strong><span>Included in the next assessment</span></div>
           <div><strong>42 muscles</strong><span>Mapped to those objectives</span></div>
         </div>
 
-        <div class="source-layout">
+        <div class="source-layout sample-source-detail">
           <article class="surface surface-pad">
             <h2>What we found</h2>
             <p>Every muscle in the document follows the same three-part pattern.</p>
@@ -4344,10 +4337,15 @@
             <button class="button" data-go="cards" aria-label="Edit cards">Edit</button>
           </div>
 
-          <div class="study-meta"><span id="studyPosition">Card 1 of 18</span><span id="studySection">Muscles of facial expression</span></div>
-          <div class="progress"><span id="studyProgress"></span></div>
+          <section id="studyEmpty" class="study-empty" hidden>
+            <div><h2>No cards to study yet.</h2><p>Add a lecture or course file, then approve the cards you want to keep.</p></div>
+            <button class="button primary" type="button" data-go="source">Add class material</button>
+          </section>
 
-          <div class="study-card-stage">
+          <div id="studyMeta" class="study-meta"><span id="studyPosition">Card 1 of 18</span><span id="studySection">Muscles of facial expression</span></div>
+          <div id="studyProgressTrack" class="progress"><span id="studyProgress"></span></div>
+
+          <div id="studyCardStage" class="study-card-stage">
             <img class="study-coach-mascot character-cutout" src="assets/syllabloom-mascot-study-coach.webp" width="1200" height="1200" alt="The Syllabloom companion coaching you through one flashcard" />
             <article class="surface study-card">
               <h2 id="studyQuestion"></h2>
@@ -4356,7 +4354,51 @@
             </article>
           </div>
 
-          <div class="study-controls">
+          <section id="missExplanation" class="miss-explanation" hidden aria-live="polite" aria-labelledby="missExplanationTitle">
+            <div class="miss-explanation-head">
+              <span class="miss-mark" aria-hidden="true">!</span>
+              <div>
+                <h2 id="missExplanationTitle">Let’s untangle it.</h2>
+                <p id="missExplanationIntro">You marked this card as missed. Here is the distinction to keep.</p>
+              </div>
+            </div>
+
+            <div class="miss-explanation-grid">
+              <article class="miss-answer-block">
+                <span>Correct answer</span>
+                <strong id="missCorrectAnswer"></strong>
+              </article>
+              <article class="miss-why-block">
+                <span>Why it is right</span>
+                <p id="missWhyText"></p>
+              </article>
+            </div>
+
+            <div class="miss-memory-hook">
+              <span>Quick cue</span>
+              <strong id="missMemoryHook"></strong>
+            </div>
+
+            <div class="miss-source-line">
+              <span>Checked against</span>
+              <strong id="missSourceText"></strong>
+            </div>
+
+            <div id="missRepeatNote" class="miss-repeat-note" hidden>
+              <div>
+                <strong>This card has tripped you up more than once.</strong>
+                <span>Shortening or splitting it may make the idea easier to retrieve.</span>
+              </div>
+              <button id="editMissedCard" class="button" type="button">Edit this card</button>
+            </div>
+
+            <div class="miss-actions">
+              <button id="retryMissedCard" class="button primary" type="button">Retry this card</button>
+              <button id="continueAfterMiss" class="button" type="button">Continue</button>
+            </div>
+          </section>
+
+          <div id="studyControls" class="study-controls">
             <button id="showAnswer" class="button primary">Show answer</button>
             <div id="ratingControls" class="actions rating-controls">
               <button class="button rating" data-rating="Again">Again</button>
@@ -4556,7 +4598,7 @@
       <div class="account-dialog-copy">
         <span class="account-kicker">No password to remember</span>
         <h1 id="authTitle">Sign in with your email.</h1>
-        <p>We use a one-time email code. Your class, Anki settings, and study history stay attached to your account.</p>
+        <p>We use a one-time email code for beta access. Until cloud sync is connected, your class files and study settings stay in this browser.</p>
         <div id="clerkAuthMount" class="clerk-auth-mount" hidden></div>
         <div id="authNotConfigured" class="auth-not-configured" role="status">
           <strong>Email sign-in is staged for the beta.</strong>
@@ -4569,8 +4611,8 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="muscle-data.js?v=20260921-loop"></script>
-  <script src="auth.js?v=20260921-email-beta-1"></script>
-  <script src="app.js?v=20260921-syllabloom-beta-5"></script>
-  <script type="module" src="motion-effects.js?v=20260921-motion-1"></script>
+  <script src="auth.js?v=20260921-email-beta-2"></script>
+  <script src="app.js?v=20260921-beta-ready-2"></script>
+  <script type="module" src="motion-effects.js?v=20260921-beta-ready-2"></script>
 </body>
 </html>

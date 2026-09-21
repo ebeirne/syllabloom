@@ -5,6 +5,13 @@
   const authButtons = [...document.querySelectorAll('[data-auth-open]')];
   let clerk = null;
   let signInMounted = false;
+  let configured = false;
+
+  window.SyllabloomAuth = {
+    get configured() { return configured; },
+    get signedIn() { return Boolean(clerk?.isSignedIn); },
+    open: openDialog
+  };
 
   function openDialog() {
     if (clerk?.isSignedIn) {
@@ -16,11 +23,12 @@
         routing: 'virtual',
         appearance: {
           variables: {
-            colorPrimary: '#2f6b42',
-            colorText: '#2c2e2a',
-            colorBackground: '#ffffff',
-            colorInputBackground: '#fffefa',
-            borderRadius: '16px',
+            colorPrimary: '#526d60',
+            colorText: '#252a27',
+            colorBackground: '#fbfaf6',
+            colorInputBackground: '#f3f1ea',
+            colorNeutral: '#66716b',
+            borderRadius: '14px',
             fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif'
           },
           elements: {
@@ -73,8 +81,12 @@
       if (!response.ok) return;
       const config = await response.json();
       const publishableKey = String(config.publishableKey || '');
-      if (!publishableKey.startsWith('pk_')) return;
+      if (!publishableKey.startsWith('pk_')) {
+        window.dispatchEvent(new CustomEvent('syllabloom:auth-ready', { detail: { configured: false } }));
+        return;
+      }
 
+      configured = true;
       const encodedDomain = publishableKey.split('_')[2];
       const frontendDomain = window.atob(encodedDomain).slice(0, -1);
       await loadScript(`https://${frontendDomain}/npm/@clerk/ui@1/dist/ui.browser.js`);
@@ -88,8 +100,10 @@
       mount.hidden = false;
       updateAuthState();
       clerk.addListener(updateAuthState);
+      window.dispatchEvent(new CustomEvent('syllabloom:auth-ready', { detail: { configured: true } }));
     } catch (error) {
       console.info('Email sign-in is not configured on this build.', error);
+      window.dispatchEvent(new CustomEvent('syllabloom:auth-ready', { detail: { configured: false } }));
     }
   }
 
@@ -101,6 +115,7 @@
   dialog.addEventListener('click', event => {
     if (event.target === event.currentTarget) dialog.close();
   });
+  window.addEventListener('syllabloom:auth-request', openDialog);
 
   configureClerk();
 })();

@@ -10,6 +10,7 @@ Syllabloom turns lectures, slides, syllabi, and course files into editable, sour
 - Live lecture recording and uploaded audio/video ingestion
 - DOCX, PDF, PowerPoint, and text source import
 - Editable card review and approval queue
+- Source-grounded explanations after every missed card, with same-card retry and repeated-miss editing
 - Basic and Cloze Anki card generation
 - Downloadable `.apkg` decks with nested deck names and an embedded deck preset
 - Anki preferences for limits, learning steps, lapses, ordering, burying, Easy Days, audio, timers, FSRS, and SM-2
@@ -37,6 +38,17 @@ python server.py
 Open [http://127.0.0.1:4174](http://127.0.0.1:4174).
 
 The core interface, source parsing, PowerPoint import, card editing, and Anki export work with the base requirements.
+
+### Email sign-in
+
+The beta uses Clerk for passwordless email sign-in. Set the publishable key before starting the server:
+
+```powershell
+$env:CLERK_PUBLISHABLE_KEY = "pk_test_your_key"
+python server.py
+```
+
+Use the same `CLERK_PUBLISHABLE_KEY` environment variable in Vercel. Until cloud sync is added, Clerk controls beta access and the one-free-class gate while class files and study settings remain in that browser.
 
 ### Optional local transcription
 
@@ -81,9 +93,16 @@ The current beta has been exercised against:
 - A full-length lecture audio file kept outside version control
 - Basic and Cloze Anki package generation
 - Deck preset import fields including daily limits, retention, burying, and nested deck names
+- Responsive Anki templates with mobile and night-mode styling
 - Desktop and mobile layouts
 
 Detailed receipts are in the included test reports.
+
+Run the repeatable Anki package checks with:
+
+```powershell
+python -m unittest discover -s tests -v
+```
 
 ## Deployment
 

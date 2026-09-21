@@ -408,15 +408,87 @@ def build_anki_package(cards: list[dict], preferences: dict) -> tuple[bytes, str
     deck_id = 1_000_000_000 + seed % 999_999_999
     model_id = deck_id - 17 if deck_id > 1_000_000_017 else deck_id + 17
     css = """
-.card { font-family: Arial, sans-serif; font-size: 22px; text-align: left; color: #171717; background: #faf9f6; line-height: 1.45; padding: 28px; }
-.source { color: #6f6b63; font-size: 13px; margin-top: 24px; border-top: 1px solid #d8d4ca; padding-top: 12px; }
+.card {
+  margin: 0;
+  padding: 24px 16px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  font-size: 20px;
+  line-height: 1.55;
+  text-align: left;
+  color: #252a27;
+  background: #efeee8;
+}
+.card-shell {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 28px;
+  overflow-wrap: anywhere;
+  background: #fbfaf6;
+  border: 1px solid #c5cbc7;
+  border-radius: 18px;
+}
+.prompt {
+  font-size: 28px;
+  font-weight: 650;
+  line-height: 1.28;
+  letter-spacing: -0.02em;
+}
+.answer {
+  font-size: 20px;
+  line-height: 1.55;
+}
+#answer {
+  margin: 24px 0;
+  border: 0;
+  border-top: 1px solid #c9ceca;
+}
+.source {
+  margin-top: 24px;
+  padding-top: 12px;
+  color: #626c66;
+  font-size: 13px;
+  line-height: 1.4;
+  border-top: 1px solid #d8dcd9;
+}
+.mobile .card {
+  padding: 12px 8px;
+  font-size: 18px;
+}
+.mobile .card-shell {
+  padding: 22px 18px;
+  border-radius: 14px;
+}
+.mobile .prompt {
+  font-size: 24px;
+}
+.nightMode.card {
+  color: #eef1ee;
+  background: #1d211f;
+}
+.nightMode .card-shell {
+  background: #282e2a;
+  border-color: #465049;
+}
+.nightMode .source {
+  color: #b8c2bc;
+  border-color: #465049;
+}
+.nightMode #answer {
+  border-color: #465049;
+}
 """
     if card_format == "Cloze":
         model = genanki.Model(
             model_id,
             "Syllabloom Cloze",
             fields=[{"name": "Text"}, {"name": "Back Extra"}, {"name": "Source"}],
-            templates=[{"name": "Cloze", "qfmt": "{{cloze:Text}}", "afmt": "{{cloze:Text}}<br>{{Back Extra}}<div class='source'>{{Source}}</div>"}],
+            templates=[{
+                "name": "Cloze",
+                "qfmt": "<main class='card-shell'><div class='prompt'>{{cloze:Text}}</div></main>",
+                "afmt": "<main class='card-shell'><div class='answer'>{{cloze:Text}}</div>{{#Back Extra}}<hr id='answer'><div class='answer'>{{Back Extra}}</div>{{/Back Extra}}<div class='source'>{{Source}}</div></main>",
+            }],
             css=css,
             model_type=genanki.Model.CLOZE,
         )
@@ -425,7 +497,11 @@ def build_anki_package(cards: list[dict], preferences: dict) -> tuple[bytes, str
             model_id,
             "Syllabloom Basic",
             fields=[{"name": "Front"}, {"name": "Back"}, {"name": "Source"}],
-            templates=[{"name": "Card 1", "qfmt": "{{Front}}", "afmt": "{{FrontSide}}<hr id='answer'>{{Back}}<div class='source'>{{Source}}</div>"}],
+            templates=[{
+                "name": "Card 1",
+                "qfmt": "<main class='card-shell'><div class='prompt'>{{Front}}</div></main>",
+                "afmt": "<main class='card-shell'><div class='prompt'>{{Front}}</div><hr id='answer'><div class='answer'>{{Back}}</div><div class='source'>{{Source}}</div></main>",
+            }],
             css=css,
         )
     preset_name = str(preferences.get("presetName") or "Syllabloom").strip()[:120] or "Syllabloom"
@@ -972,7 +1048,12 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
             )
             return
         if request_path == "/api/auth-config":
-            publishable_key = os.environ.get("CLERK_PUBLISHABLE_KEY", "").strip()
+            publishable_key = (
+                os.environ.get("CLERK_PUBLISHABLE_KEY")
+                or os.environ.get("VITE_CLERK_PUBLISHABLE_KEY")
+                or os.environ.get("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY")
+                or ""
+            ).strip()
             self.send_json(
                 {
                     "configured": publishable_key.startswith("pk_"),

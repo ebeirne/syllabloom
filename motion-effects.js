@@ -95,6 +95,17 @@ function animateProductView(event) {
   animate(page, { opacity: [0.82, 1], y: [9, 0] }, { duration: 0.3, ease: easeOut });
 }
 
+function animateMissExplanation() {
+  if (reduceMotion) return;
+  const panel = document.querySelector('#missExplanation:not([hidden])');
+  if (!panel) return;
+  const pieces = [...panel.querySelectorAll('.miss-explanation-head, .miss-answer-block, .miss-why-block, .miss-memory-hook, .miss-source-line, .miss-repeat-note:not([hidden]), .miss-actions')];
+  const mark = panel.querySelector('.miss-mark');
+  animate(panel, { opacity: [0.75, 1], y: [16, 0], scale: [0.99, 1] }, { duration: 0.42, ease: easeOut });
+  animate(pieces, { opacity: [0, 1], y: [10, 0] }, { duration: 0.4, delay: stagger(0.045, { startDelay: 0.08 }), ease: easeOut });
+  if (mark) animate(mark, { rotate: [-7, 2, -3], scale: [0.9, 1.06, 1] }, { duration: 0.46, ease: easeOut });
+}
+
 revealGroup('.marketing-statement', '.marketing-statement > p, .statement-path', { fromY: 18, stagger: 0.08 });
 revealGroup('#how-it-works', '#how-it-works .marketing-section-heading, #how-it-works .loop-step, #how-it-works .loop-return', { fromY: 20, scale: 0.985 });
 revealGroup('#anki-first', '#anki-first .anki-first-copy, #anki-first .export-demo-head, #anki-first .export-demo-card, #anki-first .export-demo-settings, #anki-first .anki-export-demo > button', { fromX: -18, stagger: 0.07 });
@@ -109,3 +120,4 @@ installArrowMotion();
 installCardLift();
 window.addEventListener('syllabloom:landing-shown', animateHero);
 window.addEventListener('syllabloom:view-changed', animateProductView);
+window.addEventListener('syllabloom:miss-explained', animateMissExplanation);

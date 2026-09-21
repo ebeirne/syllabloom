@@ -5678,3 +5678,623 @@ button.mobile-class {
     font-size: 12px;
   }
 }
+
+/* Miss explanations stay part of the study card, not a separate assistant UI. */
+
+.study-controls.is-explaining {
+  display: none !important;
+}
+
+.rating[data-rating="Again"] {
+  background: color-mix(in srgb, var(--pink) 72%, var(--paper)) !important;
+  border-color: var(--ink) !important;
+}
+
+.miss-explanation[hidden] {
+  display: none !important;
+}
+
+.miss-explanation {
+  position: relative;
+  margin-top: 24px;
+  padding: 30px;
+  overflow: hidden;
+  background: #fffefa;
+  border: 2px solid var(--ink);
+  border-radius: 34px 42px 36px 30px;
+  box-shadow: 7px 7px 0 var(--ink);
+}
+
+.miss-explanation::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 9px;
+  background: var(--pink);
+  border-bottom: 2px solid var(--ink);
+}
+
+.miss-explanation-head {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  padding-top: 6px;
+}
+
+.miss-mark {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  background: var(--pink);
+  border: 2px solid var(--ink);
+  border-radius: 18px 14px 19px 13px;
+  box-shadow: 3px 3px 0 var(--ink);
+  font-size: 28px;
+  font-weight: 900;
+  rotate: -3deg;
+}
+
+.miss-explanation-head h2 {
+  margin: 0 0 5px;
+  color: var(--ink);
+  font-size: clamp(26px, 4vw, 34px);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+.miss-explanation-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.miss-explanation-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.miss-answer-block,
+.miss-why-block {
+  min-width: 0;
+  padding: 22px;
+  border: 2px solid var(--ink);
+  border-radius: 24px 20px 26px 18px;
+}
+
+.miss-answer-block {
+  background: color-mix(in srgb, var(--pink) 54%, var(--paper));
+}
+
+.miss-why-block {
+  background: var(--cream);
+  border-radius: 20px 26px 18px 24px;
+}
+
+.miss-answer-block > span,
+.miss-why-block > span,
+.miss-memory-hook > span,
+.miss-source-line > span {
+  display: block;
+  margin-bottom: 8px;
+  color: #4f524c;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.miss-answer-block strong {
+  display: block;
+  color: var(--ink);
+  font-size: clamp(19px, 2.6vw, 25px);
+  line-height: 1.35;
+  white-space: pre-line;
+}
+
+.miss-why-block p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.miss-memory-hook {
+  margin-top: 12px;
+  padding: 18px 22px;
+  background: color-mix(in srgb, var(--sun) 54%, var(--paper));
+  border: 2px solid var(--ink);
+  border-radius: 18px 24px 17px 22px;
+}
+
+.miss-memory-hook strong {
+  display: block;
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.4;
+}
+
+.miss-source-line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  margin: 12px 2px 0;
+  color: var(--grass-dark);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.miss-source-line > span {
+  margin: 0;
+  color: var(--grass-dark);
+}
+
+.miss-source-line strong {
+  overflow-wrap: anywhere;
+}
+
+.miss-repeat-note {
+  margin-top: 18px;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  background: color-mix(in srgb, var(--pink) 28%, var(--paper));
+  border: 2px dashed var(--ink);
+  border-radius: 18px;
+}
+
+.miss-repeat-note[hidden] {
+  display: none !important;
+}
+
+.miss-repeat-note strong,
+.miss-repeat-note span {
+  display: block;
+}
+
+.miss-repeat-note strong {
+  margin-bottom: 3px;
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.miss-repeat-note span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.miss-repeat-note .button {
+  flex: 0 0 auto;
+}
+
+.miss-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+@media (max-width: 760px) {
+  .miss-explanation {
+    padding: 24px 20px 22px;
+    border-radius: 28px 34px 30px 26px;
+    box-shadow: 5px 5px 0 var(--ink);
+  }
+
+  .miss-explanation-head {
+    grid-template-columns: 46px minmax(0, 1fr);
+    gap: 13px;
+  }
+
+  .miss-mark {
+    width: 44px;
+    height: 44px;
+    border-radius: 15px 12px 16px 11px;
+    font-size: 23px;
+  }
+
+  .miss-explanation-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .miss-answer-block,
+  .miss-why-block {
+    padding: 19px;
+  }
+
+  .miss-source-line {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .miss-repeat-note {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .miss-repeat-note .button,
+  .miss-actions .button {
+    width: 100%;
+  }
+
+  .miss-actions {
+    flex-direction: column;
+  }
+}
+
+/* Beta workspaces use quieter color so the material, not the chrome, holds attention. */
+
+#mainApp,
+.anki-settings-dialog {
+  --work-canvas: #efeee8;
+  --work-paper: #fbfaf6;
+  --work-sage: #dce5df;
+  --work-sage-strong: #8fa79a;
+  --work-blue: #dde5e7;
+  --work-clay: #eaded8;
+  --work-warm: #ece6d7;
+  --work-ink: #252a27;
+  --work-muted: #626b66;
+  --work-line: #a9b0ac;
+}
+
+#mainApp .main {
+  background: var(--work-canvas) !important;
+}
+
+#cards .card-workspace {
+  background: var(--work-paper) !important;
+  border-color: #48514c !important;
+  box-shadow: 5px 5px 0 #48514c !important;
+}
+
+#cards .card-browser {
+  background: #e8ebe7 !important;
+  border-color: #69736d !important;
+}
+
+#cards .browser-tools {
+  background: var(--work-blue) !important;
+  border-color: #69736d !important;
+}
+
+#cards .field-tab {
+  background: var(--work-paper) !important;
+  border-color: #69736d !important;
+  box-shadow: none !important;
+}
+
+#cards .field-tab.active {
+  background: #cbd9d2 !important;
+  box-shadow: inset 0 -3px #6f8a7d !important;
+}
+
+#cards .muscle-button:nth-child(even) {
+  background: rgba(251, 250, 246, 0.44) !important;
+}
+
+#cards .muscle-button:hover {
+  background: #edf2ef !important;
+}
+
+#cards .muscle-button.active {
+  background: #cfdcd5 !important;
+  box-shadow: inset 6px 0 #688578 !important;
+}
+
+#cards .card-editor,
+#cards .source-reference {
+  background: var(--work-paper) !important;
+}
+
+#cards .edit-field textarea,
+#cards .search,
+.anki-settings-dialog .text-input,
+.anki-settings-dialog select {
+  background: #fffefa !important;
+  border-color: #7a837e !important;
+}
+
+#cards .anki-export-bar {
+  background: var(--work-sage) !important;
+  border-color: #59655f !important;
+}
+
+#cards .anki-export-actions .primary {
+  background: #c8d7cf !important;
+  border-color: #48514c !important;
+  box-shadow: 0 4px 0 #71897c !important;
+}
+
+#study .study-card-stage {
+  background: var(--work-sage) !important;
+  border-color: #48514c !important;
+  box-shadow: 5px 5px 0 #48514c !important;
+}
+
+#study .study-card-stage::before {
+  background: #d4ddca !important;
+  border-color: #59655f !important;
+}
+
+#study .study-card-stage .study-card {
+  background: var(--work-paper) !important;
+  border-color: #6e7872 !important;
+}
+
+#study .rating[data-rating="Again"] {
+  background: var(--work-clay) !important;
+}
+
+#study .rating[data-rating="Hard"] {
+  background: var(--work-warm) !important;
+}
+
+#study .rating[data-rating="Good"],
+#study .rating[data-rating="Easy"] {
+  background: var(--work-sage) !important;
+}
+
+#study .miss-explanation {
+  background: var(--work-paper) !important;
+  border-color: #48514c !important;
+  box-shadow: 6px 6px 0 #48514c !important;
+}
+
+#study .miss-explanation::before,
+#study .miss-mark,
+#study .miss-answer-block {
+  background: var(--work-clay) !important;
+}
+
+#study .miss-why-block {
+  background: #efede6 !important;
+}
+
+#study .miss-memory-hook {
+  background: var(--work-warm) !important;
+}
+
+.study-empty {
+  min-height: 300px;
+  padding: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  background: var(--work-sage);
+  border: 2px solid #48514c;
+  border-radius: 36px;
+}
+
+.study-empty[hidden],
+#studyMeta[hidden],
+#studyProgressTrack[hidden],
+#studyCardStage[hidden],
+#studyControls[hidden] {
+  display: none !important;
+}
+
+.study-empty h2 {
+  margin: 0 0 8px;
+  font-size: clamp(30px, 4vw, 42px);
+}
+
+.study-empty p {
+  max-width: 44ch;
+  margin: 0;
+  color: var(--work-muted);
+}
+
+body .anki-settings-dialog,
+body .anki-settings-dialog .anki-settings-head {
+  background: #efeee8 !important;
+}
+
+.anki-settings-dialog .anki-settings-intro {
+  background: var(--work-sage) !important;
+  border-color: #59655f !important;
+  box-shadow: 4px 4px 0 #59655f !important;
+}
+
+.anki-settings-dialog .anki-learning-map {
+  background: var(--work-blue) !important;
+  border-color: #66736c !important;
+}
+
+body .anki-settings-dialog .anki-learning-status {
+  color: #f8faf8 !important;
+  background: #596d63 !important;
+  border-color: #44574e !important;
+  box-shadow: 3px 3px 0 #44574e !important;
+}
+
+body .anki-settings-dialog .anki-learning-lane.syllabloom-lane {
+  background: #e7ded8 !important;
+  border-color: #8a7770 !important;
+}
+
+body .anki-settings-dialog .anki-learning-lane.anki-lane {
+  background: #dbe4e7 !important;
+  border-color: #6e7f85 !important;
+}
+
+body .anki-settings-dialog .anki-lane-step {
+  color: #f8faf8 !important;
+  background: #596d63 !important;
+}
+
+body .anki-settings-dialog .anki-boundary-note,
+body .anki-settings-dialog .anki-toggle-list > label,
+body .anki-settings-dialog .anki-collection-setting {
+  background: var(--work-paper) !important;
+  border-color: #a5ada8 !important;
+}
+
+.anki-settings-dialog .anki-settings-group[open] > summary {
+  color: #526d60 !important;
+}
+
+.setup-panel[data-setup-panel="5"] .choice-card:has(input:checked) {
+  background: #dce5df !important;
+  box-shadow: 3px 3px 0 #52645b !important;
+}
+
+.setup-material-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.setup-material-list {
+  margin-top: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.setup-material-row,
+.setup-material-empty,
+.setup-source-selection {
+  min-height: 78px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  background: #f4f2ea;
+  border: 1.5px solid var(--ink);
+  border-radius: 18px;
+}
+
+.setup-material-row strong,
+.setup-material-row span,
+.setup-material-empty strong,
+.setup-material-empty span,
+.setup-source-selection strong,
+.setup-source-selection span {
+  display: block;
+}
+
+.setup-material-row span,
+.setup-material-empty span,
+.setup-source-selection span,
+.setup-source-help {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.setup-source-selection {
+  margin-top: 12px;
+  background: #dfe8e2;
+}
+
+.setup-source-selection[hidden] {
+  display: none !important;
+}
+
+.setup-source-help {
+  margin: 14px 0 0 !important;
+}
+
+.source-library-empty {
+  min-height: 170px;
+  padding: 32px;
+  display: grid;
+  place-content: center start;
+  gap: 5px;
+  background: #e6e9e5 !important;
+}
+
+.source-library-empty span {
+  color: var(--muted);
+}
+
+@media (max-width: 760px) {
+  body:has(#cards.page.active) .mobile-header {
+    position: relative !important;
+    top: auto;
+  }
+
+  #classCardWorkspace {
+    scroll-margin-top: 18px;
+  }
+
+  #cards .card-workspace {
+    display: block !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    border-radius: 28px !important;
+  }
+
+  #cards .card-browser {
+    max-height: none !important;
+    overflow: hidden !important;
+  }
+
+  #cards .muscle-list {
+    max-height: 260px !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+  }
+
+  #cards .card-editor {
+    position: relative;
+    z-index: 2;
+    padding: 26px 20px 34px !important;
+    border-top: 2px solid #69736d;
+  }
+
+  #cards .editor-head {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 12px;
+  }
+
+  #cards .editor-head h2 {
+    margin: 0 0 6px !important;
+    font-size: 26px !important;
+    line-height: 1.03 !important;
+    letter-spacing: -0.03em;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
+  }
+
+  #cards .editor-head p {
+    margin: 0 !important;
+  }
+
+  #cards .edit-field textarea {
+    width: 100% !important;
+    min-height: 128px !important;
+    box-sizing: border-box;
+  }
+
+  .study-empty {
+    min-height: 0;
+    padding: 30px 24px;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .setup-material-actions,
+  .setup-material-actions .button,
+  .setup-material-row .button,
+  .setup-source-selection .button {
+    width: 100%;
+  }
+
+  .setup-material-row,
+  .setup-source-selection {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
