@@ -80,8 +80,21 @@ body,
 .button.primary::after,
 .setup-next::after,
 #finishSetup::after {
-  background: var(--paper) !important;
-  border: 1px solid var(--ink);
+  width: 27px;
+  height: 27px;
+  background: var(--ink) !important;
+  border: 0;
+  border-radius: 8px;
+  color: var(--memphis-yellow);
+  box-shadow: none;
+  transform: rotate(-3deg);
+}
+
+.marketing-link-button span {
+  background: var(--ink) !important;
+  border-radius: 8px !important;
+  color: var(--memphis-pink) !important;
+  transform: rotate(3deg);
 }
 
 .button:focus-visible,
@@ -208,8 +221,14 @@ textarea:focus-visible {
 }
 
 .loop-step > span {
-  background: var(--paper) !important;
-  border: 1.5px solid var(--ink) !important;
+  width: 34px;
+  height: 34px;
+  background: var(--ink) !important;
+  border: 0 !important;
+  border-radius: 9px !important;
+  color: var(--paper);
+  box-shadow: 3px 3px 0 var(--memphis-yellow);
+  transform: rotate(-3deg);
 }
 
 .loop-return {
@@ -592,6 +611,121 @@ textarea {
   transform: rotate(-3deg);
 }
 
+.card-workspace {
+  border: 2px solid var(--ink) !important;
+  box-shadow: 6px 6px 0 var(--ink) !important;
+}
+
+.card-browser {
+  background: var(--memphis-pink-soft) !important;
+  border-right: 2px solid var(--ink) !important;
+}
+
+.browser-tools {
+  padding: 22px !important;
+  background: var(--memphis-aqua);
+  border-bottom: 2px solid var(--ink) !important;
+}
+
+.field-tabs {
+  gap: 8px !important;
+}
+
+.field-tab {
+  min-height: 40px;
+  background: var(--paper) !important;
+  border: 1px solid var(--ink) !important;
+  border-radius: 11px !important;
+  color: var(--ink) !important;
+  font-weight: 700;
+}
+
+.field-tab.active {
+  background: var(--memphis-yellow) !important;
+  color: var(--ink) !important;
+  box-shadow: 3px 3px 0 var(--ink) !important;
+}
+
+.muscle-button {
+  border-bottom: 1px solid rgba(23, 24, 22, 0.22) !important;
+  color: var(--ink);
+}
+
+.muscle-button:nth-child(even) {
+  background: rgba(255, 253, 246, 0.28);
+}
+
+.muscle-button:hover {
+  background: var(--memphis-aqua) !important;
+}
+
+.muscle-button.active {
+  background: var(--stage-green) !important;
+  box-shadow: inset 7px 0 var(--ink) !important;
+}
+
+.card-editor {
+  background: var(--paper) !important;
+}
+
+.editor-head {
+  padding: 4px 4px 26px !important;
+  border-bottom: 2px solid var(--ink) !important;
+}
+
+.editor-head .status {
+  background: var(--memphis-yellow) !important;
+  border-color: var(--ink) !important;
+}
+
+.edit-field textarea {
+  background: var(--paper) !important;
+  border: 1.5px solid var(--ink) !important;
+  box-shadow: 4px 4px 0 var(--sand) !important;
+}
+
+.edit-field textarea:focus {
+  background: color-mix(in srgb, var(--memphis-aqua) 22%, var(--paper)) !important;
+}
+
+.source-reference {
+  background: var(--memphis-aqua) !important;
+  border: 1.5px solid var(--ink) !important;
+  box-shadow: 4px 4px 0 var(--ink);
+}
+
+.lecture-draft-section {
+  overflow: hidden;
+  background: var(--memphis-pink-soft) !important;
+  border: 2px solid var(--ink) !important;
+  border-radius: 34px !important;
+  box-shadow: 6px 6px 0 var(--ink);
+}
+
+.draft-queue-head {
+  background: var(--memphis-yellow);
+  border-bottom: 2px solid var(--ink);
+}
+
+.lecture-draft-card {
+  background: var(--paper) !important;
+  border-bottom: 1px solid var(--ink) !important;
+}
+
+.lecture-draft-card:nth-child(even) {
+  background: var(--memphis-aqua) !important;
+}
+
+.lecture-draft-card.approved {
+  background: color-mix(in srgb, var(--stage-green) 34%, var(--paper)) !important;
+  border-left-color: var(--ink) !important;
+}
+
+.lecture-draft-body textarea {
+  background: var(--paper) !important;
+  border: 1.5px solid var(--ink) !important;
+}
+
 .anki-export-bar {
   min-height: 250px !important;
   padding: 34px 34px 34px 252px !important;
@@ -763,9 +897,22 @@ textarea {
   border: 1px solid var(--ink) !important;
 }
 
-.setup-step-label.active > span:first-child,
+.setup-step-label > span:first-child {
+  background: var(--ink) !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  color: var(--paper) !important;
+  transform: rotate(-3deg);
+}
+
+.setup-step-label.active > span:first-child {
+  background: var(--ink) !important;
+  color: var(--memphis-yellow) !important;
+}
+
 .setup-step-label.complete > span:first-child {
   background: var(--stage-green) !important;
+  color: var(--ink) !important;
 }
 
 .onboarding-main {
@@ -876,6 +1023,11 @@ textarea {
     min-height: 300px;
     padding: 24px 22px 164px !important;
     align-items: flex-start;
+  }
+
+  .card-browser {
+    border-right: 0 !important;
+    border-bottom: 2px solid var(--ink) !important;
   }
 
   .capture-mascot {
