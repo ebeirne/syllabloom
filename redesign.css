@@ -4133,6 +4133,28 @@ textarea {
   border-radius: 999px;
 }
 
+.marketing-scroll-progress {
+  height: 3px;
+  position: absolute;
+  right: 26px;
+  bottom: 0;
+  left: 26px;
+  z-index: 2;
+  background: var(--grass-dark);
+  border-radius: 999px;
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  pointer-events: none;
+}
+
+.motion-item {
+  will-change: opacity, translate, scale;
+}
+
+.motion-item.is-visible {
+  will-change: auto;
+}
+
 .marketing-nav > .marketing-logo {
   justify-self: start;
 }

@@ -666,47 +666,6 @@
     window.setTimeout(() => document.querySelector('#pricing').scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
   }
 
-  function initScrollMotion() {
-    const groups = [
-      ['.marketing-statement > p', '.statement-path'],
-      ['#how-it-works .marketing-section-heading', '#how-it-works .loop-step', '#how-it-works .loop-return'],
-      ['#anki-first .anki-first-copy', '#anki-first .anki-export-demo'],
-      ['#made-for-class .marketing-section-heading', '#made-for-class .subject-strip', '#made-for-class .class-feature'],
-      ['#pricing .pricing-heading > div:first-child', '#pricing .pricing-note', '#pricing .price-plan', '#pricing .pricing-footnote'],
-      ['.marketing-final-cta > div', '.marketing-final-cta .cta-companion', '.marketing-final-cta .button']
-    ];
-    const targets = [];
-    groups.forEach(selectors => {
-      let position = 0;
-      selectors.forEach(selector => {
-        document.querySelectorAll(selector).forEach(element => {
-          element.classList.add('scroll-reveal');
-          if (element.matches('.anki-export-demo, .pricing-note, .price-plan, .class-feature, .cta-companion')) element.classList.add('reveal-pop');
-          if (element.matches('.marketing-section-heading, .anki-first-copy')) element.classList.add('reveal-from-left');
-          element.style.setProperty('--reveal-delay', `${Math.min(position * 45, 180)}ms`);
-          targets.push(element);
-          position += 1;
-        });
-      });
-    });
-
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    document.body.classList.add('motion-ready');
-    if (reduceMotion || !('IntersectionObserver' in window)) {
-      targets.forEach(element => element.classList.add('is-visible'));
-      return;
-    }
-
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (!entry.isIntersecting) return;
-        entry.target.classList.add('is-visible');
-        observer.unobserve(entry.target);
-      });
-    }, { threshold: 0.12, rootMargin: '0px 0px -7% 0px' });
-    targets.forEach(element => observer.observe(element));
-  }
-
   function closeOnboarding() {
     localStorage.setItem('rounds-onboarded', '1');
     state.creatingClass = false;
@@ -728,6 +687,7 @@
     app.setAttribute('aria-hidden', 'true');
     document.body.classList.add('marketing-mode');
     window.scrollTo({ top: 0, behavior: 'auto' });
+    window.dispatchEvent(new CustomEvent('syllabloom:landing-shown'));
   }
 
   function navigate(view) {
@@ -748,6 +708,7 @@
     if (view === 'knowledge') renderClassPlanner();
     updateWorkflowCompanion(view);
     window.scrollTo({ top: 0, behavior: 'auto' });
+    window.dispatchEvent(new CustomEvent('syllabloom:view-changed', { detail: { view } }));
   }
 
   function renderSource() {
@@ -1983,7 +1944,6 @@
   renderClassPlanner();
   updateWorkflowCompanion('home');
   showLanding();
-  initScrollMotion();
   detectRuntimeCapabilities();
   loadStoredSources();
   restoreLatestSession();
