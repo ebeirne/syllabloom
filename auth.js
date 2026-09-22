@@ -6,16 +6,18 @@
   let clerk = null;
   let signInMounted = false;
   let configured = false;
+  let authResolved = false;
   let closing = false;
   let billingMount = null;
 
   window.SyllabloomAuth = {
     get configured() { return configured; },
+    get resolved() { return authResolved; },
     get signedIn() { return Boolean(clerk?.isSignedIn); },
     open: openDialog,
     openClerkProfile,
     mountBilling,
-    refresh: updateAuthState
+    refresh: () => clerk ? updateAuthState() : false
   };
 
   function sharedAppearance() {
@@ -231,9 +233,13 @@
   }
 
   function updateAuthState() {
+    if (!clerk) return false;
+    authResolved = true;
     const signedIn = Boolean(clerk?.isSignedIn && clerk.user);
     const email = clerk?.user?.primaryEmailAddress?.emailAddress || '';
     authButtons.forEach(button => {
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
       button.textContent = signedIn ? 'Account' : button.dataset.defaultLabel || button.textContent;
       button.dataset.defaultLabel ||= 'Sign in';
     });
@@ -248,6 +254,16 @@
       }
     }));
     if (signedIn && dialog.open) closeDialog();
+    return signedIn;
+  }
+
+  function markAuthUnavailable() {
+    authResolved = true;
+    authButtons.forEach(button => {
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
+      button.textContent = button.dataset.defaultLabel || 'Sign in';
+    });
   }
 
   function loadScript(source, attributes = {}) {
@@ -270,6 +286,7 @@
       const config = await response.json();
       const publishableKey = String(config.publishableKey || '');
       if (!publishableKey.startsWith('pk_')) {
+        markAuthUnavailable();
         window.dispatchEvent(new CustomEvent('syllabloom:auth-ready', { detail: { configured: false } }));
         return;
       }
@@ -291,12 +308,16 @@
       window.dispatchEvent(new CustomEvent('syllabloom:auth-ready', { detail: { configured: true } }));
     } catch (error) {
       console.info('Email sign-in is not configured on this build.', error);
+      markAuthUnavailable();
       window.dispatchEvent(new CustomEvent('syllabloom:auth-ready', { detail: { configured: false } }));
     }
   }
 
   authButtons.forEach(button => {
     button.dataset.defaultLabel = button.textContent.trim();
+    button.textContent = 'Checking account';
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
     button.addEventListener('click', openDialog);
   });
   document.querySelectorAll('[data-close-auth]').forEach(button => button.addEventListener('click', closeDialog));

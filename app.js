@@ -164,6 +164,22 @@
     }
   };
 
+  const appViews = new Set(['home', 'capture', 'source', 'knowledge', 'profile', 'billing', 'cards', 'study']);
+  let restoringShellHistory = false;
+
+  function shellRoute() {
+    return window.history.state?.syllabloom || null;
+  }
+
+  function syncShellHistory(surface, view = state.view, mode = 'push') {
+    if (!mode || restoringShellHistory) return;
+    const snapshot = {
+      ...(window.history.state || {}),
+      syllabloom: { surface, view, step: state.setupStep }
+    };
+    window.history[mode === 'replace' ? 'replaceState' : 'pushState'](snapshot, '', window.location.href);
+  }
+
   const assessmentQuestions = [
     {
       question: 'What innervates the masseter?',
@@ -762,9 +778,10 @@
     }
     document.querySelector('#onboarding').scrollTo({ top: 0, behavior: 'auto' });
     window.scrollTo({ top: 0, behavior: 'auto' });
+    if (shellRoute()?.surface === 'onboarding') syncShellHistory('onboarding', state.view, 'replace');
   }
 
-  function openOnboarding(step = 1) {
+  function openOnboarding(step = 1, historyMode = 'push') {
     document.querySelector('#landing').classList.add('hidden');
     document.querySelector('#onboarding').classList.remove('hidden');
     const app = document.querySelector('#mainApp');
@@ -772,6 +789,7 @@
     app.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('marketing-mode');
     showSetupStep(step);
+    syncShellHistory('onboarding', state.view, historyMode);
   }
 
   function saveAccount() {
@@ -834,7 +852,7 @@
     setClassLabels('Human Anatomy', 'Fall 2023');
     renderSource();
     updateGenerationCount();
-    closeOnboarding();
+    closeOnboarding(shellRoute()?.surface === 'onboarding' ? 'replace' : 'push');
   }
 
   function showClassLimit() {
@@ -875,9 +893,10 @@
     app.setAttribute('aria-hidden', 'false');
     document.body.classList.remove('marketing-mode');
     navigate(view);
+    if (shellRoute()?.surface !== 'app') syncShellHistory('app', view, 'push');
   }
 
-  function closeOnboarding() {
+  function closeOnboarding(historyMode = 'replace') {
     localStorage.setItem('rounds-onboarded', '1');
     state.creatingClass = false;
     document.querySelector('#landing').classList.add('hidden');
@@ -887,9 +906,10 @@
     app.setAttribute('aria-hidden', 'false');
     document.body.classList.remove('marketing-mode');
     navigate('home');
+    syncShellHistory('app', 'home', historyMode);
   }
 
-  function showLanding() {
+  function showLanding(historyMode = 'push') {
     state.creatingClass = false;
     document.querySelector('#landing').classList.remove('hidden');
     document.querySelector('#onboarding').classList.add('hidden');
@@ -899,6 +919,45 @@
     document.body.classList.add('marketing-mode');
     window.scrollTo({ top: 0, behavior: 'auto' });
     window.dispatchEvent(new CustomEvent('syllabloom:landing-shown'));
+    syncShellHistory('landing', state.view, historyMode);
+    window.SyllabloomAuth?.refresh?.();
+  }
+
+  function restoreShellRoute(route) {
+    restoringShellHistory = true;
+    try {
+      if (route?.surface === 'app') {
+        document.querySelector('#landing').classList.add('hidden');
+        document.querySelector('#onboarding').classList.add('hidden');
+        const app = document.querySelector('#mainApp');
+        app.inert = false;
+        app.setAttribute('aria-hidden', 'false');
+        document.body.classList.remove('marketing-mode');
+        navigate(appViews.has(route.view) ? route.view : 'home');
+      } else if (route?.surface === 'onboarding') {
+        openOnboarding(Number(route.step) || 1, null);
+      } else {
+        showLanding(null);
+      }
+    } finally {
+      restoringShellHistory = false;
+    }
+    window.SyllabloomAuth?.refresh?.();
+  }
+
+  function initializeShellRouting() {
+    const current = shellRoute();
+    const hashView = window.location.hash.replace(/^#/, '');
+    if (current?.surface) {
+      restoreShellRoute(current);
+      return;
+    }
+    if (appViews.has(hashView)) {
+      syncShellHistory('app', hashView, 'replace');
+      restoreShellRoute({ surface: 'app', view: hashView });
+      return;
+    }
+    showLanding('replace');
   }
 
   function navigate(view) {
@@ -925,6 +984,7 @@
     updateWorkflowCompanion(view);
     window.scrollTo({ top: 0, behavior: 'auto' });
     window.dispatchEvent(new CustomEvent('syllabloom:view-changed', { detail: { view } }));
+    if (shellRoute()?.surface === 'app') syncShellHistory('app', view, 'replace');
   }
 
   function renderSource() {
@@ -2316,6 +2376,10 @@
     event.returnValue = '';
   });
 
+  window.addEventListener('popstate', event => {
+    restoreShellRoute(event.state?.syllabloom || { surface: 'landing' });
+  });
+
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState !== 'visible' || !mediaRecorder || mediaRecorder.state === 'inactive' || recordingWakeLock || !('wakeLock' in navigator)) return;
     await requestRecordingWakeLock();
@@ -2836,7 +2900,7 @@
   renderProfile();
   syncBillingSummary();
   updateWorkflowCompanion('home');
-  showLanding();
+  initializeShellRouting();
   detectRuntimeCapabilities();
   loadStoredSources();
   restoreLatestSession();
