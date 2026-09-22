@@ -177,6 +177,385 @@ def draft_cards_from_structured_slides(text: str, filename: str) -> list[dict]:
     return cards
 
 
+_GENERIC_SECTION_TITLES = {
+    "agenda",
+    "contents",
+    "course overview",
+    "learning objectives",
+    "objectives",
+    "references",
+    "questions",
+    "thank you",
+}
+_GENERIC_LABELS = {
+    "example",
+    "examples",
+    "note",
+    "notes",
+    "key point",
+    "key points",
+    "summary",
+    "source",
+}
+_BRAND_LINES = {"rounds", "syllabloom", "source signals"}
+_LECTURE_STOPWORDS = {
+    "about", "after", "again", "also", "because", "before", "being", "between",
+    "could", "does", "doing", "during", "each", "from", "going", "have", "having",
+    "into", "just", "like", "more", "most", "other", "over", "same", "some", "such",
+    "than", "that", "their", "them", "then", "there", "these", "they", "this", "those",
+    "through", "today", "under", "very", "what", "when", "where", "which", "while", "with",
+    "would", "your", "will", "were", "been", "lecture", "class", "thing", "things",
+    "everyone", "discuss", "part", "group", "height", "finally", "known", "suggests",
+}
+_BAD_SUBJECT_STARTS = {
+    "and", "or", "but", "so", "because", "at", "by", "during", "for", "from", "if",
+    "in", "into", "it", "its", "of", "on", "since", "that", "then", "there", "these",
+    "they", "this", "those", "through", "to", "when", "where", "which", "while", "with",
+}
+_PROMOTIONAL_LECTURE_PHRASES = (
+    "interactive quizzes",
+    "more videos",
+    "reading a textbook",
+    "say goodbye",
+    "learning partner",
+    "subscribe to",
+    "visit our",
+)
+
+
+def _clean_study_line(value: str) -> str:
+    value = re.sub(r"^[\s\u2022\u25aa\u25cf\u25e6\-*]+", "", value or "")
+    value = re.sub(r"\s+", " ", value).strip()
+    return value
+
+
+def _study_units(text: str) -> list[dict]:
+    slide_blocks = re.split(r"(?m)^Slide (\d+)\s*$", text)
+    if len(slide_blocks) > 1:
+        units = []
+        for index in range(1, len(slide_blocks), 2):
+            lines = [_clean_study_line(line) for line in slide_blocks[index + 1].splitlines()]
+            lines = [line for line in lines if line and not re.fullmatch(r"\d+", line)]
+            if lines:
+                units.append({"number": int(slide_blocks[index]), "lines": lines})
+        return units
+
+    lines = [_clean_study_line(line) for line in text.splitlines()]
+    lines = [line for line in lines if line and not re.fullmatch(r"\d+", line)]
+    if not lines:
+        return []
+    chunks = [lines[index : index + 8] for index in range(0, len(lines), 8)]
+    return [{"number": index + 1, "lines": chunk} for index, chunk in enumerate(chunks)]
+
+
+def _study_sentences(lines: list[str]) -> list[str]:
+    sentences = []
+    for line in lines:
+        parts = re.split(r"(?<=[.!?])\s+(?=[A-Z0-9])", line)
+        for part in parts:
+            cleaned = _clean_study_line(part).strip(" ;")
+            if len(re.findall(r"\b\w+\b", cleaned)) >= 4:
+                sentences.append(cleaned)
+    return sentences
+
+
+def _unit_topic(lines: list[str], fallback: str) -> tuple[str, int]:
+    usable = [(index, line) for index, line in enumerate(lines) if line.lower() not in _BRAND_LINES]
+    if not usable:
+        return fallback, 0
+
+    normalized = [line.upper() for line in lines]
+    label_indexes = [
+        normalized.index(label)
+        for label in ("ATTACHMENT", "ACTION", "INNERVATION")
+        if label in normalized
+    ]
+    if label_indexes:
+        before_schema = [
+            (index, line)
+            for index, line in usable
+            if index < min(label_indexes) and line.upper() not in {"ATTACHMENT", "ACTION", "INNERVATION"}
+        ]
+        natural_title = next(
+            ((index, line) for index, line in reversed(before_schema) if not line.isupper()),
+            None,
+        )
+        if natural_title:
+            return natural_title[1].rstrip(".:"), natural_title[0]
+        if before_schema:
+            return before_schema[-1][1].title().rstrip(".:"), before_schema[-1][0]
+
+    first_index, first = usable[0]
+    if first.isupper() and len(usable) > 1:
+        second_index, second = usable[1]
+        if not second.isupper() and second.lower() not in _GENERIC_LABELS:
+            return second.rstrip(".:"), second_index
+        return first.title().rstrip(".:"), first_index
+    return first.rstrip(".:"), first_index
+
+
+def _valid_card_subject(value: str) -> bool:
+    subject = re.sub(r"\s+", " ", value).strip(" ,;:.-")
+    words = subject.split()
+    if not (1 <= len(words) <= 11) or len(subject) > 90:
+        return False
+    if words[0].lower() in _BAD_SUBJECT_STARTS or words[-1].lower() in {"which", "that", "who"}:
+        return False
+    if "," in subject or ";" in subject:
+        return False
+    return any(character.isalpha() for character in subject)
+
+
+def _question_subject(value: str) -> str:
+    value = value.strip()
+    if value.startswith("The "):
+        return "the " + value[4:]
+    if value.startswith("A "):
+        return "a " + value[2:]
+    if value.startswith("An "):
+        return "an " + value[3:]
+    return value
+
+
+def _fact_card(statement: str, topic: str) -> tuple[str, str] | None:
+    statement = statement.strip().rstrip(".")
+    if len(statement) < 18 or len(statement) > 520:
+        return None
+
+    colon = re.match(r"^([^:]{2,72}):\s+(.{12,})$", statement)
+    if colon:
+        label, answer = colon.group(1).strip(), colon.group(2).strip()
+        if label.lower() not in _GENERIC_LABELS and _valid_card_subject(label):
+            return f"What is {_question_subject(label)}?", answer
+
+    definition = re.match(
+        r"^(.{2,90}?)\s+(is|are|means|refers to|is defined as|are defined as)\s+(.{12,})$",
+        statement,
+        flags=re.IGNORECASE,
+    )
+    if definition:
+        subject, verb, answer = definition.group(1).strip(), definition.group(2).lower(), definition.group(3).strip()
+        if _valid_card_subject(subject):
+            question_word = "are" if verb.startswith("are") else "is"
+            return f"What {question_word} {_question_subject(subject)}?", answer
+
+    location = re.match(r"^(.{2,90}?)\s+(occurs?|takes place|is found|are found)\s+(in|at|within|on)\s+(.{4,})$", statement, flags=re.IGNORECASE)
+    if location and _valid_card_subject(location.group(1)):
+        return f"Where does {_question_subject(location.group(1))} occur?", f"{location.group(3)} {location.group(4).strip()}"
+
+    inclusion = re.match(r"^(.{2,90}?)\s+(includes?|contains?|comprises?|consists of)\s+(.{8,})$", statement, flags=re.IGNORECASE)
+    if inclusion and _valid_card_subject(inclusion.group(1)):
+        return f"What does {_question_subject(inclusion.group(1))} include?", inclusion.group(3).strip()
+
+    causal = re.match(r"^(.{2,90}?)\s+(causes?|leads to|results in|increases?|decreases?)\s+(.{8,})$", statement, flags=re.IGNORECASE)
+    if causal and _valid_card_subject(causal.group(1)):
+        return f"What effect does {_question_subject(causal.group(1))} have?", f"It {causal.group(2).lower()} {causal.group(3).strip()}."
+
+    function = re.match(r"^(.{2,90}?)\s+(allows?|enables?|helps?|functions? to|is responsible for)\s+(.{8,})$", statement, flags=re.IGNORECASE)
+    if function and _valid_card_subject(function.group(1)):
+        return f"What is the function of {_question_subject(function.group(1))}?", f"It {function.group(2).lower()} {function.group(3).strip()}."
+    return None
+
+
+def _topic_question(topic: str, lines: list[str]) -> str:
+    normalized = topic.strip().rstrip(".?")
+    patterns = (
+        (r"^(types|forms|classes) of (.+)$", "What are the main {0} of {1}?"),
+        (r"^(functions|roles) of (.+)$", "What are the main {0} of {1}?"),
+        (r"^(stages|steps|phases) of (.+)$", "What are the {0} of {1}?"),
+        (r"^(causes|effects|risk factors|features|components) of (.+)$", "What are the main {0} of {1}?"),
+    )
+    for pattern, template in patterns:
+        match = re.match(pattern, normalized, flags=re.IGNORECASE)
+        if match:
+            return template.format(match.group(1).lower(), match.group(2))
+    if re.search(r"\b(vs\.?|versus)\b", normalized, flags=re.IGNORECASE):
+        return f"How do {normalized} differ?"
+    return f"What are the key ideas about {normalized}?" if len(lines) > 1 else f"What is the key idea about {normalized}?"
+
+
+def _infer_lecture_topic(text: str) -> str:
+    talk_about = re.search(
+        r"\b(?:talk|talking|learn|learning|focus|focusing|cover|covering)\s+(?:about|on)\s+(.{3,70}?)(?:[.,]|\band how\b|\band why\b|$)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if talk_about:
+        return talk_about.group(1).strip().rstrip(".")
+    for sentence in _study_sentences([text]):
+        definition = re.match(r"^(.{2,90}?)\s+(?:is|are|means|refers to)\s+", sentence, flags=re.IGNORECASE)
+        if definition and _valid_card_subject(definition.group(1)):
+            candidate = definition.group(1).strip()
+            candidate = re.sub(r"^(?:the|a|an)\s+", "", candidate, flags=re.IGNORECASE)
+            return candidate
+    words = [word.lower() for word in re.findall(r"\b[A-Za-z][A-Za-z-]{3,}\b", text)]
+    useful = [word for word in words if word not in _LECTURE_STOPWORDS]
+    if len(useful) >= 2:
+        bigrams = [f"{useful[index]} {useful[index + 1]}" for index in range(len(useful) - 1)]
+        counts = {phrase: bigrams.count(phrase) for phrase in dict.fromkeys(bigrams)}
+        return max(counts, key=lambda phrase: (counts[phrase], -bigrams.index(phrase))).replace("-", " ")
+    if useful:
+        return useful[0].replace("-", " ")
+    return "this lecture section"
+
+
+def compile_study_material(text: str, filename: str, status: str = "verified") -> dict:
+    concepts = []
+    notes = []
+    cards = []
+    seen_cards = set()
+    stem = Path(filename).stem.replace("_", " ").replace("-", " ").strip()
+
+    for unit in _study_units(text):
+        lines = unit["lines"]
+        if not lines:
+            continue
+        topic, title_index = _unit_topic(lines, stem)
+        has_title = len(topic) <= 120 and len(topic.split()) <= 16
+        body = lines[title_index + 1 :] if has_title and title_index + 1 < len(lines) else lines
+        body = [line for line in body if line.lower() not in _BRAND_LINES]
+        body = [line for line in body if line.lower() not in _GENERIC_SECTION_TITLES]
+        if not body:
+            continue
+        if topic.lower() in _GENERIC_SECTION_TITLES:
+            topic = _infer_lecture_topic(" ".join(body))
+
+        citation = f"{filename} · Slide {unit['number']}" if text.lstrip().startswith("Slide ") else filename
+        note_lines = body[:6]
+        concepts.append({
+            "name": topic,
+            "status": status,
+            "source": citation,
+            "slideNumber": unit["number"] if text.lstrip().startswith("Slide ") else None,
+        })
+        notes.append({
+            "title": topic,
+            "section": topic,
+            "heardAt": None,
+            "status": status,
+            "source": citation,
+            "slideNumber": unit["number"] if text.lstrip().startswith("Slide ") else None,
+            "lines": note_lines,
+        })
+
+        unit_cards = []
+        for statement in _study_sentences(body):
+            generated = _fact_card(statement, topic)
+            if not generated:
+                continue
+            front, back = generated
+            key = (front.lower(), back.lower())
+            if key in seen_cards:
+                continue
+            seen_cards.add(key)
+            unit_cards.append((front, back))
+            if len(unit_cards) >= 2:
+                break
+
+        if len(body) > 1:
+            answer = "\n".join(f"• {line}" for line in body[:6])
+            summary = (_topic_question(topic, body), answer)
+            key = (summary[0].lower(), summary[1].lower())
+            if key not in seen_cards:
+                seen_cards.add(key)
+                unit_cards.append(summary)
+
+        for front, back in unit_cards[:3]:
+            cards.append({
+                "muscle": topic,
+                "field": "concept",
+                "front": front,
+                "back": back,
+                "section": topic,
+                "source": citation,
+                "status": status,
+                "slideNumber": unit["number"] if text.lstrip().startswith("Slide ") else None,
+            })
+
+    return {"concepts": concepts, "notes": notes, "cards": cards}
+
+
+def compile_lecture_window(text: str, filename: str, heard_at: float, window_number: int) -> dict:
+    cleaned = re.sub(r"\s+", " ", text).strip()
+    if len(re.findall(r"\b\w+\b", cleaned)) < 8:
+        return {"concepts": [], "notes": [], "cards": []}
+    sentences = _study_sentences([cleaned]) or [cleaned]
+    sentences = [
+        sentence for sentence in sentences
+        if not any(phrase in sentence.lower() for phrase in _PROMOTIONAL_LECTURE_PHRASES)
+    ]
+    if not sentences:
+        return {"concepts": [], "notes": [], "cards": []}
+    instructional_text = " ".join(sentences)
+    topic = _infer_lecture_topic(instructional_text)
+    citation = f"{filename} · {int(heard_at // 60):02d}:{int(heard_at % 60):02d}"
+    card_pairs = []
+    seen = set()
+    for sentence in sentences:
+        generated = _fact_card(sentence, topic)
+        if not generated or generated[0].lower() in seen:
+            continue
+        seen.add(generated[0].lower())
+        card_pairs.append(generated)
+        if len(card_pairs) >= 2:
+            break
+    if not card_pairs and topic not in {"this lecture section", "and", "anterior", "muscle", "this muscle"}:
+        answer = " ".join(sentences[:2])[:520]
+        card_pairs.append((f"What did the lecturer explain about {topic}?", answer))
+    concept = {"name": topic, "status": "provisional", "source": citation}
+    note = {
+        "title": topic,
+        "section": "Lecture notes",
+        "heardAt": round(heard_at, 2),
+        "status": "provisional",
+        "source": citation,
+        "lines": sentences[:3],
+    }
+    cards = [
+        {
+            "muscle": topic,
+            "field": "lecture",
+            "front": front,
+            "back": back,
+            "section": "Lecture notes",
+            "source": citation,
+            "status": "provisional",
+            "windowNumber": window_number,
+        }
+        for front, back in card_pairs
+    ]
+    return {"concepts": [concept], "notes": [note], "cards": cards}
+
+
+def compile_lecture_segments(segments: list[dict], filename: str) -> dict:
+    concepts = []
+    notes = []
+    cards = []
+    seen_questions = set()
+    window_size = 5
+    for offset in range(0, len(segments), window_size):
+        window = segments[offset : offset + window_size]
+        if not window:
+            continue
+        compiled = compile_lecture_window(
+            " ".join(segment.get("text", "") for segment in window),
+            filename,
+            float(window[0].get("start", 0)),
+            offset // window_size + 1,
+        )
+        new_cards = []
+        for card in compiled["cards"]:
+            key = card["front"].strip().lower()
+            if key in seen_questions:
+                continue
+            seen_questions.add(key)
+            new_cards.append(card)
+        concepts.extend(compiled["concepts"])
+        notes.extend(compiled["notes"])
+        cards.extend(new_cards)
+    return {"concepts": concepts, "notes": notes, "cards": cards}
+
+
 def source_summary(path: Path, filename: str, kind: str) -> dict:
     suffix = path.suffix.lower()
     text, units = extract_source_text(path, suffix)
@@ -191,7 +570,9 @@ def source_summary(path: Path, filename: str, kind: str) -> dict:
         if re.search(r"\b(objective|outcome|students will|able to)\b", normalized):
             objectives.append(line)
     fingerprint = hashlib.sha256(text.encode("utf-8", errors="ignore")).hexdigest()
-    draft_cards = draft_cards_from_structured_slides(text, filename) if suffix == ".pptx" else []
+    compiled = compile_study_material(text, filename)
+    structured_cards = draft_cards_from_structured_slides(text, filename) if suffix == ".pptx" else []
+    draft_cards = structured_cards or compiled["cards"]
     return {
         "id": fingerprint[:12],
         "name": filename,
@@ -203,6 +584,8 @@ def source_summary(path: Path, filename: str, kind: str) -> dict:
         "headings": headings[:8],
         "objectiveCount": len(objectives),
         "preview": cleaned_lines[:5],
+        "concepts": compiled["concepts"],
+        "notes": compiled["notes"],
         "draftCards": draft_cards,
         "fingerprint": fingerprint,
         "addedAt": datetime.now(timezone.utc).isoformat(),
@@ -851,6 +1234,21 @@ def transcribe(path: Path) -> dict:
 
     transcript = " ".join(transcript_parts)
     matches = find_course_matches(transcript)
+    generic = compile_lecture_segments(segments, path.name)
+    schema_concepts = []
+    schema_notes = []
+    schema_cards = []
+    for rule in find_lecture_concepts(transcript):
+        notes, cards = build_lecture_items(rule, 0)
+        schema_concepts.append({"name": rule["title"], "status": "provisional"})
+        schema_notes.extend(notes)
+        schema_cards.extend(cards)
+    matched_cards = build_cards(matches)
+    seen_questions = {card["front"].strip().lower() for card in matched_cards + schema_cards}
+    generic_cards = [
+        card for card in generic["cards"]
+        if card["front"].strip().lower() not in seen_questions
+    ]
     terminology_warnings = find_terminology_warnings(segments)
     average_logprob = weighted_logprob / weighted_seconds if weighted_seconds else -2.0
     from faster_whisper.audio import decode_audio
@@ -872,9 +1270,13 @@ def transcribe(path: Path) -> dict:
         "averageLogprob": round(average_logprob, 3),
         "transcript": transcript,
         "segments": segments,
-        "detectedConcepts": [record["muscle"] for record in matches],
-        "cards": build_cards(matches),
-        "notes": build_notes(matches),
+        "detectedConcepts": (
+            [{"name": record["muscle"], "status": "verified"} for record in matches]
+            + schema_concepts
+            + generic["concepts"]
+        ),
+        "cards": matched_cards + schema_cards + generic_cards,
+        "notes": build_notes(matches) + schema_notes + generic["notes"],
         "reviewSegmentCount": sum(1 for segment in segments if segment["needsReview"]),
         "qualityWarnings": terminology_warnings,
         "waveform": waveform,
@@ -908,9 +1310,12 @@ def transcribe_events(path: Path, filename: str, markers: list[float] | None = N
         transcript_parts = []
         matched_names = set()
         matched_lecture_ids = set()
+        seen_card_questions = set()
         session_concepts = []
         session_notes = []
         session_cards = []
+        generic_buffer = []
+        generic_window_number = 0
         for item in generated:
             text = item.text.strip()
             if not text:
@@ -939,6 +1344,7 @@ def transcribe_events(path: Path, filename: str, markers: list[float] | None = N
                 matched_names.add(record["muscle"])
                 notes = build_notes([record], segment["start"])
                 cards = build_cards([record])
+                seen_card_questions.update(card["front"].strip().lower() for card in cards)
                 session_concepts.append({"name": record["muscle"], "status": "verified"})
                 session_notes.extend(notes)
                 session_cards.extend(cards)
@@ -957,6 +1363,7 @@ def transcribe_events(path: Path, filename: str, markers: list[float] | None = N
                     continue
                 matched_lecture_ids.add(rule["id"])
                 notes, cards = build_lecture_items(rule, segment["start"])
+                seen_card_questions.update(card["front"].strip().lower() for card in cards)
                 session_concepts.append({"name": rule["title"], "status": "provisional"})
                 session_notes.extend(notes)
                 session_cards.extend(cards)
@@ -969,7 +1376,60 @@ def transcribe_events(path: Path, filename: str, markers: list[float] | None = N
                     "cards": cards,
                 }
 
+            generic_buffer.append(segment)
+            buffered_words = sum(len(item["text"].split()) for item in generic_buffer)
+            if len(generic_buffer) >= 5 or buffered_words >= 110:
+                generic_window_number += 1
+                compiled = compile_lecture_window(
+                    " ".join(item["text"] for item in generic_buffer),
+                    filename,
+                    generic_buffer[0]["start"],
+                    generic_window_number,
+                )
+                cards = [
+                    card for card in compiled["cards"]
+                    if card["front"].strip().lower() not in seen_card_questions
+                ]
+                if compiled["notes"]:
+                    seen_card_questions.update(card["front"].strip().lower() for card in cards)
+                    session_concepts.extend(compiled["concepts"])
+                    session_notes.extend(compiled["notes"])
+                    session_cards.extend(cards)
+                    yield {
+                        "type": "concept",
+                        "concept": compiled["concepts"][0]["name"],
+                        "status": "provisional",
+                        "section": "Lecture notes",
+                        "notes": compiled["notes"],
+                        "cards": cards,
+                    }
+                generic_buffer = []
+
     transcript = " ".join(transcript_parts)
+    if generic_buffer:
+        generic_window_number += 1
+        compiled = compile_lecture_window(
+            " ".join(item["text"] for item in generic_buffer),
+            filename,
+            generic_buffer[0]["start"],
+            generic_window_number,
+        )
+        cards = [
+            card for card in compiled["cards"]
+            if card["front"].strip().lower() not in seen_card_questions
+        ]
+        if compiled["notes"]:
+            session_concepts.extend(compiled["concepts"])
+            session_notes.extend(compiled["notes"])
+            session_cards.extend(cards)
+            yield {
+                "type": "concept",
+                "concept": compiled["concepts"][0]["name"],
+                "status": "provisional",
+                "section": "Lecture notes",
+                "notes": compiled["notes"],
+                "cards": cards,
+            }
     warnings = find_terminology_warnings(segments)
     completed_at = datetime.now(timezone.utc).isoformat()
     session_id = persist_session(

@@ -1965,9 +1965,11 @@
     const units = `${Number(sourceItem.unitCount || 0).toLocaleString()} ${sourceItem.unitLabel || 'items'}`;
     const words = `${Number(sourceItem.wordCount || 0).toLocaleString()} words`;
     const objectives = sourceItem.objectiveCount ? ` · ${sourceItem.objectiveCount} objective cues` : '';
+    const concepts = sourceItem.concepts?.length ? ` · ${sourceItem.concepts.length} concepts` : '';
+    const notes = sourceItem.notes?.length ? ` · ${sourceItem.notes.length} note${sourceItem.notes.length === 1 ? '' : 's'}` : '';
     const drafts = sourceItem.draftCards?.length ? ` · ${sourceItem.draftCards.length} cards ready` : '';
     const processing = sourceItem.sample ? 'example' : (sourceItem.storage === 'session' ? 'available this session' : 'saved in this browser');
-    return `${sourceItem.kind} · ${units} · ${words}${objectives}${drafts} · ${processing}`;
+    return `${sourceItem.kind} · ${units} · ${words}${objectives}${concepts}${notes}${drafts} · ${processing}`;
   }
 
   function persistClassSources() {
@@ -2033,7 +2035,31 @@
     const toggle = document.querySelector('#toggleClassCards');
     toggle.hidden = !state.includeSampleMaterial;
     if (!state.includeSampleMaterial) document.querySelector('#classCardWorkspace').hidden = true;
+    renderSourceStudyOutput();
     renderOnboardingMaterials();
+  }
+
+  function renderSourceStudyOutput(preferredSource = null) {
+    const panel = document.querySelector('#sourceStudyOutput');
+    if (!panel) return;
+    const sourceItem = preferredSource || [...state.sources].reverse().find(item => item.notes?.length || item.draftCards?.length);
+    if (!sourceItem) {
+      panel.hidden = true;
+      return;
+    }
+    const concepts = Array.isArray(sourceItem.concepts) ? sourceItem.concepts : [];
+    const notes = Array.isArray(sourceItem.notes) ? sourceItem.notes : [];
+    const cards = Array.isArray(sourceItem.draftCards) ? sourceItem.draftCards : [];
+    panel.hidden = false;
+    document.querySelector('#sourceStudyOutputEyebrow').textContent = sourceItem.name;
+    document.querySelector('#sourceStudyOutputTitle').textContent = `${cards.length} ready card${cards.length === 1 ? '' : 's'} from this source`;
+    document.querySelector('#sourceStudyOutputSummary').textContent = `${concepts.length} concept${concepts.length === 1 ? '' : 's'} and ${notes.length} note section${notes.length === 1 ? '' : 's'} were traced back to the uploaded file.`;
+    document.querySelector('#sourceStudyConcepts').innerHTML = concepts.length
+      ? concepts.slice(0, 12).map(concept => `<span>${escapeHtml(concept.name || concept)}</span>`).join('')
+      : '<p>No named concepts were found.</p>';
+    document.querySelector('#sourceStudyNotes').innerHTML = notes.length
+      ? notes.slice(0, 8).map(note => `<article><span>${note.slideNumber ? `Slide ${note.slideNumber}` : 'Source note'}</span><strong>${escapeHtml(note.title)}</strong>${(note.lines || []).slice(0, 4).map(line => `<p>${escapeHtml(line)}</p>`).join('')}</article>`).join('')
+      : '<p>No notes were created from this source.</p>';
   }
 
   function removeClassSource(sourceId) {
@@ -2090,9 +2116,10 @@
         const unique = [...new Map(merged.map(card => [lectureCardKey(card), card])).values()];
         syncLectureCards(unique);
       }
+      renderSourceStudyOutput(payload.source);
       showToast(sourceCards.length
-        ? `${file.name} parsed · ${sourceCards.length} cards ready`
-        : `${file.name} parsed locally`);
+        ? `${file.name} · ${sourceCards.length} cards and ${(payload.source.notes || []).length} note sections ready`
+        : `${file.name} was read, but it did not contain enough study text`);
       return payload.source;
     } catch (error) {
       showToast(error.message);

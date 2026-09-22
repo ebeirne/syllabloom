@@ -3500,7 +3500,7 @@
       .source-reference dd { margin: 4px 0 0; font-size: 15px; line-height: 1.5; }
     }
   </style>
-  <link rel="stylesheet" href="redesign.css?v=20260921-billing-card-fix-1">
+  <link rel="stylesheet" href="redesign.css?v=20260921-source-notes-1">
   <link rel="stylesheet" href="memphis.css?v=20260921-ready-cards-1">
 </head>
 <body>
@@ -4179,6 +4179,16 @@
         </section>
 
         <div id="sourceLibrary" class="file-stack" aria-live="polite"></div>
+        <section id="sourceStudyOutput" class="source-study-output surface" aria-labelledby="sourceStudyOutputTitle" hidden>
+          <header>
+            <div><span id="sourceStudyOutputEyebrow">LATEST SOURCE</span><h2 id="sourceStudyOutputTitle">Study material created</h2><p id="sourceStudyOutputSummary"></p></div>
+            <button class="button primary" type="button" data-go="cards">Open ready cards</button>
+          </header>
+          <div class="source-study-grid">
+            <div><h3>Concepts found</h3><div id="sourceStudyConcepts" class="source-study-concepts"></div></div>
+            <div><h3>Notes from the source</h3><div id="sourceStudyNotes" class="source-study-notes"></div></div>
+          </div>
+        </section>
         <input id="syllabusInput" type="file" accept=".pdf,.docx" hidden />
 
         <div class="surface course-map sample-source-detail">
@@ -4766,7 +4776,7 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="muscle-data.js?v=20260921-loop"></script>
   <script src="auth.js?v=20260921-billing-card-fix-1"></script>
-  <script src="app.js?v=20260921-remove-dialog-1"></script>
+  <script src="app.js?v=20260921-source-notes-1"></script>
   <script type="module" src="motion-effects.js?v=20260921-motion-smooth-2"></script>
 </body>
 </html>

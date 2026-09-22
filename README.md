@@ -9,7 +9,7 @@ Syllabloom turns lectures, slides, syllabi, and course files into editable, sour
 - Marketing site and per-class onboarding
 - Live lecture recording and uploaded audio/video ingestion
 - Per-user on-device lecture library with audio/video playback and removal
-- DOCX, PDF, PowerPoint, and text source import
+- DOCX, PDF, PowerPoint, and text import with source-linked concepts, notes, and ready-to-review cards
 - Editable card review and approval queue
 - Source-grounded explanations after every missed card, with same-card retry and repeated-miss editing
 - Basic and Cloze Anki card generation
@@ -40,7 +40,7 @@ python server.py
 
 Open [http://127.0.0.1:4174](http://127.0.0.1:4174).
 
-The core interface, source parsing, PowerPoint import, card editing, and Anki export work with the base requirements.
+The core interface, generic source parsing, PowerPoint import, source-linked notes, card editing, and Anki export work with the base requirements. PowerPoint decks do not need a special template or anatomy-specific labels.
 
 ### Email sign-in
 
@@ -76,7 +76,7 @@ $env:SYLLABLOOM_WHISPER_MODEL = "C:\path\to\whisper-small"
 python server.py
 ```
 
-Audio remains on the local machine in this mode. The hosted beta records, imports, stores, and plays lecture media, but it does not claim the desktop server's local transcription or automatic card drafting.
+Audio remains on the local machine in this mode. The local server turns transcript windows into timestamped concepts, notes, and provisional questions while preserving higher-confidence domain matches. The hosted beta records, imports, stores, and plays lecture media, but it does not claim the desktop server's local transcription or automatic card drafting.
 
 ## Project structure
 
