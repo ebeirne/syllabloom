@@ -5,10 +5,80 @@ import unittest
 import zipfile
 from pathlib import Path
 
+from docx import Document
+from pypdf import PdfWriter
+from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
+
 from server import compile_lecture_window, compile_study_material, source_summary
 
 
 class SourceCompilerTests(unittest.TestCase):
+    def test_pdf_import_creates_notes_and_cards(self) -> None:
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as handle:
+            path = Path(handle.name)
+        try:
+            writer = PdfWriter()
+            page = writer.add_blank_page(width=612, height=792)
+            font = DictionaryObject({
+                NameObject("/Type"): NameObject("/Font"),
+                NameObject("/Subtype"): NameObject("/Type1"),
+                NameObject("/BaseFont"): NameObject("/Helvetica"),
+            })
+            page[NameObject("/Resources")] = DictionaryObject({
+                NameObject("/Font"): DictionaryObject({NameObject("/F1"): writer._add_object(font)}),
+            })
+            content = DecodedStreamObject()
+            content.set_data(
+                b"BT /F1 12 Tf 72 720 Td (Photosynthesis) Tj "
+                b"0 -18 Td (Photosynthesis is the process plants use to convert light into chemical energy.) Tj "
+                b"0 -18 Td (The light reactions occur in the thylakoid membrane.) Tj "
+                b"0 -18 Td (The Calvin cycle is the pathway that fixes carbon dioxide into sugars.) Tj ET"
+            )
+            page[NameObject("/Contents")] = writer._add_object(content)
+            with path.open("wb") as stream:
+                writer.write(stream)
+
+            summary = source_summary(path, "photosynthesis-reading.pdf", "material")
+            self.assertGreaterEqual(len(summary["notes"]), 1)
+            self.assertGreaterEqual(len(summary["draftCards"]), 2)
+            self.assertTrue(any("photosynthesis" in card["front"].lower() for card in summary["draftCards"]))
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_plain_text_import_creates_notes_and_cards(self) -> None:
+        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False, mode="w", encoding="utf-8") as handle:
+            path = Path(handle.name)
+            handle.write(
+                "Operant conditioning\n"
+                "Operant conditioning is learning in which consequences change behavior.\n"
+                "Positive reinforcement is the addition of a desirable stimulus after a behavior.\n"
+                "Negative reinforcement is the removal of an aversive stimulus after a behavior.\n"
+            )
+        try:
+            summary = source_summary(path, "learning-theory.txt", "material")
+            self.assertGreaterEqual(len(summary["notes"]), 1)
+            self.assertGreaterEqual(len(summary["draftCards"]), 2)
+            self.assertTrue(any("operant conditioning" in card["front"].lower() for card in summary["draftCards"]))
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_word_import_creates_source_traced_cards(self) -> None:
+        with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as handle:
+            path = Path(handle.name)
+        try:
+            document = Document()
+            document.add_heading("Supply and demand", level=1)
+            document.add_paragraph("Demand is the quantity consumers are willing and able to buy at a given price.")
+            document.add_paragraph("A price ceiling is a legal maximum price for a good or service.")
+            document.add_paragraph("A binding price ceiling set below equilibrium creates a shortage.")
+            document.save(path)
+
+            summary = source_summary(path, "microeconomics-notes.docx", "material")
+            self.assertGreaterEqual(len(summary["notes"]), 1)
+            self.assertGreaterEqual(len(summary["draftCards"]), 2)
+            self.assertTrue(all("microeconomics-notes.docx" in card["source"] for card in summary["draftCards"]))
+        finally:
+            path.unlink(missing_ok=True)
     def test_general_slides_create_concepts_notes_and_real_questions(self) -> None:
         text = """Slide 1
 Cellular respiration

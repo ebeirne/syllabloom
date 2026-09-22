@@ -15,6 +15,9 @@ class UploadedSourceActivationContractTests(unittest.TestCase):
         self.assertIn("persistClassProfile();", self.app)
         self.assertIn("const retainedCards = state.lectureCards.filter(card => card.sourceId !== payload.source.id);", self.app)
         self.assertIn("syncLectureCards(unique);", self.app)
+        self.assertIn("const wasSampleClass = state.classMode === 'sample';", self.app)
+        self.assertIn("setClassLabels(inferredClassName, 'Term not set');", self.app)
+        self.assertIn("state.calendarEvents = [];", self.app)
 
     def test_reload_rehydrates_cards_from_stored_sources(self):
         self.assertIn("function sourceCardsFromLibrary()", self.app)
@@ -27,6 +30,12 @@ class UploadedSourceActivationContractTests(unittest.TestCase):
         self.assertIn("function activeAssessmentQuestions()", self.app)
         self.assertIn("const questions = activeAssessmentQuestions();", self.app)
         self.assertIn("Quick check from ${latestSource.name}", self.app)
+
+    def test_custom_plan_uses_uploaded_concepts_instead_of_anatomy_fixture(self):
+        self.assertIn("function sourceConceptNames()", self.app)
+        self.assertIn("const customTopics = sourceConceptNames();", self.app)
+        self.assertIn("const cardSupply = state.includeSampleMaterial ? 42 : state.lectureCards.length;", self.app)
+        self.assertIn("function renderHomeForActiveClass()", self.app)
 
 
 if __name__ == "__main__":

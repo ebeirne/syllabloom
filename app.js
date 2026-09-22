@@ -232,6 +232,12 @@
     return state.includeSampleMaterial ? assessmentQuestions : sourceAssessmentQuestions();
   }
 
+  function sourceConceptNames() {
+    return [...new Set(state.sources.flatMap(sourceItem => (sourceItem.concepts || [])
+      .map(concept => String(concept?.name || concept || '').trim())
+      .filter(Boolean)))];
+  }
+
   function updateAssessmentIntro() {
     const title = document.querySelector('#assessmentIntroTitle');
     const copy = document.querySelector('#assessmentIntroCopy');
@@ -244,7 +250,7 @@
       copy.textContent = `${questions.length} question${questions.length === 1 ? '' : 's'} made from the cards that are already ready to study.`;
     } else if (!state.includeSampleMaterial) {
       title.textContent = 'Add material to start your check';
-      copy.textContent = 'Upload slides, notes, audio, or video. Your first questions will appear here with the ready cards.';
+      copy.textContent = 'Upload slides, notes, a syllabus, or an authorized assessment. Your first questions will appear here with the ready cards.';
     } else {
       title.textContent = 'Quick starting check';
       copy.textContent = 'Three questions from the anatomy example. Add your own material to replace them with questions from your class.';
@@ -588,15 +594,24 @@
     const exam = nextExamEvent();
     const examDate = exam ? new Date(`${exam.date}T12:00:00`) : new Date(Date.now() + 12 * 86400000);
     const daysLeft = Math.max(1, Math.ceil((examDate - new Date()) / 86400000));
-    const availableNew = Math.max(1, Math.min(state.anki.newPerDay, Math.floor(state.dailyStudyMinutes / 2), Math.ceil(42 / daysLeft)));
+    const cardSupply = state.includeSampleMaterial ? 42 : state.lectureCards.length;
+    const availableNew = cardSupply
+      ? Math.max(1, Math.min(state.anki.newPerDay, Math.floor(state.dailyStudyMinutes / 2), Math.ceil(cardSupply / daysLeft)))
+      : 0;
     const topicOrders = {
       'weakest-deadline': ['Upper-limb attachments', 'Forearm innervation', 'Muscles of mastication', 'Facial expression actions', 'Lower-limb actions', 'Mixed recall', 'Catch-up and card edits'],
       weakest: ['Upper-limb attachments', 'Forearm innervation', 'Muscles of mastication', 'Facial expression actions', 'Lower-limb actions', 'Weak-topic recheck', 'Catch-up and card edits'],
       syllabus: ['Muscles of facial expression', 'Muscles of mastication', 'Upper limb', 'Forearm and hand', 'Trunk', 'Lower limb', 'Mixed syllabus check'],
       'recent-source': ['Latest lecture highlights', 'Latest lecture weak points', 'New slide terminology', 'Source-linked recall', 'Earlier source gaps', 'Mixed recall', 'Catch-up and card edits']
     };
-    const topics = topicOrders[state.anki.releaseStrategy] || topicOrders['weakest-deadline'];
+    const customTopics = sourceConceptNames();
+    const topics = state.includeSampleMaterial
+      ? (topicOrders[state.anki.releaseStrategy] || topicOrders['weakest-deadline'])
+      : customTopics.length
+        ? customTopics
+        : ['Add class material', 'Build the first ready set', 'Take a quick check', 'Set the next deadline'];
     const rows = [];
+    let releasedCards = 0;
     for (let offset = 0; offset < 7; offset += 1) {
       const date = new Date();
       date.setHours(12, 0, 0, 0);
@@ -604,14 +619,43 @@
       const iso = localIsoDate(date);
       const event = state.calendarEvents.find(item => item.date === iso);
       const dayLabel = offset === 0 ? 'Today' : new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(date);
-      const newCards = event?.type === 'exam' ? 0 : Math.max(0, Math.min(state.anki.newPerDay, availableNew + (event?.type === 'lecture' ? 2 : 0)));
+      const remainingCards = Math.max(0, cardSupply - releasedCards);
+      const newCards = event?.type === 'exam' || !cardSupply
+        ? 0
+        : Math.max(0, Math.min(remainingCards, state.anki.newPerDay, availableNew + (event?.type === 'lecture' ? 2 : 0)));
+      releasedCards += newCards;
       const focus = event?.type === 'exam' ? event.title : event ? `${event.title}: ${topics[offset % topics.length]}` : topics[offset % topics.length];
       rows.push(`<div class="release-plan-row"><strong>${escapeHtml(dayLabel)}</strong><span>${escapeHtml(focus)}</span><b>${newCards}</b><em>Due in Anki</em></div>`);
     }
     document.querySelector('#releasePlanRows').innerHTML = rows.join('');
     const nextLabel = exam ? `${exam.title} in ${daysLeft} day${daysLeft === 1 ? '' : 's'}` : 'No exam date yet';
-    document.querySelector('#releasePlanSummary').textContent = `${nextLabel}. Up to ${availableNew} new cards a day, ordered by ${releaseStrategyLabel(state.anki.releaseStrategy)}. Due reviews remain in Anki.`;
+    document.querySelector('#releasePlanSummary').textContent = `${nextLabel}. Up to ${availableNew} new card${availableNew === 1 ? '' : 's'} a day, ordered by ${releaseStrategyLabel(state.anki.releaseStrategy)}. Due reviews remain in Anki.`;
+    renderKnowledgeModel();
     renderProfileSchedule();
+  }
+
+  function renderKnowledgeModel() {
+    const list = document.querySelector('#knowledgeRows');
+    if (!list) return;
+    const concepts = sourceConceptNames().slice(0, 8);
+    if (!state.includeSampleMaterial) {
+      document.querySelector('#baselineScore').textContent = state.baselineScore ? `${state.baselineScore}%` : 'New';
+      document.querySelector('#knowledgeObjectiveCount').textContent = String(concepts.length);
+      document.querySelector('#knowledgeSessionLength').textContent = `${state.dailyStudyMinutes} min`;
+      list.innerHTML = concepts.length
+        ? concepts.map(concept => `<div class="knowledge-row"><strong>${escapeHtml(concept)}</strong><div class="mastery-track"><span style="width:0%"></span></div><span class="knowledge-score">New</span><span>Not assessed</span></div>`).join('')
+        : '<div class="knowledge-empty"><strong>No learning map yet</strong><span>Add slides, notes, or a syllabus and the concepts will appear here.</span></div>';
+      return;
+    }
+    document.querySelector('#baselineScore').textContent = `${state.baselineScore}%`;
+    document.querySelector('#knowledgeObjectiveCount').textContent = '3';
+    document.querySelector('#knowledgeSessionLength').textContent = '28 min';
+    list.innerHTML = `
+      <div class="knowledge-row"><strong>Upper-limb attachments</strong><div class="mastery-track"><span style="width:42%"></span></div><span class="knowledge-score">42%</span><span>Priority</span></div>
+      <div class="knowledge-row"><strong>Forearm innervation</strong><div class="mastery-track"><span style="width:55%"></span></div><span class="knowledge-score">55%</span><span>Review</span></div>
+      <div class="knowledge-row"><strong>Muscles of mastication</strong><div class="mastery-track"><span style="width:68%"></span></div><span class="knowledge-score">68%</span><span>Developing</span></div>
+      <div class="knowledge-row"><strong>Facial expression actions</strong><div class="mastery-track"><span style="width:84%"></span></div><span class="knowledge-score">84%</span><span>Stable</span></div>
+      <div class="knowledge-row"><strong>Lower-limb actions</strong><div class="mastery-track"><span style="width:91%"></span></div><span class="knowledge-score">91%</span><span>Solid</span></div>`;
   }
 
   function renderProfileSchedule() {
@@ -645,8 +689,8 @@
     document.querySelector('#profileTierBadge').textContent = tierName;
     document.querySelector('#profileTierName').textContent = tierName;
     document.querySelector('#profileTierDescription').textContent = studentPlan
-      ? 'Unlimited classes, 20 lecture hours each month, and the complete class-to-Anki workflow.'
-      : '1 active class, Anki export, and 60 lecture minutes each month.';
+      ? 'Unlimited classes, course-source imports, and the complete class-to-Anki workflow.'
+      : '1 active class, course-source imports, lecture storage, and Anki export.';
     document.querySelector('#profileClassUsage').textContent = studentPlan ? `${Math.max(used, state.classMode === 'custom' ? 1 : 0)} active` : `${used} of 1`;
     document.querySelector('#manageClerkProfile').textContent = state.account.signedIn ? 'Account & security' : 'Sign in';
 
@@ -664,7 +708,7 @@
     const tierName = studentPlan ? 'Student' : 'Free';
     document.querySelector('#billingTierBadge').textContent = tierName;
     document.querySelector('#billingCurrentDescription').textContent = studentPlan
-      ? 'Unlimited classes and 20 live lecture hours are active on this account.'
+      ? 'Unlimited classes and course-source imports are active on this account.'
       : 'You have 1 active class and can export ready cards to Anki.';
     document.querySelector('#billingCurrentPrice').textContent = studentPlan ? '$9' : '$0';
     document.querySelector('#billingCurrentCadence').textContent = studentPlan ? 'per month, billed yearly' : 'forever';
@@ -857,6 +901,83 @@
     if (recordingTitle && (!mediaRecorder || mediaRecorder.state === 'inactive')) recordingTitle.value = defaultRecordingTitle();
   }
 
+  function classTag(value) {
+    return String(value || 'class').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'class';
+  }
+
+  function renderHomeForActiveClass() {
+    const custom = !state.includeSampleMaterial;
+    const concepts = sourceConceptNames();
+    const latestSource = [...state.sources].reverse().find(item => item.draftCards?.length || item.notes?.length);
+    const cardCount = state.lectureCards.length;
+    const approved = state.lectureCards.filter(card => card.reviewStatus === 'approved').length;
+    const firstConcept = concepts[0] || 'your new material';
+    const sourceTotal = state.includeSampleMaterial ? 3 : state.sources.length;
+    const next = nextExamEvent();
+    const examSummary = document.querySelector('#homeExamSummary');
+    document.querySelector('#home .study-workspace').classList.toggle('is-custom', custom);
+    document.querySelector('#homeSourceButton').textContent = `${sourceTotal} source${sourceTotal === 1 ? '' : 's'}`;
+    examSummary.innerHTML = next
+      ? `<b>${Math.max(0, Math.ceil((new Date(`${next.date}T12:00:00`) - new Date()) / 86400000))} days</b> to ${escapeHtml(next.title.toLowerCase())}`
+      : '<b>No deadline</b> set yet';
+    const daysToNext = next ? Math.max(0, Math.ceil((new Date(`${next.date}T12:00:00`) - new Date()) / 86400000)) : null;
+    document.querySelector('#captureExamContext').textContent = next ? `${daysToNext} day${daysToNext === 1 ? '' : 's'}` : 'No date set';
+    document.querySelector('#captureSourceContext').textContent = state.includeSampleMaterial
+      ? 'Muscle list'
+      : latestSource?.name || 'No source yet';
+    document.querySelectorAll('.sample-home-detail').forEach(element => { element.hidden = custom; });
+    document.querySelector('#adjustPlan').hidden = custom;
+    if (custom) document.querySelector('#planFeedback').hidden = true;
+    const heroImage = document.querySelector('#todayHeroImage');
+    document.querySelector('#todayHeroArt').setAttribute('aria-label', custom
+      ? 'A college student organizing class cards with the Syllabloom study companion'
+      : 'A medical student sorting anatomy flashcards with the Syllabloom study companion');
+    heroImage.src = custom ? 'assets/rounds-study-scene-general.webp' : 'assets/rounds-study-scene.png';
+    heroImage.alt = custom
+      ? 'A college student and the Syllabloom study companion organizing class cards'
+      : 'A medical student and a small green study companion sorting anatomy flashcards';
+    document.querySelector('#todayHeroCopy').textContent = custom
+      ? latestSource
+        ? `${cardCount} ready card${cardCount === 1 ? '' : 's'} from ${latestSource.name}. Start with a quick check, then study here or export to Anki.`
+        : 'Add your first slides, notes, syllabus, or authorized assessment to build a ready study set.'
+      : 'One focused pass through upper-limb attachments, built around the questions you still miss.';
+    if (!custom) {
+      document.querySelector('#planHeadline').textContent = 'Upper-limb attachments';
+      document.querySelector('#planCopy').textContent = 'Start with a cold check, repair only the misses, then test them again before adding cards.';
+      const sampleSteps = [
+        ['Check', 'Answer cold. No hints and no cards yet.', '6 questions · 5 min'],
+        ['Work the gaps', 'Edit only the cards that failed the check.', '12 cards · 15 min'],
+        ['Recheck', 'Repeat the misses in a different order.', '6 questions · 8 min']
+      ];
+      sampleSteps.forEach((step, index) => {
+        const number = ['One', 'Two', 'Three'][index];
+        document.querySelector(`#step${number}Title`).textContent = step[0];
+        document.querySelector(`#step${number}Copy`).textContent = step[1];
+        document.querySelector(`#step${number}Meta`).textContent = step[2];
+      });
+      document.querySelector('#planPassRule').textContent = 'Pass when 5 of 6 are correct twice';
+      document.querySelector('#planDurationValue').textContent = '28 minutes';
+      return;
+    }
+    document.querySelector('#planHeadline').textContent = concepts.length ? firstConcept : 'Add your first class source';
+    document.querySelector('#planCopy').textContent = cardCount
+      ? 'Start with a quick recall check made from your source, then use the ready set here or send it to Anki.'
+      : 'Your next session will take shape as soon as Syllabloom can read the first source.';
+    const steps = [
+      ['Quick check', 'Answer a few source-linked questions before reviewing.', `${Math.min(3, cardCount)} question${Math.min(3, cardCount) === 1 ? '' : 's'}`],
+      ['Study the set', 'Use the cards as-is or change anything you want.', `${approved} ready card${approved === 1 ? '' : 's'}`],
+      ['Send to Anki', 'Export with your saved deck, tags, limits, and card format.', state.anki.format]
+    ];
+    steps.forEach((step, index) => {
+      const number = ['One', 'Two', 'Three'][index];
+      document.querySelector(`#step${number}Title`).textContent = step[0];
+      document.querySelector(`#step${number}Copy`).textContent = step[1];
+      document.querySelector(`#step${number}Meta`).textContent = step[2];
+    });
+    document.querySelector('#planPassRule').textContent = cardCount ? 'Use the set now or edit anything you want' : 'Waiting for class material';
+    document.querySelector('#planDurationValue').textContent = cardCount ? `${Math.max(10, Math.min(30, Math.ceil(cardCount / 2)))} minutes` : 'Not scheduled';
+  }
+
   function persistClassProfile() {
     localStorage.setItem('syllabloom-class-profile', JSON.stringify({
       mode: state.classMode,
@@ -878,8 +999,12 @@
     state.statuses = {};
     state.edits = {};
     state.studyIndex = 0;
+    state.baselineScore = 0;
+    state.calendarEvents = [];
     state.anki.deck = '';
     state.anki.tags = '';
+    localStorage.setItem('syllabloom-calendar-events', JSON.stringify(state.calendarEvents));
+    localStorage.setItem('syllabloom-anki-preferences', JSON.stringify(state.anki));
     persistClassSources();
     document.querySelector('#classNameInput').value = '';
     document.querySelector('#termInput').value = '';
@@ -1040,13 +1165,17 @@
     updateReviewSurface();
     document.querySelector('#homeMuscleCount').textContent = state.includeSampleMaterial ? source.muscleCount : state.sources.length;
     document.querySelector('#homeCardCount').textContent = state.includeSampleMaterial ? source.focusedCardCount : state.lectureCards.length;
-    document.querySelector('#homeSectionCount').textContent = state.includeSampleMaterial ? Object.keys(source.sections).length : state.sources.filter(item => item.kind === 'material').length;
+    document.querySelector('#homeSectionCount').textContent = state.includeSampleMaterial
+      ? Object.keys(source.sections).length
+      : state.sources.reduce((total, item) => total + (item.notes?.length || 0), 0);
 
     document.querySelector('#schema').innerHTML = source.schema.map(label => `<div>${label}</div>`).join('');
     document.querySelector('#sectionList').innerHTML = Object.entries(source.sections)
       .map(([section, count]) => `<div class="section-row"><strong>${section}</strong><span>${count} muscles</span></div>`)
       .join('');
     renderStoredSources();
+    renderHomeForActiveClass();
+    renderClassPlanner();
   }
 
   function updateGenerationCount() {
@@ -1125,8 +1254,10 @@
 
   function updateStatusCounts() {
     const values = Object.values(state.statuses);
-    document.querySelector('#approvedCount').textContent = values.filter(value => value === 'Approved').length;
-    document.querySelector('#skippedCount').textContent = values.filter(value => value === 'Skipped').length;
+    const readyFromSample = state.includeSampleMaterial ? values.filter(value => value === 'Approved').length : 0;
+    const skippedFromSample = state.includeSampleMaterial ? values.filter(value => value === 'Skipped').length : 0;
+    document.querySelector('#approvedCount').textContent = readyFromSample + state.lectureCards.filter(card => card.reviewStatus === 'approved').length;
+    document.querySelector('#skippedCount').textContent = skippedFromSample + state.lectureCards.filter(card => card.reviewStatus === 'skipped').length;
   }
 
   function studyCards() {
@@ -1800,6 +1931,7 @@
       : approved
         ? `${approved} source-matched card${approved === 1 ? ' is' : 's are'} ready to study here or export to Anki.`
         : 'Record or import a lecture. Anki-ready cards will appear here.';
+    updateStatusCounts();
     updateAnkiExportSurface();
   }
 
@@ -1883,7 +2015,9 @@
       ? labelCase(cards[0].section)
       : 'No course match';
     const cardBox = document.querySelector('#audioCardDrafts');
-    document.querySelector('#audioCardCount').textContent = `${cards.length} ready`;
+    const readyCards = cards.filter(card => card.status !== 'provisional').length;
+    const checkCards = cards.length - readyCards;
+    document.querySelector('#audioCardCount').textContent = `${readyCards} ready${checkCards ? ` · ${checkCards} check` : ''}`;
     document.querySelector('#audioCardCountInline').textContent = cards.length;
     document.querySelector('#lectureResultBar').hidden = cards.length === 0;
     cardBox.className = cards.length ? 'audio-card-list' : 'empty-result';
@@ -2210,10 +2344,22 @@
     const cards = sourceCardsFromLibrary();
     if (cards.length) {
       const latestSource = cardSources[cardSources.length - 1];
+      const hadSampleIdentity = state.classMode === 'sample' || (state.className === 'Human Anatomy' && state.classTerm === 'Fall 2023');
       state.includeSampleMaterial = false;
       state.classMode = 'custom';
       state.useDemoSyllabus = false;
       if (!state.sources.some(item => item.kind === 'syllabus')) state.syllabusName = 'No syllabus added';
+      if (hadSampleIdentity) {
+        const inferredClassName = lectureName(latestSource.name) || 'Untitled class';
+        setClassLabels(inferredClassName, 'Term not set');
+        if (!state.anki.deck || state.anki.deck === 'Human Anatomy') state.anki.deck = inferredClassName;
+        if (!state.anki.tags || state.anki.tags === 'human-anatomy::fall-2023') state.anki.tags = classTag(inferredClassName);
+        state.calendarEvents = [];
+        state.baselineScore = 0;
+        localStorage.setItem('syllabloom-calendar-events', JSON.stringify(state.calendarEvents));
+        localStorage.setItem('syllabloom-anki-preferences', JSON.stringify(state.anki));
+        syncAnkiFormFromState();
+      }
       state.latestSessionId = `source-${latestSource.id}`;
       syncLectureCards(cards);
       persistClassProfile();
@@ -2242,6 +2388,7 @@
         state.syllabusName = payload.source.name;
       }
       const wasUsingSample = state.includeSampleMaterial;
+      const wasSampleClass = state.classMode === 'sample';
       state.includeSampleMaterial = false;
       state.classMode = 'custom';
       state.useDemoSyllabus = false;
@@ -2249,6 +2396,18 @@
       if (wasUsingSample) {
         state.statuses = {};
         state.edits = {};
+        state.baselineScore = 0;
+        state.calendarEvents = [];
+        localStorage.setItem('syllabloom-calendar-events', JSON.stringify(state.calendarEvents));
+      }
+      if (wasSampleClass) {
+        const inferredClassName = lectureName(file.name) || 'Untitled class';
+        setClassLabels(inferredClassName, 'Term not set');
+        state.anki.deck = inferredClassName;
+        state.anki.setName = '';
+        state.anki.tags = classTag(inferredClassName);
+        localStorage.setItem('syllabloom-anki-preferences', JSON.stringify(state.anki));
+        syncAnkiFormFromState();
       }
       state.sources = state.sources.filter(item => item.id !== payload.source.id);
       state.sources.push(payload.source);

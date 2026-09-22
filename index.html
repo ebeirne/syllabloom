@@ -3363,6 +3363,10 @@
     .source-reference { background: #fff8d7; border: 1px dashed #b5aa8e; }
     .knowledge-row:first-child > span:last-child { background: var(--sun); }
     .assessment-box { border: 2px solid var(--ink); border-radius: 17px; box-shadow: 3px 3px 0 var(--ink); }
+    .knowledge-empty { display: grid; gap: 6px; padding: 24px; }
+    .knowledge-empty strong { font-size: 18px; }
+    .knowledge-empty span { color: var(--muted); line-height: 1.5; }
+    #home .study-workspace.is-custom .study-plan-pane { max-width: 1040px; }
 
     @media (max-width: 800px) {
       .onboarding { padding: 0; background: var(--paper); }
@@ -3444,6 +3448,7 @@
       .friendly-heading .buddy-spark { top: 4px; left: 17px; width: 7px; height: 7px; border-width: 2px; }
       .capture-heading .capture-settings { display: none; }
       .pane-heading.friendly-heading { margin-bottom: 76px; }
+      #home .study-workspace.is-custom .pane-heading.friendly-heading { margin-bottom: 24px; }
       .pane-heading.friendly-heading .more-button {
         position: absolute;
         right: 2px;
@@ -3527,7 +3532,7 @@
       <section class="marketing-hero">
         <div class="marketing-hero-copy">
           <h1>Walk out of class with your Anki cards ready.</h1>
-          <p>Syllabloom listens to the lecture, checks the syllabus and course files, and writes a usable card set for you. Review anything you want, then study here or export to Anki.</p>
+          <p>Syllabloom reads your slides, syllabus, notes, and course files, then writes a usable card set for you. Save lecture recordings beside the class, study here, or export the ready set to Anki.</p>
           <div class="marketing-hero-actions">
             <button class="button primary marketing-primary-cta" data-start-onboarding>Set up your first class</button>
             <button class="marketing-link-button" data-open-sample>Open a real sample class <span>→</span></button>
@@ -3557,7 +3562,7 @@
         <div class="workflow-loop" role="list" aria-label="Syllabloom learning loop">
           <article class="loop-step" role="listitem"><span>1</span><h3>Give it the map</h3><p>Add the syllabus, exam date, and source material.</p></article>
           <b class="loop-arrow" aria-hidden="true">→</b>
-          <article class="loop-step" role="listitem"><span>2</span><h3>Capture the class</h3><p>Record live or add slides, notes, audio, and video.</p></article>
+          <article class="loop-step" role="listitem"><span>2</span><h3>Capture the class</h3><p>Build cards from slides and notes. Record live or save audio and video beside them.</p></article>
           <b class="loop-arrow" aria-hidden="true">→</b>
           <article class="loop-step" role="listitem"><span>3</span><h3>Get a ready set</h3><p>Source-matched cards are ready. Edit or leave out anything you do not want.</p></article>
           <b class="loop-arrow" aria-hidden="true">→</b>
@@ -3624,7 +3629,7 @@
               <img class="lecture-companion character-cutout" src="assets/rounds-mascot-listening.webp" width="900" height="900" loading="lazy" decoding="async" alt="The Syllabloom companion listening and taking notes during a lecture" />
             </div>
             <h3>Record without babysitting it.</h3>
-            <p>Mark important moments in class while Syllabloom keeps the transcript, topics, and source time together.</p>
+            <p>Name and save the lecture, mark important moments, and keep it beside the slides and notes that build your ready set.</p>
           </article>
           <article class="class-feature">
             <div class="feature-illustration feature-syllabus"><span>Week 4</span><b>Market structures</b><i>Exam 1</i></div>
@@ -3657,7 +3662,7 @@
               <li>1 active class</li>
               <li>Slides, documents, and syllabus mapping</li>
               <li>Editable cards and Anki export</li>
-              <li>60 live lecture minutes each month</li>
+              <li>On-device lecture recording library</li>
             </ul>
             <button class="button price-action" data-start-onboarding>Start my free class</button>
           </article>
@@ -3665,7 +3670,7 @@
             <header><div><h3>Student</h3><p>Your whole course load in one loop.</p></div><div class="price-amount"><strong>$9</strong><span>per month<br />billed yearly</span></div></header>
             <ul>
               <li>Unlimited active classes</li>
-              <li>20 live lecture hours each month</li>
+              <li>Expanded lecture library during beta</li>
               <li>Unlimited slide and document imports</li>
               <li>Class calendar, weak-topic plan, and Anki presets</li>
             </ul>
@@ -3675,7 +3680,7 @@
             </div>
           </article>
         </div>
-        <p class="pricing-footnote">No card required for the free class. Lecture limits keep transcription costs predictable while card editing and Anki export stay useful.</p>
+        <p class="pricing-footnote">No card required for the free class. Hosted lecture transcription is not included in this beta yet; slide and document cards, editing, studying, and Anki export are live.</p>
       </section>
 
       <section class="marketing-final-cta">
@@ -3895,7 +3900,7 @@
               </div>
               <div class="recording-intro character-story-panel">
                 <div><strong>Your lecture, minus the frantic typing.</strong>
-                <span>Syllabloom listens for the class terms in your syllabus and builds cards that are ready to use.</span></div>
+                <span>Name and save the recording now. Add slides or notes to create the ready card set in this hosted beta.</span></div>
                 <img class="capture-mascot character-cutout" src="assets/rounds-mascot-listening.webp" width="900" height="900" alt="The Syllabloom companion listening to a lecture and taking notes" />
               </div>
               <label class="lecture-name-field" for="recordingTitle">
@@ -3961,7 +3966,7 @@
             </section>
 
             <section id="lectureResultBar" class="lecture-result-bar" hidden>
-              <div><strong><span id="audioCardCountInline">0</span> cards ready</strong><span>Study now, export to Anki, or look through the set first</span></div>
+              <div><strong><span id="audioCardCountInline">0</span> cards in this set</strong><span>Ready cards can be studied or exported. Lecture-only cards need a quick check.</span></div>
               <div class="lecture-result-actions">
                 <button class="button" data-go="cards">Look through cards</button>
                 <button class="button" data-go="study">Study here</button>
@@ -3976,7 +3981,7 @@
               </div>
               <div id="transcriptWarnings" class="transcript-warnings" hidden></div>
               <div id="transcriptContent" class="transcript-content empty">
-                <p>Recording creates a timestamped transcript here. Course terms are checked against your uploaded materials before cards are drafted.</p>
+                <p>Lecture processing appears here when transcription is available. Course terms are checked against uploaded materials before cards are drafted.</p>
               </div>
             </section>
           </main>
@@ -3987,8 +3992,8 @@
               <dl class="context-list">
                 <div><dt>Class</dt><dd data-class-name>Human Anatomy</dd></div>
                 <div><dt>Unit</dt><dd id="captureUnit">Waiting for audio</dd></div>
-                <div><dt>Exam</dt><dd>12 days</dd></div>
-                <div><dt>Source</dt><dd>Muscle list</dd></div>
+                <div><dt>Exam</dt><dd id="captureExamContext">12 days</dd></div>
+                <div><dt>Source</dt><dd id="captureSourceContext">Muscle list</dd></div>
               </dl>
             </section>
 
@@ -4021,8 +4026,8 @@
         <header class="app-toolbar">
           <div class="breadcrumbs"><span data-class-name>Human Anatomy</span><b>/</b><strong>Today</strong></div>
           <div class="toolbar-actions">
-            <button data-go="source">3 sources</button>
-            <span><b>12 days</b> to exam</span>
+            <button id="homeSourceButton" data-go="source">3 sources</button>
+            <span id="homeExamSummary"><b>12 days</b> to exam</span>
           </div>
         </header>
 
@@ -4031,11 +4036,11 @@
             <header class="pane-heading friendly-heading">
               <div class="today-hero-copy">
                 <h1>Let’s make this stick.</h1>
-                <p>One focused pass through upper-limb attachments, built around the questions you still miss.</p>
+                <p id="todayHeroCopy">One focused pass through upper-limb attachments, built around the questions you still miss.</p>
                 <button class="button primary hero-start-button" data-go="study">Start today’s session</button>
               </div>
-              <figure class="today-hero-art" aria-label="A medical student sorting anatomy flashcards with the Syllabloom study companion">
-                <img src="assets/rounds-study-scene.png" width="1420" height="1065" alt="A medical student and a small green study companion sorting anatomy flashcards" fetchpriority="high">
+              <figure id="todayHeroArt" class="today-hero-art" aria-label="A medical student sorting anatomy flashcards with the Syllabloom study companion">
+                <img id="todayHeroImage" src="assets/rounds-study-scene.png" width="1420" height="1065" alt="A medical student and a small green study companion sorting anatomy flashcards" fetchpriority="high">
               </figure>
               <button id="adjustPlan" class="more-button" aria-label="Adjust study plan">Adjust plan</button>
             </header>
@@ -4050,7 +4055,7 @@
               </div>
             </div>
 
-            <div class="plan-context-row">
+            <div class="plan-context-row sample-home-detail">
               <span>Upper limb</span>
               <span>Objective 03</span>
               <span><b>42%</b> ready</span>
@@ -4084,7 +4089,7 @@
 
               <footer class="active-plan-footer">
                 <button class="button primary" data-go="study">Start session</button>
-                <span>Pass when 5 of 6 are correct twice</span>
+                <span id="planPassRule">Pass when 5 of 6 are correct twice</span>
                 <strong id="planDurationValue">28 minutes</strong>
               </footer>
             </article>
@@ -4095,7 +4100,7 @@
               <button data-go="knowledge"><strong>Show my weak spots</strong><span>See what is actually worth studying next</span></button>
             </nav>
 
-            <section class="later-list">
+            <section class="later-list sample-home-detail">
               <div class="list-heading"><h2>Later this week</h2><span>Ordered by exam value</span></div>
               <div class="later-row"><span>Tue</span><strong>Rotator cuff actions</strong><em>38% ready</em><b>22 min</b></div>
               <div class="later-row"><span>Wed</span><strong>Forearm compartments</strong><em>51% ready</em><b>18 min</b></div>
@@ -4114,7 +4119,7 @@
             </section>
           </main>
 
-          <aside class="plan-inspector">
+          <aside class="plan-inspector sample-home-detail">
             <div class="inspector-tabs"><button class="active">Why this plan</button><button data-go="knowledge">History</button></div>
 
             <section class="readiness-block">
@@ -4272,11 +4277,11 @@
 
         <div class="knowledge-summary">
           <article class="surface"><strong id="baselineScore">62%</strong><span>estimated baseline</span></article>
-          <article class="surface"><strong>3</strong><span>objectives below target</span></article>
-          <article class="surface"><strong>28 min</strong><span>recommended session</span></article>
+          <article class="surface"><strong id="knowledgeObjectiveCount">3</strong><span>objectives below target</span></article>
+          <article class="surface"><strong id="knowledgeSessionLength">28 min</strong><span>recommended session</span></article>
         </div>
 
-        <div class="surface knowledge-list">
+        <div id="knowledgeRows" class="surface knowledge-list">
           <div class="knowledge-row"><strong>Upper-limb attachments</strong><div class="mastery-track"><span style="width:42%"></span></div><span class="knowledge-score">42%</span><span>Priority</span></div>
           <div class="knowledge-row"><strong>Forearm innervation</strong><div class="mastery-track"><span style="width:55%"></span></div><span class="knowledge-score">55%</span><span>Review</span></div>
           <div class="knowledge-row"><strong>Muscles of mastication</strong><div class="mastery-track"><span style="width:68%"></span></div><span class="knowledge-score">68%</span><span>Developing</span></div>
@@ -4315,7 +4320,7 @@
             <div>
               <p class="profile-card-label">Current tier</p>
               <h2 id="profileTierHeading"><span id="profileTierName">Free</span> plan</h2>
-              <p id="profileTierDescription">1 active class, Anki export, and 60 lecture minutes each month.</p>
+              <p id="profileTierDescription">1 active class, course-source imports, lecture storage, and Anki export.</p>
             </div>
             <div class="tier-usage" aria-label="Class allowance">
               <strong id="profileClassUsage">1 of 1</strong>
@@ -4376,12 +4381,12 @@
           <div id="billingPlanFallback" class="billing-plan-fallback">
             <article>
               <span>Free</span><strong>$0</strong><p>Use Syllabloom for the class that needs it most.</p>
-              <ul><li>1 active class</li><li>60 lecture minutes each month</li><li>Editable cards and Anki export</li></ul>
+              <ul><li>1 active class</li><li>On-device lecture library</li><li>Editable cards and Anki export</li></ul>
               <button class="button" type="button" disabled>Current plan</button>
             </article>
             <article class="student-plan-preview">
               <span>Student</span><strong>$9 <small>/ month billed yearly</small></strong><p>Keep your whole course load moving toward Anki.</p>
-              <ul><li>Unlimited active classes</li><li>20 lecture hours each month</li><li>Calendar, weak-topic plan, and Anki presets</li></ul>
+              <ul><li>Unlimited active classes</li><li>Expanded lecture library during beta</li><li>Calendar, weak-topic plan, and Anki presets</li></ul>
               <button id="billingSetupPending" class="button primary" type="button">Sign in to choose Student</button>
             </article>
           </div>
@@ -4776,7 +4781,7 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="muscle-data.js?v=20260921-loop"></script>
   <script src="auth.js?v=20260921-back-auth-fix-1"></script>
-  <script src="app.js?v=20260921-source-activation-1"></script>
+  <script src="app.js?v=20260922-beta-readiness-1"></script>
   <script type="module" src="motion-effects.js?v=20260921-motion-smooth-2"></script>
 </body>
 </html>
