@@ -60,6 +60,22 @@ class BetaReadinessContractTests(unittest.TestCase):
         self.assertIn("flex-direction: column;", theme)
         self.assertIn(".lecture-result-actions .button {", theme)
 
+    def test_mobile_review_honors_hidden_content_and_study_reveal_state(self) -> None:
+        app = (ROOT / "app.js").read_text(encoding="utf-8")
+        styles = (ROOT / "redesign.css").read_text(encoding="utf-8")
+
+        self.assertIn("#cards #classCardWorkspace[hidden]", styles)
+        self.assertIn("#showAnswer[hidden]", styles)
+        self.assertIn(".rating-controls.open", styles)
+        self.assertIn("document.querySelector('#showAnswer').hidden = true;", app)
+        self.assertIn("document.querySelector('#showAnswer').hidden = false;", app)
+
+    def test_browser_storage_copy_does_not_claim_cloud_persistence(self) -> None:
+        app = (ROOT / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn("cards saved in this browser; original file not stored", app)
+        self.assertNotIn("available this session", app)
+
 
 if __name__ == "__main__":
     unittest.main()

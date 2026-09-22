@@ -8161,3 +8161,34 @@ body .anki-settings-dialog .anki-collection-setting {
     flex-direction: column;
   }
 }
+
+/* Route and study states must win over high-specificity responsive layouts. */
+#cards #classCardWorkspace[hidden],
+#showAnswer[hidden] {
+  display: none !important;
+}
+
+.rating-controls {
+  display: none !important;
+}
+
+.rating-controls.open {
+  display: flex !important;
+}
+
+.clerk-auth-mount:not([hidden]):empty::before {
+  content: "Loading secure sign-in...";
+  min-height: 72px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font: 750 12px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+  letter-spacing: .04em;
+}
+
+@media (max-width: 760px) {
+  .rating-controls.open {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -165,6 +165,7 @@
   };
 
   const appViews = new Set(['home', 'capture', 'source', 'knowledge', 'profile', 'billing', 'cards', 'study']);
+  const marketingHashes = new Set(['landing', 'how-it-works', 'anki-first', 'made-for-class', 'pricing']);
   let restoringShellHistory = false;
 
   function shellRoute() {
@@ -173,11 +174,20 @@
 
   function syncShellHistory(surface, view = state.view, mode = 'push') {
     if (!mode || restoringShellHistory) return;
+    const currentHash = window.location.hash.replace(/^#/, '');
+    const routeHash = surface === 'app'
+      ? (appViews.has(view) ? view : 'home')
+      : surface === 'onboarding'
+        ? `setup-${Math.max(1, Number(state.setupStep) || 1)}`
+        : marketingHashes.has(currentHash)
+          ? currentHash
+          : 'landing';
     const snapshot = {
       ...(window.history.state || {}),
       syllabloom: { surface, view, step: state.setupStep }
     };
-    window.history[mode === 'replace' ? 'replaceState' : 'pushState'](snapshot, '', window.location.href);
+    const routeUrl = `${window.location.pathname}${window.location.search}#${routeHash}`;
+    window.history[mode === 'replace' ? 'replaceState' : 'pushState'](snapshot, '', routeUrl);
   }
 
   const assessmentQuestions = [
@@ -680,7 +690,7 @@
     const signedInName = state.account.displayName || state.account.email?.split('@')[0] || 'Your Syllabloom account';
     const emailText = state.account.signedIn
       ? state.account.email || 'Signed-in account'
-      : 'Sign in to keep your profile and class library separate.';
+      : 'Sign in to manage your account. Class files and study settings stay in this browser during beta.';
     const avatar = document.querySelector('#profileAvatar');
     avatar.src = state.account.imageUrl || 'assets/syllabloom-mark.svg';
     avatar.alt = state.account.imageUrl ? `${signedInName} profile photo` : 'Syllabloom account mark';
@@ -729,7 +739,7 @@
     if (!state.account.signedIn) {
       status.textContent = 'Free beta access';
       upgradeButton.textContent = 'Sign in to choose Student';
-      finePrint.textContent = 'The public beta is free. Sign in to keep your class library separated on this device.';
+      finePrint.textContent = 'The public beta is free. Sign in to manage your account; class files and study settings stay in this browser.';
       return;
     }
     if (state.account.plan === 'student') {
@@ -1082,6 +1092,7 @@
   }
 
   function openAccountPage(view = 'profile') {
+    const alreadyInApp = shellRoute()?.surface === 'app';
     state.creatingClass = false;
     document.querySelector('#landing').classList.add('hidden');
     document.querySelector('#onboarding').classList.add('hidden');
@@ -1089,8 +1100,8 @@
     app.inert = false;
     app.setAttribute('aria-hidden', 'false');
     document.body.classList.remove('marketing-mode');
-    navigate(view);
-    if (shellRoute()?.surface !== 'app') syncShellHistory('app', view, 'push');
+    navigate(view, alreadyInApp ? 'push' : null);
+    if (!alreadyInApp) syncShellHistory('app', view, 'push');
   }
 
   function closeOnboarding(historyMode = 'replace') {
@@ -1102,7 +1113,7 @@
     app.inert = false;
     app.setAttribute('aria-hidden', 'false');
     document.body.classList.remove('marketing-mode');
-    navigate('home');
+    navigate('home', null);
     syncShellHistory('app', 'home', historyMode);
   }
 
@@ -1145,19 +1156,20 @@
   function initializeShellRouting() {
     const current = shellRoute();
     const hashView = window.location.hash.replace(/^#/, '');
-    if (current?.surface) {
-      restoreShellRoute(current);
-      return;
-    }
     if (appViews.has(hashView)) {
       syncShellHistory('app', hashView, 'replace');
       restoreShellRoute({ surface: 'app', view: hashView });
       return;
     }
+    if (current?.surface) {
+      restoreShellRoute(current);
+      return;
+    }
     showLanding('replace');
   }
 
-  function navigate(view) {
+  function navigate(view, historyMode = 'push') {
+    const previousView = state.view;
     state.view = view;
     document.querySelectorAll('.page').forEach(page => page.classList.toggle('active', page.id === view));
     document.querySelectorAll('.nav-button').forEach(button => button.classList.toggle('active', button.dataset.view === view));
@@ -1181,7 +1193,9 @@
     updateWorkflowCompanion(view);
     window.scrollTo({ top: 0, behavior: 'auto' });
     window.dispatchEvent(new CustomEvent('syllabloom:view-changed', { detail: { view } }));
-    if (shellRoute()?.surface === 'app') syncShellHistory('app', view, 'replace');
+    if (historyMode && shellRoute()?.surface === 'app') {
+      syncShellHistory('app', view, previousView === view ? 'replace' : historyMode);
+    }
   }
 
   function renderSource() {
@@ -1543,7 +1557,7 @@
       : fieldLabels[item.field];
     document.querySelector('#studyAnswer').textContent = directCard?.back || edit.back || answerFor(item.record, item.field);
     document.querySelector('#studyAnswer').classList.remove('open');
-    document.querySelector('#showAnswer').style.display = 'inline-flex';
+    document.querySelector('#showAnswer').hidden = false;
     document.querySelector('#ratingControls').classList.remove('open');
   }
 
@@ -2237,7 +2251,11 @@
     const concepts = sourceItem.concepts?.length ? ` · ${sourceItem.concepts.length} concepts` : '';
     const notes = sourceItem.notes?.length ? ` · ${sourceItem.notes.length} note${sourceItem.notes.length === 1 ? '' : 's'}` : '';
     const drafts = sourceItem.draftCards?.length ? ` · ${sourceItem.draftCards.length} cards ready` : '';
-    const processing = sourceItem.sample ? 'example' : (sourceItem.storage === 'session' ? 'available this session' : 'saved in this browser');
+    const processing = sourceItem.sample
+      ? 'example'
+      : sourceItem.storage === 'session'
+        ? 'cards saved in this browser; original file not stored'
+        : 'saved in this browser';
     return `${sourceItem.kind} · ${units} · ${words}${objectives}${concepts}${notes}${drafts} · ${processing}`;
   }
 
@@ -3069,7 +3087,8 @@
         return showToast(`${ready} ready card${ready === 1 ? '' : 's'} opened`);
       }
       if (drafts) {
-        navigate('queue');
+        navigate('cards');
+        window.requestAnimationFrame(() => document.querySelector('#lectureDraftSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
         return showToast(`${drafts} card draft${drafts === 1 ? '' : 's'} ready for review`);
       }
       return showToast('Add a source that produces ready cards first');
@@ -3123,7 +3142,7 @@
 
   document.querySelector('#showAnswer').addEventListener('click', () => {
     document.querySelector('#studyAnswer').classList.add('open');
-    document.querySelector('#showAnswer').style.display = 'none';
+    document.querySelector('#showAnswer').hidden = true;
     document.querySelector('#ratingControls').classList.add('open');
   });
 
@@ -3145,7 +3164,7 @@
   document.querySelector('#retryMissedCard').addEventListener('click', () => {
     hideMissExplanation();
     document.querySelector('#studyAnswer').classList.remove('open');
-    document.querySelector('#showAnswer').style.display = 'inline-flex';
+    document.querySelector('#showAnswer').hidden = false;
     document.querySelector('#ratingControls').classList.remove('open');
     document.querySelector('#showAnswer').focus();
   });
