@@ -4475,7 +4475,7 @@ textarea {
     height: 70px !important;
     padding: 6px !important;
     display: grid !important;
-    grid-template-columns: repeat(4, 1fr) !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
     gap: 3px;
     background: var(--paper) !important;
     border: 0 !important;
@@ -8622,6 +8622,11 @@ body .anki-settings-dialog .anki-collection-setting {
   transform: rotate(2deg);
 }
 
+.nav-button[data-view="knowledge"] .nav-icon {
+  background: var(--pink);
+  transform: rotate(-1deg);
+}
+
 .nav-button:hover .nav-icon,
 .nav-button:focus-visible .nav-icon {
   transform: translateY(-2px) rotate(3deg);
@@ -8654,5 +8659,24 @@ body .anki-settings-dialog .anki-collection-setting {
 @media (prefers-reduced-motion: reduce) {
   .nav-button .nav-icon {
     transition-duration: .01ms;
+  }
+}
+
+/* Keep calendar date controls distinct in narrow cards and on phones. */
+.deadline-form-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.deadline-form-row label,
+#calendarEventDate,
+#calendarEventType {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 560px) {
+  .deadline-form-row {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

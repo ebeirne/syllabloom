@@ -155,6 +155,7 @@
     selectedTypes: ['attachment', 'action', 'innervation'],
     creatingClass: false,
     pendingClassSetup: false,
+    pendingClassResume: false,
     cloudBeta: false,
     missCounts: storedJson('syllabloom-miss-counts', {}),
     missedItem: null,
@@ -1260,6 +1261,22 @@
     prepareNewClassSetup();
     state.creatingClass = true;
     openOnboarding(1);
+  }
+
+  function startOrResumeClass() {
+    const savedOwnerId = classProfileOwnerId || cachedAccountUserId;
+    const profileBelongsToUser = !state.account.signedIn || !savedOwnerId || savedOwnerId === state.account.userId;
+    const hasClassReady = profileBelongsToUser && (localStorage.getItem('rounds-onboarded') === '1' || state.classMode === 'custom');
+    if (!hasClassReady) {
+      startClassSetup();
+      return;
+    }
+    if (state.account.signedIn) {
+      closeOnboarding('push');
+      return;
+    }
+    state.pendingClassResume = true;
+    window.dispatchEvent(new CustomEvent('syllabloom:auth-request', { detail: { intent: 'resume-class' } }));
   }
 
   function showPricing() {
@@ -2913,7 +2930,7 @@
   document.querySelectorAll('[data-open-billing]').forEach(button => button.addEventListener('click', () => openAccountPage('billing')));
   document.querySelectorAll('[data-account-view]').forEach(button => button.addEventListener('click', () => navigate(button.dataset.accountView)));
   window.addEventListener('syllabloom:open-profile', () => openAccountPage('profile'));
-  document.querySelectorAll('[data-start-onboarding]').forEach(button => button.addEventListener('click', startClassSetup));
+  document.querySelectorAll('[data-start-onboarding]').forEach(button => button.addEventListener('click', startOrResumeClass));
   document.querySelectorAll('[data-open-sample]').forEach(button => button.addEventListener('click', loadSampleClass));
   document.querySelectorAll('[data-back-home]').forEach(button => button.addEventListener('click', showLanding));
   document.querySelector('#mobileNav').addEventListener('change', event => navigate(event.target.value));
@@ -2951,7 +2968,7 @@
     event.currentTarget.reset();
     document.querySelector('#calendarEventDate').value = dateAfter(1);
     renderClassPlanner();
-    showToast('Class date added to the plan');
+    showToast('Class date added to the calendar');
   });
   document.querySelector('#upcomingEvents').addEventListener('click', event => {
     const id = event.target.dataset.removeEvent;
@@ -3032,7 +3049,13 @@
     renderMediaLibrary();
     renderProfile();
     if (state.view === 'billing') renderBillingPage();
-    if (state.account.signedIn && state.pendingClassSetup) {
+    if (state.account.signedIn && state.pendingClassResume) {
+      state.pendingClassResume = false;
+      const savedOwnerId = classProfileOwnerId || cachedAccountUserId;
+      const profileBelongsToUser = !savedOwnerId || savedOwnerId === state.account.userId;
+      if (profileBelongsToUser) closeOnboarding('push');
+      else startClassSetup();
+    } else if (state.account.signedIn && state.pendingClassSetup) {
       state.pendingClassSetup = false;
       window.setTimeout(startClassSetup, 0);
     }

@@ -2820,7 +2820,7 @@
         z-index: 25;
         height: 72px;
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(5, minmax(0, 1fr));
         gap: 0;
         padding: 6px max(8px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
         background: rgba(255, 255, 255, .97);
@@ -3505,7 +3505,7 @@
       .source-reference dd { margin: 4px 0 0; font-size: 15px; line-height: 1.5; }
     }
   </style>
-  <link rel="stylesheet" href="redesign.css?v=20260922-release-audit-4">
+  <link rel="stylesheet" href="redesign.css?v=20260922-calendar-1">
   <link rel="stylesheet" href="memphis.css?v=20260922-release-audit-1">
 </head>
 <body>
@@ -3847,7 +3847,7 @@
       <div class="sidebar-bottom">
         <span class="sidebar-section-label">Class</span>
         <button class="sidebar-action" data-go="source">Materials</button>
-        <button class="sidebar-action" data-go="knowledge">Plan</button>
+        <button class="sidebar-action" data-go="knowledge">Calendar</button>
         <button class="sidebar-action account-nav-action" data-open-profile>Account</button>
         <button id="addClass" class="sidebar-action">Add another class</button>
         <span id="sourceCount" hidden>192</span>
@@ -3870,7 +3870,7 @@
           </optgroup>
           <optgroup label="Class">
             <option value="source">Materials</option>
-            <option value="knowledge">Plan</option>
+            <option value="knowledge">Calendar</option>
             <option value="profile">Profile</option>
             <option value="billing">Billing</option>
           </optgroup>
@@ -4239,8 +4239,8 @@
       <section id="knowledge" class="page">
         <div class="page-head">
           <div>
-            <h1>Class plan</h1>
-            <p class="page-description">Put every lecture, quiz, and exam on one line. Syllabloom meters new material before it reaches Anki.</p>
+            <h1>Class calendar</h1>
+            <p class="page-description">Keep lectures, quizzes, and exams in view. Syllabloom uses these dates to pace new cards while Anki schedules each review.</p>
           </div>
           <div class="page-character-action">
             <img class="detective-mascot character-cutout" src="assets/syllabloom-mascot-detective.webp" width="1200" height="1200" alt="The Syllabloom companion checking a weak topic with a magnifying glass" />
@@ -4268,7 +4268,7 @@
                 <label for="calendarEventDate">Date<input id="calendarEventDate" class="text-input" type="date" required /></label>
                 <label for="calendarEventType">Type<select id="calendarEventType" class="text-input"><option value="lecture">Lecture</option><option value="quiz">Quiz</option><option value="exam">Exam</option><option value="assignment">Assignment</option></select></label>
               </div>
-              <button class="button primary" type="submit">Add to plan</button>
+              <button class="button primary" type="submit">Add to calendar</button>
             </form>
             <div id="upcomingEvents" class="upcoming-events"></div>
           </aside>
@@ -4276,7 +4276,7 @@
 
         <section class="release-plan surface" aria-labelledby="releasePlanHeading">
           <header>
-            <div><h2 id="releasePlanHeading">New-card release plan</h2><p id="releasePlanSummary">Built around the next exam, your available time, and the new-card limit in your Anki preset.</p></div>
+            <div><h2 id="releasePlanHeading">New-card schedule</h2><p id="releasePlanSummary">Built around the next exam, your available time, and the new-card limit in your Anki preset.</p></div>
             <div class="release-plan-controls">
               <label for="releaseStrategy">Choose new cards by<select id="releaseStrategy"><option value="weakest-deadline">Weakest plus deadline</option><option value="weakest">Weakest first</option><option value="syllabus">Syllabus order</option><option value="recent-source">Most recent source</option></select></label>
               <label for="dailyStudyMinutes">Daily minutes<input id="dailyStudyMinutes" type="number" inputmode="numeric" min="10" max="240" value="35" /></label>
@@ -4347,8 +4347,8 @@
 
           <section class="profile-card profile-schedule" aria-labelledby="profileScheduleHeading">
             <header>
-              <div><p class="profile-card-label">Important dates</p><h2 id="profileScheduleHeading">Your schedule</h2><p>Exam and lecture dates directly change the study plan.</p></div>
-              <button class="button" type="button" data-go="knowledge">Open full plan</button>
+              <div><p class="profile-card-label">Important dates</p><h2 id="profileScheduleHeading">Your schedule</h2><p>Exam and lecture dates help pace your study schedule.</p></div>
+              <button class="button" type="button" data-go="knowledge">Open calendar</button>
             </header>
             <div id="profileUpcomingEvents" class="profile-upcoming-events" aria-live="polite"></div>
             <form id="profileScheduleForm" class="profile-schedule-form">
@@ -4590,6 +4590,7 @@
       <button class="nav-button active" data-view="home"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><path d="M12 20v-8"/><path d="M12 12c-3.8 0-6-2.2-6-6 3.8 0 6 2.2 6 6Z"/><path d="M12 10c0-3.4 2.1-5.3 5.5-5.3 0 3.4-2.1 5.3-5.5 5.3Z"/><path d="M6.5 20h11"/></svg></span><span>Today</span></button>
       <button class="nav-button" data-view="capture"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><rect x="8" y="3" width="8" height="13" rx="4"/><path d="M5.5 11.5v.8a6.5 6.5 0 0 0 13 0v-.8M12 18.8V22M8.8 22h6.4"/></svg></span><span>Record</span></button>
       <button class="nav-button" data-view="cards"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><path d="M7 4h11a2 2 0 0 1 2 2v11"/><rect x="4" y="7" width="14" height="13" rx="2.5"/><path d="m8 13 2.3 2.3 4.7-5"/></svg></span><span>Review</span></button>
+      <button class="nav-button" data-view="knowledge"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h6"/></svg></span><span>Calendar</span></button>
       <button class="nav-button" data-view="study"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><path d="M12 3c.7 4.5 3 6.8 7 7.5-4 .7-6.3 3-7 7.5-.7-4.5-3-6.8-7-7.5 4-.7 6.3-3 7-7.5Z"/><path d="M18.5 16.5c.2 1.4.9 2.1 2.2 2.3-1.3.2-2 1-2.2 2.2-.2-1.2-.9-2-2.2-2.2 1.3-.2 2-1 2.2-2.3Z"/></svg></span><span>Study</span></button>
     </nav>
   </div>
@@ -4820,7 +4821,7 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="muscle-data.js?v=20260921-loop"></script>
   <script src="auth.js?v=20260922-release-audit-4"></script>
-  <script src="app.js?v=20260922-class-usage-1"></script>
+  <script src="app.js?v=20260922-resume-calendar-1"></script>
   <script type="module" src="motion-effects.js?v=20260921-motion-smooth-2"></script>
 </body>
 </html>
