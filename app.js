@@ -206,6 +206,53 @@
     }
   ];
 
+  function sourceAssessmentQuestions() {
+    const cards = state.lectureCards.filter(card => card.front && card.back).slice(0, 12);
+    return cards.slice(0, 3).map((card, index) => {
+      const correctAnswer = shortCue(card.back, 220);
+      const distractors = [...new Set(cards
+        .filter(candidate => candidate !== card)
+        .map(candidate => shortCue(candidate.back, 220))
+        .filter(answer => answer && answer !== correctAnswer))].slice(0, 3);
+      if (!distractors.length) distractors.push('I need to review this topic');
+      const choices = [correctAnswer, ...distractors];
+      const rotation = index % choices.length;
+      const options = [...choices.slice(rotation), ...choices.slice(0, rotation)];
+      const sourceLabel = card.source || (card.slideNumber ? `slide ${card.slideNumber}` : 'your uploaded material');
+      return {
+        question: card.front,
+        options,
+        correct: options.indexOf(correctAnswer),
+        explanation: `${card.back} Source: ${sourceLabel}.`
+      };
+    });
+  }
+
+  function activeAssessmentQuestions() {
+    return state.includeSampleMaterial ? assessmentQuestions : sourceAssessmentQuestions();
+  }
+
+  function updateAssessmentIntro() {
+    const title = document.querySelector('#assessmentIntroTitle');
+    const copy = document.querySelector('#assessmentIntroCopy');
+    const start = document.querySelector('#startAssessment');
+    if (!title || !copy || !start) return;
+    const questions = activeAssessmentQuestions();
+    const latestSource = [...state.sources].reverse().find(item => item.draftCards?.length);
+    if (!state.includeSampleMaterial && latestSource) {
+      title.textContent = `Quick check from ${latestSource.name}`;
+      copy.textContent = `${questions.length} question${questions.length === 1 ? '' : 's'} made from the cards that are already ready to study.`;
+    } else if (!state.includeSampleMaterial) {
+      title.textContent = 'Add material to start your check';
+      copy.textContent = 'Upload slides, notes, audio, or video. Your first questions will appear here with the ready cards.';
+    } else {
+      title.textContent = 'Quick starting check';
+      copy.textContent = 'Three questions from the anatomy example. Add your own material to replace them with questions from your class.';
+    }
+    start.disabled = questions.length === 0;
+    start.textContent = questions.length ? 'Check what I know' : 'Waiting for class material';
+  }
+
   const fieldLabels = {
     attachment: 'Attachment',
     action: 'Action',
@@ -758,6 +805,8 @@
     onboardingCompanion.setAttribute('src', companionSource);
     onboardingCompanion.setAttribute('alt', companionAlt);
 
+    if (state.setupStep === 4) updateAssessmentIntro();
+
     if (state.setupStep === 6) {
       syncOnboardingAnkiToState();
       const className = document.querySelector('#classNameInput').value.trim() || 'Untitled class';
@@ -1190,13 +1239,15 @@
   }
 
   function renderAssessmentQuestion() {
-    const item = assessmentQuestions[state.assessmentIndex];
-    document.querySelector('#assessmentProgress').textContent = `Question ${state.assessmentIndex + 1} of ${assessmentQuestions.length}`;
+    const questions = activeAssessmentQuestions();
+    const item = questions[state.assessmentIndex];
+    if (!item) return;
+    document.querySelector('#assessmentProgress').textContent = `Question ${state.assessmentIndex + 1} of ${questions.length}`;
     document.querySelector('#assessmentQuestion').textContent = item.question;
     document.querySelector('#assessmentResult').innerHTML = '';
     const options = document.querySelector('#assessmentOptions');
     options.innerHTML = item.options.map((option, index) => (
-      `<button class="button answer-option" data-answer="${index}">${option}</button>`
+      `<button class="button answer-option" data-answer="${index}">${escapeHtml(option)}</button>`
     )).join('');
     options.querySelectorAll('.answer-option').forEach(button => button.addEventListener('click', () => {
       const answer = Number(button.dataset.answer);
@@ -1205,9 +1256,9 @@
       options.querySelector(`[data-answer="${item.correct}"]`)?.classList.add('correct-answer');
       if (!correct) button.classList.add('selected-wrong');
       options.querySelectorAll('button').forEach(option => { option.disabled = true; });
-      const finalQuestion = state.assessmentIndex === assessmentQuestions.length - 1;
+      const finalQuestion = state.assessmentIndex === questions.length - 1;
       document.querySelector('#assessmentResult').innerHTML = `
-        <p><strong>${correct ? 'Correct.' : 'Not quite.'}</strong> ${item.explanation}</p>
+        <p><strong>${correct ? 'Correct.' : 'Not quite.'}</strong> ${escapeHtml(item.explanation)}</p>
         <button id="assessmentNext" class="button primary">${finalQuestion ? 'Finish assessment' : 'Next question'}</button>`;
       document.querySelector('#assessmentNext').addEventListener('click', () => {
         if (!finalQuestion) {
@@ -1215,16 +1266,16 @@
           renderAssessmentQuestion();
           return;
         }
-        state.baselineScore = Math.round((state.assessmentScore / assessmentQuestions.length) * 100);
+        state.baselineScore = Math.round((state.assessmentScore / questions.length) * 100);
         document.querySelector('#baselineScore').textContent = `${state.baselineScore}%`;
-        const baselinePlan = state.assessmentScore === assessmentQuestions.length
+        const baselinePlan = state.assessmentScore === questions.length
           ? 'Your first session will begin with new material and use later misses to adjust the plan.'
           : state.assessmentScore === 0
             ? 'Your first session will rebuild these foundations before adding more cards.'
             : 'Your first session will circle back to the missed topics before adding more cards.';
         document.querySelector('#assessmentBox').innerHTML = `
           <h2>Baseline complete</h2>
-          <p>You answered ${state.assessmentScore} of ${assessmentQuestions.length} sample questions correctly. ${baselinePlan}</p>`;
+          <p>You answered ${state.assessmentScore} of ${questions.length} question${questions.length === 1 ? '' : 's'} correctly. ${baselinePlan}</p>`;
         document.querySelector('#baselineContinue').disabled = false;
       });
     }));
@@ -1723,6 +1774,7 @@
     document.querySelector('#audioCardCountInline').textContent = state.lectureCards.length;
     document.querySelector('#lectureResultBar').hidden = state.lectureCards.length === 0;
     renderLectureDraftQueue();
+    updateAssessmentIntro();
   }
 
   function updateReviewSurface() {
@@ -2137,15 +2189,39 @@
       if (removed?.kind === 'syllabus') state.syllabusName = 'No syllabus added';
     }
     persistClassSources();
-    renderStoredSources();
+    persistClassProfile();
+    renderSource();
     updateGenerationCount();
     updateReviewSurface();
     renderStudy();
+    updateAssessmentIntro();
     showToast('Source removed from this class');
   }
 
+  function sourceCardsFromLibrary() {
+    return state.sources.flatMap(sourceItem => (sourceItem.draftCards || []).map(card => ({
+      ...card,
+      sourceId: sourceItem.id
+    })));
+  }
+
   async function loadStoredSources() {
-    renderStoredSources();
+    const cardSources = state.sources.filter(sourceItem => sourceItem.draftCards?.length);
+    const cards = sourceCardsFromLibrary();
+    if (cards.length) {
+      const latestSource = cardSources[cardSources.length - 1];
+      state.includeSampleMaterial = false;
+      state.classMode = 'custom';
+      state.useDemoSyllabus = false;
+      if (!state.sources.some(item => item.kind === 'syllabus')) state.syllabusName = 'No syllabus added';
+      state.latestSessionId = `source-${latestSource.id}`;
+      syncLectureCards(cards);
+      persistClassProfile();
+    }
+    renderSource();
+    updateGenerationCount();
+    renderStudy();
+    updateAssessmentIntro();
   }
 
   async function uploadSource(file, kind = 'material') {
@@ -2165,17 +2241,32 @@
         state.useDemoSyllabus = false;
         state.syllabusName = payload.source.name;
       }
+      const wasUsingSample = state.includeSampleMaterial;
+      state.includeSampleMaterial = false;
+      state.classMode = 'custom';
+      state.useDemoSyllabus = false;
+      if (kind !== 'syllabus' && !state.sources.some(item => item.kind === 'syllabus')) state.syllabusName = 'No syllabus added';
+      if (wasUsingSample) {
+        state.statuses = {};
+        state.edits = {};
+      }
       state.sources = state.sources.filter(item => item.id !== payload.source.id);
       state.sources.push(payload.source);
       persistClassSources();
-      renderStoredSources();
+      persistClassProfile();
       const sourceCards = (payload.source.draftCards || []).map(card => ({ ...card, sourceId: payload.source.id }));
       if (sourceCards.length) {
         state.latestSessionId = `source-${payload.source.id}`;
-        const merged = [...state.lectureCards, ...sourceCards];
+        const retainedCards = state.lectureCards.filter(card => card.sourceId !== payload.source.id);
+        const merged = [...retainedCards, ...sourceCards];
         const unique = [...new Map(merged.map(card => [lectureCardKey(card), card])).values()];
         syncLectureCards(unique);
       }
+      renderSource();
+      updateGenerationCount();
+      updateReviewSurface();
+      renderStudy();
+      updateAssessmentIntro();
       renderSourceStudyOutput(payload.source);
       showToast(sourceCards.length
         ? `${file.name} · ${sourceCards.length} cards and ${(payload.source.notes || []).length} note sections ready`
@@ -2680,6 +2771,7 @@
     if (sourceId) removeClassSource(sourceId);
   }));
   document.querySelector('#startAssessment').addEventListener('click', () => {
+    if (!activeAssessmentQuestions().length) return showToast('Add class material before starting the quick check');
     state.assessmentIndex = 0;
     state.assessmentScore = 0;
     document.querySelector('#assessmentIntro').hidden = true;
