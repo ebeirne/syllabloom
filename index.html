@@ -4173,11 +4173,22 @@
             <p>Bring in a syllabus, slide deck, reading, or authorized assessment. Syllabloom maps its structure before drafting cards.</p>
           </div>
           <div class="source-import-controls">
-            <select id="sourceKind" class="source-kind" aria-label="Source type">
-              <option value="material">Class material</option>
-              <option value="syllabus">Syllabus</option>
-              <option value="assessment">Past assessment</option>
-            </select>
+            <div id="sourceKindPicker" class="source-kind-picker">
+              <select id="sourceKind" class="source-kind source-kind-native" aria-hidden="true" tabindex="-1">
+                <option value="material">Class material</option>
+                <option value="syllabus">Syllabus</option>
+                <option value="assessment">Past assessment</option>
+              </select>
+              <button id="sourceKindTrigger" class="source-kind-trigger" type="button" aria-label="Source type" aria-haspopup="listbox" aria-expanded="false" aria-controls="sourceKindMenu">
+                <span id="sourceKindLabel">Class material</span>
+                <span class="source-kind-trigger-arrow" aria-hidden="true"></span>
+              </button>
+              <div id="sourceKindMenu" class="source-kind-menu" role="listbox" aria-label="Source type" popover="auto">
+                <button class="source-kind-option" type="button" role="option" data-source-kind-value="material" aria-selected="true">Class material</button>
+                <button class="source-kind-option" type="button" role="option" data-source-kind-value="syllabus" aria-selected="false">Syllabus</button>
+                <button class="source-kind-option" type="button" role="option" data-source-kind-value="assessment" aria-selected="false">Past assessment</button>
+              </div>
+            </div>
             <label id="sourceUploadLabel" for="sourceUpload" class="button primary" role="button" tabindex="0">Choose document</label>
             <input id="sourceUpload" type="file" accept=".docx,.pptx,.pdf,.txt" hidden />
           </div>

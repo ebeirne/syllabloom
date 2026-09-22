@@ -90,6 +90,21 @@ class BetaReadinessContractTests(unittest.TestCase):
         self.assertIn("#study .rating-options", styles)
         self.assertIn(".study-rating-receipt", styles)
 
+    def test_source_type_picker_uses_themed_accessible_menu(self) -> None:
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        app = (ROOT / "app.js").read_text(encoding="utf-8")
+        styles = (ROOT / "redesign.css").read_text(encoding="utf-8")
+
+        self.assertIn('id="sourceKindTrigger"', page)
+        self.assertIn('id="sourceKindMenu"', page)
+        self.assertIn('role="listbox"', page)
+        self.assertIn('role="option"', page)
+        self.assertIn("function initializeSourceKindPicker", app)
+        self.assertIn("menu.showPopover()", app)
+        self.assertIn("sourceKindValue", app)
+        self.assertIn(".source-kind-menu", styles)
+        self.assertIn('.source-kind-option[aria-selected="true"]', styles)
+
 
 if __name__ == "__main__":
     unittest.main()

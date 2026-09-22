@@ -8410,3 +8410,163 @@ body .anki-settings-dialog .anki-collection-setting {
     animation: none;
   }
 }
+
+/* The source type menu uses a top-layer popover so the open state keeps the Syllabloom theme. */
+
+.source-kind-picker {
+  position: relative;
+  min-width: 220px;
+}
+
+.source-kind-native {
+  width: 1px !important;
+  height: 1px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  position: absolute !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+}
+
+.source-kind-trigger {
+  width: 100%;
+  min-height: 56px;
+  padding: 0 9px 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 19px 24px 20px 17px;
+  box-shadow: 0 4px 0 rgba(23, 24, 22, .72);
+  font: 750 16px/1.1 var(--font);
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out);
+}
+
+.source-kind-trigger:hover {
+  background: color-mix(in srgb, var(--paper) 78%, var(--sun));
+  transform: translateY(-1px);
+  box-shadow: 0 5px 0 rgba(23, 24, 22, .72);
+}
+
+.source-kind-trigger:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 rgba(23, 24, 22, .72);
+}
+
+.source-kind-trigger:focus-visible {
+  outline: 3px solid var(--sky);
+  outline-offset: 3px;
+}
+
+.source-kind-trigger-arrow {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  background-color: var(--sun);
+  background-image: var(--select-mark);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 34px 34px;
+  border-radius: 50%;
+  transition: transform var(--motion-default) var(--ease-in-out);
+}
+
+.source-kind-picker.is-open .source-kind-trigger-arrow {
+  transform: rotate(180deg);
+}
+
+.source-kind-menu {
+  inset: auto;
+  margin: 0;
+  padding: 7px;
+  overflow: hidden;
+  color: var(--ink);
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 20px 25px 22px 18px;
+  box-shadow: 6px 6px 0 var(--ink);
+}
+
+.source-kind-menu::backdrop {
+  background: transparent;
+}
+
+.source-kind-menu[hidden] {
+  display: none !important;
+}
+
+.source-kind-option {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 13px 16px 14px 12px;
+  font: 700 16px/1.2 var(--font);
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.source-kind-option + .source-kind-option {
+  border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+}
+
+.source-kind-option:hover,
+.source-kind-option:focus-visible {
+  background: color-mix(in srgb, var(--memphis-aqua, #a7e4df) 72%, var(--paper));
+  outline: none;
+}
+
+.source-kind-option:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+.source-kind-option[aria-selected="true"] {
+  background: var(--sun);
+}
+
+.source-kind-option[aria-selected="true"]::after {
+  content: "✓";
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  color: var(--paper);
+  background: var(--grass-dark);
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+@media (max-width: 760px) {
+  .source-kind-picker {
+    width: 100%;
+  }
+
+  .source-kind-trigger {
+    min-height: 58px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .source-kind-trigger,
+  .source-kind-trigger-arrow {
+    transition-duration: .01ms;
+  }
+}
