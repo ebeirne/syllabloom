@@ -4501,6 +4501,14 @@
             </article>
           </div>
 
+          <div id="studyRatingReceipt" class="study-rating-receipt" role="status" aria-live="polite" hidden>
+            <span class="study-rating-receipt-mark" aria-hidden="true">✓</span>
+            <span class="study-rating-receipt-copy">
+              <strong id="studyRatingReceiptTitle">Difficulty saved</strong>
+              <small id="studyRatingReceiptDetail">Saved to your study history in this browser.</small>
+            </span>
+          </div>
+
           <section id="missExplanation" class="miss-explanation" hidden aria-live="polite" aria-labelledby="missExplanationTitle">
             <div class="miss-explanation-head">
               <span class="miss-mark" aria-hidden="true">!</span>
@@ -4547,12 +4555,21 @@
 
           <div id="studyControls" class="study-controls">
             <button id="showAnswer" class="button primary">Show answer</button>
-            <div id="ratingControls" class="actions rating-controls">
-              <button class="button rating" data-rating="Again">Again</button>
-              <button class="button rating" data-rating="Hard">Hard</button>
-              <button class="button rating" data-rating="Good">Good</button>
-              <button class="button rating" data-rating="Easy">Easy</button>
-            </div>
+            <section id="ratingControls" class="rating-controls" aria-labelledby="studyRatingPrompt" aria-describedby="studyRatingHelp">
+              <header class="rating-prompt">
+                <div>
+                  <span>Answer checked</span>
+                  <h3 id="studyRatingPrompt">How difficult was that recall?</h3>
+                </div>
+                <p id="studyRatingHelp">Choose the effort you actually felt. We save it to your study history.</p>
+              </header>
+              <div class="rating-options" role="group" aria-label="Record recall difficulty">
+                <button class="button rating" type="button" data-rating="Again" aria-pressed="false"><strong>Again</strong><small>Forgot it</small></button>
+                <button class="button rating" type="button" data-rating="Hard" aria-pressed="false"><strong>Hard</strong><small>Needed effort</small></button>
+                <button class="button rating" type="button" data-rating="Good" aria-pressed="false"><strong>Good</strong><small>Recalled it</small></button>
+                <button class="button rating" type="button" data-rating="Easy" aria-pressed="false"><strong>Easy</strong><small>Instant recall</small></button>
+              </div>
+            </section>
           </div>
         </div>
       </section>

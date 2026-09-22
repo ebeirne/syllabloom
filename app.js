@@ -36,6 +36,9 @@
     storage: 'example'
   };
 
+  const storedReviewHistory = storedJson('syllabloom-review-history', []);
+  const savedReviewHistory = Array.isArray(storedReviewHistory) ? storedReviewHistory : [];
+
   function storedJson(key, fallback) {
     try {
       const value = JSON.parse(localStorage.getItem(key));
@@ -126,7 +129,8 @@
     statuses: {},
     edits: {},
     studyIndex: 0,
-    reviewCount: 146,
+    reviewCount: 146 + savedReviewHistory.length,
+    reviewHistory: savedReviewHistory,
     planCorrections: 0,
     setupStep: 1,
     className: savedClassProfile.className || 'Human Anatomy',
@@ -1326,6 +1330,57 @@
     return item.directCard ? `lecture-${item.directCard.id}` : keyFor(item.record, item.field);
   }
 
+  function recordStudyRating(item, rating) {
+    const entry = {
+      id: `review-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      cardId: studyCardKey(item),
+      rating,
+      className: state.className,
+      classTerm: state.classTerm,
+      reviewedAt: new Date().toISOString()
+    };
+    state.reviewHistory.push(entry);
+    state.reviewHistory = state.reviewHistory.slice(-2000);
+    try {
+      localStorage.setItem('syllabloom-review-history', JSON.stringify(state.reviewHistory));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function resetRatingControls() {
+    document.querySelectorAll('.rating').forEach(button => {
+      button.disabled = false;
+      button.classList.remove('is-recorded');
+      button.setAttribute('aria-pressed', 'false');
+    });
+  }
+
+  function hideRatingReceipt() {
+    const receipt = document.querySelector('#studyRatingReceipt');
+    receipt.hidden = true;
+    receipt.removeAttribute('data-rating');
+  }
+
+  function showRatingReceipt(rating, persisted) {
+    const receipt = document.querySelector('#studyRatingReceipt');
+    const descriptions = {
+      Again: 'Saved as a miss. Use the explanation below before trying again.',
+      Hard: 'Saved as difficult. This hesitation is now part of your study history.',
+      Good: 'Saved as a solid recall. Your study history has been updated.',
+      Easy: 'Saved as an easy recall. Your study history has been updated.'
+    };
+    receipt.dataset.rating = rating;
+    document.querySelector('#studyRatingReceiptTitle').textContent = persisted
+      ? `${rating} recorded`
+      : `${rating} selected`;
+    document.querySelector('#studyRatingReceiptDetail').textContent = persisted
+      ? descriptions[rating]
+      : 'This answer is active for this session, but browser storage was unavailable.';
+    receipt.hidden = false;
+  }
+
   function shortCue(value, maximum = 170) {
     const clean = String(value || '').replace(/\s+/g, ' ').trim();
     if (clean.length <= maximum) return clean;
@@ -1533,7 +1588,7 @@
     }
   }
 
-  function renderStudy() {
+  function renderStudy({ preserveRatingReceipt = false } = {}) {
     const cards = studyCards();
     const hasCards = cards.length > 0;
     document.querySelector('#studyEmpty').hidden = hasCards;
@@ -1542,6 +1597,8 @@
     document.querySelector('#studyCardStage').hidden = !hasCards;
     document.querySelector('#studyControls').hidden = !hasCards;
     hideMissExplanation();
+    resetRatingControls();
+    if (!preserveRatingReceipt) hideRatingReceipt();
     if (!hasCards) return;
     if (state.studyIndex >= cards.length) state.studyIndex = 0;
     const item = cards[state.studyIndex];
@@ -3141,6 +3198,8 @@
   });
 
   document.querySelector('#showAnswer').addEventListener('click', () => {
+    hideRatingReceipt();
+    resetRatingControls();
     document.querySelector('#studyAnswer').classList.add('open');
     document.querySelector('#showAnswer').hidden = true;
     document.querySelector('#ratingControls').classList.add('open');
@@ -3149,20 +3208,32 @@
   document.querySelectorAll('.rating').forEach(button => button.addEventListener('click', () => {
     const cards = studyCards();
     const item = cards[state.studyIndex];
+    if (!item || button.disabled) return;
+    const rating = button.dataset.rating;
+    const persisted = recordStudyRating(item, rating);
+    document.querySelectorAll('.rating').forEach(control => {
+      control.disabled = true;
+      control.classList.toggle('is-recorded', control === button);
+      control.setAttribute('aria-pressed', control === button ? 'true' : 'false');
+    });
     state.reviewCount += 1;
     document.querySelector('#reviewCount').textContent = state.reviewCount;
-    if (button.dataset.rating === 'Again') {
+    showRatingReceipt(rating, persisted);
+    if (rating === 'Again') {
       showMissExplanation(item);
-      showToast('Miss saved. Let’s make it stick.');
       return;
     }
-    showToast(`${button.dataset.rating} recorded`);
-    state.studyIndex = (state.studyIndex + 1) % cards.length;
-    renderStudy();
+    window.setTimeout(() => {
+      state.studyIndex = (state.studyIndex + 1) % cards.length;
+      renderStudy({ preserveRatingReceipt: true });
+      document.querySelector('#showAnswer').focus({ preventScroll: true });
+    }, 180);
   }));
 
   document.querySelector('#retryMissedCard').addEventListener('click', () => {
     hideMissExplanation();
+    hideRatingReceipt();
+    resetRatingControls();
     document.querySelector('#studyAnswer').classList.remove('open');
     document.querySelector('#showAnswer').hidden = false;
     document.querySelector('#ratingControls').classList.remove('open');

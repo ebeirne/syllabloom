@@ -76,6 +76,20 @@ class BetaReadinessContractTests(unittest.TestCase):
         self.assertIn("cards saved in this browser; original file not stored", app)
         self.assertNotIn("available this session", app)
 
+    def test_study_difficulty_is_prominent_and_persisted(self) -> None:
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        app = (ROOT / "app.js").read_text(encoding="utf-8")
+        styles = (ROOT / "redesign.css").read_text(encoding="utf-8")
+
+        self.assertIn("How difficult was that recall?", page)
+        self.assertIn('id="studyRatingReceipt"', page)
+        self.assertIn('aria-live="polite"', page)
+        self.assertIn("syllabloom-review-history", app)
+        self.assertIn("function recordStudyRating", app)
+        self.assertIn("showRatingReceipt(rating, persisted);", app)
+        self.assertIn("#study .rating-options", styles)
+        self.assertIn(".study-rating-receipt", styles)
+
 
 if __name__ == "__main__":
     unittest.main()
