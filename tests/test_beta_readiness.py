@@ -31,6 +31,11 @@ class BetaReadinessContractTests(unittest.TestCase):
         self.assertIn('id="knowledgeRows"', page)
         self.assertIn('id="todayHeroCopy"', page)
 
+    def test_auth_copy_matches_the_rendered_clerk_options(self) -> None:
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        self.assertIn("Use your email and password, or continue with Google", page)
+        self.assertNotIn("We use a one-time email code for beta access", page)
+
 
 if __name__ == "__main__":
     unittest.main()
