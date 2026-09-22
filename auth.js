@@ -61,24 +61,23 @@
   function billingAppearance() {
     const base = sharedAppearance();
     return {
-      ...base,
       variables: {
         ...base.variables,
-        colorPrimary: '#f5e211',
-        colorTextOnPrimary: '#2c2e2a',
+        colorPrimary: '#2f6b42',
+        colorTextOnPrimary: '#fffdf6',
         colorBackground: '#fffdf6',
         colorInputBackground: '#fffdf6',
         borderRadius: '22px'
       },
       elements: {
-        ...base.elements,
-        card: { width: '100%', background: '#fffdf6', border: '2px solid #2c2e2a', borderRadius: '30px', boxShadow: '5px 5px 0 #2c2e2a' },
+        rootBox: { width: '100%' },
+        cardBox: { width: '100%', boxShadow: 'none' },
         badge: { background: '#f6b9d2', border: '1px solid #2c2e2a', borderRadius: '999px', color: '#2c2e2a', fontWeight: '800' },
-        pricingTableCard: { background: '#fffdf6', border: '2px solid #2c2e2a', borderRadius: '30px', boxShadow: '5px 5px 0 #2c2e2a' },
-        pricingTableCardHeader: { background: '#f6b9d2', borderBottom: '1.5px solid #2c2e2a' },
+        pricingTableCard: { background: '#fffdf6', border: '1.5px solid #2c2e2a', borderRadius: '28px', boxShadow: '4px 4px 0 #2c2e2a' },
+        pricingTableCardHeader: { background: 'transparent', border: '0', boxShadow: 'none' },
         pricingTableCardTitle: { color: '#2c2e2a', fontWeight: '850' },
-        pricingTableCardButton: { background: '#f5e211', border: '1.5px solid #2c2e2a', borderRadius: '999px', boxShadow: '3px 3px 0 #2c2e2a', color: '#2c2e2a', fontWeight: '850' },
-        formButtonPrimary: { minHeight: '50px', background: '#f5e211', border: '1.5px solid #2c2e2a', borderRadius: '999px', boxShadow: '3px 3px 0 #2c2e2a', color: '#2c2e2a', fontWeight: '850' }
+        pricingTableCardButton: { minHeight: '50px', background: '#f6b9d2', border: '1.5px solid #2c2e2a', borderRadius: '999px', boxShadow: '3px 3px 0 #2c2e2a', color: '#2c2e2a', fontWeight: '850' },
+        formButtonPrimary: { minHeight: '50px', background: '#f6b9d2', border: '1.5px solid #2c2e2a', borderRadius: '999px', boxShadow: '3px 3px 0 #2c2e2a', color: '#2c2e2a', fontWeight: '850' }
       }
     };
   }

@@ -7393,26 +7393,38 @@ select option {
 }
 
 .billing-page .cl-card,
-.billing-page [class*="cl-pricingTableCard"] {
+.billing-page .cl-pricingTableCard {
   background: #fffdf6 !important;
-  border: 2px solid var(--ink) !important;
-  border-radius: 30px !important;
-  box-shadow: 5px 5px 0 var(--ink) !important;
+  border: 1.5px solid var(--ink) !important;
+  border-radius: 28px !important;
+  box-shadow: 4px 4px 0 var(--ink) !important;
 }
 
-.billing-page [class*="cl-pricingTableCard"]:last-child {
-  background: var(--grass) !important;
-  box-shadow: 5px 5px 0 var(--sun) !important;
+.billing-page .cl-pricingTableCardHeader,
+.billing-page .cl-pricingTableCardBody,
+.billing-page .cl-pricingTableCardFooter,
+.billing-page .cl-pricingTableCardFeatures,
+.billing-page .cl-pricingTableCardFeature {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 
 .billing-page .cl-formButtonPrimary,
-.billing-page [class*="cl-pricingTable"] button:not([disabled]) {
+.billing-page .cl-pricingTableCardButton {
   background: var(--pink) !important;
   border: 1.5px solid var(--ink) !important;
   border-radius: var(--radius-control) !important;
   box-shadow: 3px 3px 0 var(--ink) !important;
   color: var(--ink) !important;
   font-weight: 850 !important;
+}
+
+.billing-page .cl-pricingTableCardButton:hover,
+.billing-page .cl-formButtonPrimary:hover {
+  transform: translateY(1px);
+  box-shadow: 2px 2px 0 var(--ink) !important;
 }
 
 .billing-page .cl-avatarBox,
