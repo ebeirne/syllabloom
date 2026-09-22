@@ -36,6 +36,30 @@ class BetaReadinessContractTests(unittest.TestCase):
         self.assertIn("Use your email and password, or continue with Google", page)
         self.assertNotIn("We use a one-time email code for beta access", page)
 
+    def test_test_mode_billing_cannot_look_like_a_live_checkout(self) -> None:
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        auth = (ROOT / "auth.js").read_text(encoding="utf-8")
+        app = (ROOT / "app.js").read_text(encoding="utf-8")
+        styles = (ROOT / "redesign.css").read_text(encoding="utf-8")
+
+        self.assertIn("The public beta is free. Live payments are not enabled on this build.", page)
+        self.assertIn("if (!liveBilling) return { ready: false, reason: 'billing-preview' };", auth)
+        self.assertIn("liveBilling = publishableKey.startsWith('pk_live_');", auth)
+        self.assertIn("fallback.hidden = false;", app)
+        self.assertNotIn("fallback.hidden = true;", app)
+        self.assertIn('id="billingCheckoutDialog"', page)
+        self.assertNotIn(".billing-page .cl-pricingTableCard", styles)
+
+    def test_tablet_account_navigation_and_mobile_lecture_actions_stay_reachable(self) -> None:
+        styles = (ROOT / "redesign.css").read_text(encoding="utf-8")
+        theme = (ROOT / "memphis.css").read_text(encoding="utf-8")
+
+        self.assertIn("grid-template-columns: auto minmax(150px, 200px) 1fr auto !important;", styles)
+        self.assertIn(".account-nav-action {", styles)
+        self.assertIn(".lecture-result-actions {", theme)
+        self.assertIn("flex-direction: column;", theme)
+        self.assertIn(".lecture-result-actions .button {", theme)
+
 
 if __name__ == "__main__":
     unittest.main()

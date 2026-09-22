@@ -3505,8 +3505,8 @@
       .source-reference dd { margin: 4px 0 0; font-size: 15px; line-height: 1.5; }
     }
   </style>
-  <link rel="stylesheet" href="redesign.css?v=20260921-source-notes-1">
-  <link rel="stylesheet" href="memphis.css?v=20260921-ready-cards-1">
+  <link rel="stylesheet" href="redesign.css?v=20260922-release-audit-4">
+  <link rel="stylesheet" href="memphis.css?v=20260922-release-audit-1">
 </head>
 <body>
   <section id="landing" class="marketing-home" aria-label="Syllabloom home page">
@@ -4354,8 +4354,8 @@
         <header class="account-page-head billing-page-head">
           <div>
             <p class="account-page-path">Account / Billing</p>
-            <h1 id="billingPageTitle">One class free. Upgrade when it earns it.</h1>
-            <p>Manage your tier, payment method, and billing history through Clerk, with payments processed by Stripe.</p>
+            <h1 id="billingPageTitle">One class free. No surprise checkout.</h1>
+            <p>See exactly what is included now. Paid billing stays closed until the beta is ready for live payments.</p>
           </div>
           <img class="account-page-companion character-cutout" src="assets/rounds-mascot-anki.webp" width="900" height="900" alt="The Syllabloom companion packing finished study cards" />
         </header>
@@ -4376,21 +4376,20 @@
         </section>
 
         <section class="billing-plans-shell" aria-labelledby="billingPlansHeading">
-          <header><div><p class="profile-card-label">Plans</p><h2 id="billingPlansHeading">Choose what fits this semester</h2></div><span id="billingConnectionStatus" class="billing-status">Checking Clerk Billing</span></header>
-          <div id="clerkPricingTable" class="clerk-pricing-table" hidden></div>
+          <header><div><p class="profile-card-label">Plans</p><h2 id="billingPlansHeading">Choose what fits this semester</h2></div><span id="billingConnectionStatus" class="billing-status">Checking billing status</span></header>
           <div id="billingPlanFallback" class="billing-plan-fallback">
             <article>
               <span>Free</span><strong>$0</strong><p>Use Syllabloom for the class that needs it most.</p>
-              <ul><li>1 active class</li><li>On-device lecture library</li><li>Editable cards and Anki export</li></ul>
+              <ul><li>1 active class</li><li>Slides, documents, audio, and video</li><li>Editable notes and ready cards</li><li>Study in Syllabloom or export to Anki</li></ul>
               <button class="button" type="button" disabled>Current plan</button>
             </article>
             <article class="student-plan-preview">
               <span>Student</span><strong>$9 <small>/ month billed yearly</small></strong><p>Keep your whole course load moving toward Anki.</p>
-              <ul><li>Unlimited active classes</li><li>Expanded lecture library during beta</li><li>Calendar, weak-topic plan, and Anki presets</li></ul>
+              <ul><li>Unlimited active classes</li><li>Expanded on-device lecture library</li><li>Calendar and weak-topic study plan</li><li>Complete Anki presets and export controls</li></ul>
               <button id="billingSetupPending" class="button primary" type="button">Sign in to choose Student</button>
             </article>
           </div>
-          <p class="billing-fine-print">Payments are processed by Stripe through Clerk Billing. Syllabloom never stores card numbers.</p>
+          <p id="billingFinePrint" class="billing-fine-print">The public beta is free. Live payments are not enabled on this build.</p>
         </section>
       </section>
 
@@ -4737,6 +4736,18 @@
     </div>
   </dialog>
 
+  <dialog id="billingCheckoutDialog" class="account-dialog billing-checkout-dialog" aria-labelledby="billingCheckoutTitle">
+    <div class="billing-checkout-shell">
+      <button class="dialog-close account-dialog-close" type="button" data-close-billing-checkout aria-label="Close secure checkout">Close</button>
+      <header>
+        <span class="account-kicker">Secure checkout</span>
+        <h1 id="billingCheckoutTitle">Choose Student with Clerk.</h1>
+        <p>Clerk handles the subscription and Stripe processes the payment. Syllabloom never stores your card number.</p>
+      </header>
+      <div id="clerkPricingTable" class="clerk-pricing-table" hidden></div>
+    </div>
+  </dialog>
+
   <dialog id="classLimitDialog" class="account-dialog class-limit-dialog" aria-labelledby="classLimitTitle">
     <div class="account-dialog-shell">
       <button class="dialog-close account-dialog-close" type="button" data-close-class-limit aria-label="Close class limit message">Close</button>
@@ -4780,8 +4791,8 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="muscle-data.js?v=20260921-loop"></script>
-  <script src="auth.js?v=20260921-back-auth-fix-1"></script>
-  <script src="app.js?v=20260922-beta-readiness-1"></script>
+  <script src="auth.js?v=20260922-release-audit-4"></script>
+  <script src="app.js?v=20260922-release-audit-4"></script>
   <script type="module" src="motion-effects.js?v=20260921-motion-smooth-2"></script>
 </body>
 </html>

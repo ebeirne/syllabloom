@@ -179,6 +179,133 @@ Repolarization results from potassium leaving the neuron.
         self.assertEqual(promotional["cards"], [])
         self.assertEqual(promotional["notes"], [])
 
+        transcript_fragments = compile_lecture_window(
+            "My name is John Sullivan and this is the first lecture. "
+            "The body to help maintain that homeostasis is all about vital mechanisms. "
+            "The example he gave here is smooth muscle cells. "
+            "Muscular and as well as nervous tissue those are four basic types. "
+            "Instead what it does may rely primarily on something cocholine. "
+            "Remember the intestines help with digestion. "
+            "Could be is an entirely different function. "
+            "You'll see that many different types of cells help catalyze products glucose.",
+            "lecture.webm",
+            1509,
+            12,
+        )
+        self.assertEqual(transcript_fragments["concepts"], [])
+        self.assertEqual(transcript_fragments["notes"], [])
+        self.assertEqual(transcript_fragments["cards"], [])
+
+    def test_generic_lecture_requires_a_clear_testable_fact(self) -> None:
+        compiled = compile_lecture_window(
+            "Inflation is a sustained increase in the general price level. "
+            "Contractionary monetary policy decreases aggregate demand by raising interest rates.",
+            "economics-lecture.m4a",
+            420,
+            4,
+        )
+
+        self.assertEqual(compiled["concepts"][0]["name"], "Inflation")
+        self.assertEqual(len(compiled["cards"]), 2)
+        self.assertEqual(compiled["cards"][0]["front"], "What is inflation?")
+        self.assertTrue(all(card["status"] == "provisional" for card in compiled["cards"]))
+
+    def test_lecture_compiler_rejects_singular_are_and_formats_unit_equivalence(self) -> None:
+        compiled = compile_lecture_window(
+            "Urine are typical again between 1 and 1.5 liters. "
+            "Kilogram is equal to 2.2 pounds approximately.",
+            "physiology-lecture.m4a",
+            2522.37,
+            106,
+        )
+
+        self.assertEqual(len(compiled["cards"]), 1)
+        self.assertEqual(compiled["cards"][0]["front"], "What is one kilogram equal to?")
+        self.assertEqual(compiled["cards"][0]["back"], "2.2 pounds approximately")
+        self.assertEqual(compiled["concepts"][0]["name"], "Kilogram")
+
+    def test_lecture_compiler_removes_discourse_words_from_inclusion_cards(self) -> None:
+        compiled = compile_lecture_window(
+            "Whole blood also contains cellular components, like red blood cells and white blood cells, right?",
+            "physiology-lecture.m4a",
+            3192.55,
+            137,
+        )
+
+        self.assertEqual(compiled["concepts"][0]["name"], "Whole blood")
+        self.assertEqual(compiled["cards"][0]["front"], "What does whole blood include?")
+        self.assertEqual(
+            compiled["cards"][0]["back"],
+            "cellular components, like red blood cells and white blood cells",
+        )
+
+    def test_lecture_compiler_rejects_context_only_and_run_on_cards(self) -> None:
+        fragments = (
+            "The reverse is true with potassium. "
+            "Milligram out of 100 ml is a 1% 10 milligrams out of 100 ml is 10% it's easy right now let's give you a sort of a real world example here. "
+            "Millimoles is the number of sodium molecules in that. "
+            "Osmoles are very important because we're gonna be talking about osmoles in the next slides. "
+            "The idea is I want to know how many particles are in solution because that number directly affects fluid shift."
+        )
+        compiled = compile_lecture_window(
+            fragments,
+            "physiology-lecture.m4a",
+            3600,
+            150,
+        )
+
+        self.assertEqual(compiled["concepts"], [])
+        self.assertEqual(compiled["notes"], [])
+        self.assertEqual(compiled["cards"], [])
+
+    def test_unrelated_subjects_create_specific_study_questions(self) -> None:
+        subjects = {
+            "chemistry.txt": (
+                "Chemical kinetics\n"
+                "Activation energy is the minimum energy required for a reaction to proceed.\n"
+                "A catalyst decreases activation energy without being consumed by the reaction.\n",
+                "What is activation energy?",
+            ),
+            "economics.txt": (
+                "Monetary policy\n"
+                "Inflation is a sustained increase in the general price level.\n"
+                "Contractionary monetary policy decreases aggregate demand by raising interest rates.\n",
+                "What is inflation?",
+            ),
+            "contract-law.txt": (
+                "Contract formation\n"
+                "Consideration is the exchange of value that supports an enforceable contract.\n"
+                "An offer is a definite promise made with intent to be bound.\n",
+                "What is consideration?",
+            ),
+            "cold-war-history.txt": (
+                "Postwar Europe\n"
+                "The Marshall Plan was a United States program that funded European economic recovery.\n"
+                "The Berlin Airlift was an Allied operation that supplied West Berlin by air.\n",
+                "What was the Marshall Plan?",
+            ),
+            "computer-science.txt": (
+                "Data structures\n"
+                "A hash table is a data structure that maps keys to storage locations.\n"
+                "A collision is an event in which two keys map to the same location.\n",
+                "What is a hash table?",
+            ),
+            "literature.txt": (
+                "Narrative technique\n"
+                "Dramatic irony is a technique in which the audience knows more than a character.\n"
+                "A motif is a recurring image or idea that develops a theme.\n",
+                "What is dramatic irony?",
+            ),
+        }
+
+        for filename, (text, expected_question) in subjects.items():
+            with self.subTest(filename=filename):
+                compiled = compile_study_material(text, filename)
+                self.assertGreaterEqual(len(compiled["notes"]), 1)
+                self.assertGreaterEqual(len(compiled["cards"]), 2)
+                self.assertIn(expected_question, {card["front"] for card in compiled["cards"]})
+                self.assertTrue(all(card["source"] == filename for card in compiled["cards"]))
+
 
 if __name__ == "__main__":
     unittest.main()

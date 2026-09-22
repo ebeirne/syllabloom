@@ -190,10 +190,12 @@ _GENERIC_SECTION_TITLES = {
 _GENERIC_LABELS = {
     "example",
     "examples",
+    "idea",
     "note",
     "notes",
     "key point",
     "key points",
+    "reverse",
     "summary",
     "source",
 }
@@ -208,9 +210,23 @@ _LECTURE_STOPWORDS = {
     "everyone", "discuss", "part", "group", "height", "finally", "known", "suggests",
 }
 _BAD_SUBJECT_STARTS = {
-    "and", "or", "but", "so", "because", "at", "by", "during", "for", "from", "if",
+    "and", "or", "but", "so", "because", "at", "by", "could", "during", "for", "from", "if",
     "in", "into", "it", "its", "of", "on", "since", "that", "then", "there", "these",
     "they", "this", "those", "through", "to", "when", "where", "which", "while", "with",
+    "he", "i", "i'll", "instead", "may", "might", "must", "note", "notice", "now", "okay",
+    "recall", "remember", "shall", "she", "should", "we", "we'll", "would", "you", "you'll",
+    "you're", "youre",
+}
+_BAD_SUBJECT_WORDS = {
+    "anything", "example", "examples", "everything", "he", "her", "here", "hers", "him",
+    "his", "i", "it", "its", "me", "mine", "my", "nothing", "our", "ours", "she",
+    "somebody", "someone", "something", "that", "their", "theirs", "them", "there", "these",
+    "they", "thing", "things", "this", "those", "us", "we", "what", "whatever", "you",
+    "your", "yours",
+}
+_BAD_SUBJECT_ENDS = {
+    "a", "also", "an", "and", "as", "at", "but", "by", "for", "from", "in", "of", "on",
+    "or", "the", "these", "those", "to", "too", "with",
 }
 _PROMOTIONAL_LECTURE_PHRASES = (
     "interactive quizzes",
@@ -296,10 +312,15 @@ def _unit_topic(lines: list[str], fallback: str) -> tuple[str, int]:
 
 def _valid_card_subject(value: str) -> bool:
     subject = re.sub(r"\s+", " ", value).strip(" ,;:.-")
-    words = subject.split()
+    words = re.findall(r"[A-Za-z][A-Za-z'’-]*", subject)
     if not (1 <= len(words) <= 11) or len(subject) > 90:
         return False
-    if words[0].lower() in _BAD_SUBJECT_STARTS or words[-1].lower() in {"which", "that", "who"}:
+    lowered = [word.lower().replace("’", "'") for word in words]
+    if lowered[0] in _BAD_SUBJECT_STARTS or lowered[-1] in (_BAD_SUBJECT_ENDS | {"which", "that", "who"}):
+        return False
+    if any(word in _BAD_SUBJECT_WORDS and not original.isupper() for word, original in zip(lowered, words)):
+        return False
+    if any("'" in word for word in lowered):
         return False
     if "," in subject or ";" in subject:
         return False
@@ -314,10 +335,43 @@ def _question_subject(value: str) -> str:
         return "a " + value[2:]
     if value.startswith("An "):
         return "an " + value[3:]
-    return value
+    words = value.split()
+    if not value or (words and words[0].isupper()) or any(word[:1].isupper() for word in words[1:]):
+        return value
+    return value[:1].lower() + value[1:]
 
 
-def _fact_card(statement: str, topic: str) -> tuple[str, str] | None:
+def _looks_plural_subject(value: str) -> bool:
+    subject = value.strip().lower()
+    if " and " in subject:
+        return True
+    words = re.findall(r"[a-z]+", subject)
+    if not words:
+        return False
+    last = words[-1]
+    if last in {"children", "criteria", "data", "media", "men", "people", "phenomena", "women"}:
+        return True
+    return last.endswith("s") and not last.endswith(("is", "ss", "us"))
+
+
+def _usable_lecture_answer(value: str) -> bool:
+    answer = re.sub(r"\s+", " ", value).strip()
+    words = re.findall(r"\b\w+\b", answer)
+    if not (2 <= len(words) <= 30) or len(answer) > 240:
+        return False
+    lowered = answer.lower().replace("’", "'")
+    conversational = (
+        "i want to know",
+        "next slide",
+        "right now let's",
+        "we are going to",
+        "we're going to",
+        "we're gonna",
+    )
+    return not any(phrase in lowered for phrase in conversational)
+
+
+def _fact_card(statement: str) -> tuple[str, str] | None:
     statement = statement.strip().rstrip(".")
     if len(statement) < 18 or len(statement) > 520:
         return None
@@ -328,24 +382,44 @@ def _fact_card(statement: str, topic: str) -> tuple[str, str] | None:
         if label.lower() not in _GENERIC_LABELS and _valid_card_subject(label):
             return f"What is {_question_subject(label)}?", answer
 
+    equivalence = re.match(
+        r"^(.{2,72}?)\s+(?:is|was)\s+equal to\s+(.{4,})$",
+        statement,
+        flags=re.IGNORECASE,
+    )
+    if equivalence and _valid_card_subject(equivalence.group(1)):
+        subject = _question_subject(equivalence.group(1))
+        return f"What is one {subject} equal to?", equivalence.group(2).strip()
+
     definition = re.match(
-        r"^(.{2,90}?)\s+(is|are|means|refers to|is defined as|are defined as)\s+(.{12,})$",
+        r"^(.{2,90}?)\s+(is defined as|are defined as|was defined as|were defined as|refers to|means|is|are|was|were)\s+(.{12,})$",
         statement,
         flags=re.IGNORECASE,
     )
     if definition:
         subject, verb, answer = definition.group(1).strip(), definition.group(2).lower(), definition.group(3).strip()
         if _valid_card_subject(subject):
-            question_word = "are" if verb.startswith("are") else "is"
+            subject_words = re.findall(r"[A-Za-z]+", subject)
+            if len(subject_words) == 1:
+                if verb.startswith(("are", "were")) and not _looks_plural_subject(subject):
+                    return None
+                if verb.startswith(("is", "was")) and _looks_plural_subject(subject):
+                    return None
+            question_word = "were" if verb.startswith("were") else "was" if verb.startswith("was") else "are" if verb.startswith("are") else "is"
             return f"What {question_word} {_question_subject(subject)}?", answer
 
     location = re.match(r"^(.{2,90}?)\s+(occurs?|takes place|is found|are found)\s+(in|at|within|on)\s+(.{4,})$", statement, flags=re.IGNORECASE)
     if location and _valid_card_subject(location.group(1)):
         return f"Where does {_question_subject(location.group(1))} occur?", f"{location.group(3)} {location.group(4).strip()}"
 
-    inclusion = re.match(r"^(.{2,90}?)\s+(includes?|contains?|comprises?|consists of)\s+(.{8,})$", statement, flags=re.IGNORECASE)
+    inclusion = re.match(
+        r"^(.{2,90}?)(?:\s+also)?\s+(includes?|contains?|comprises?|consists of)\s+(.{8,})$",
+        statement,
+        flags=re.IGNORECASE,
+    )
     if inclusion and _valid_card_subject(inclusion.group(1)):
-        return f"What does {_question_subject(inclusion.group(1))} include?", inclusion.group(3).strip()
+        answer = re.sub(r",?\s+(?:right|okay|correct)\?$", "", inclusion.group(3).strip(), flags=re.IGNORECASE)
+        return f"What does {_question_subject(inclusion.group(1))} include?", answer
 
     causal = re.match(r"^(.{2,90}?)\s+(causes?|leads to|results in|increases?|decreases?)\s+(.{8,})$", statement, flags=re.IGNORECASE)
     if causal and _valid_card_subject(causal.group(1)):
@@ -399,6 +473,28 @@ def _infer_lecture_topic(text: str) -> str:
     return "this lecture section"
 
 
+def _topic_from_card_question(question: str) -> str:
+    patterns = (
+        r"^What is one (.+) equal to\?$",
+        r"^What is the function of (.+)\?$",
+        r"^What effect does (.+) have\?$",
+        r"^What does (.+) include\?$",
+        r"^Where does (.+) occur\?$",
+        r"^What (?:is|are|was|were) (.+)\?$",
+    )
+    for pattern in patterns:
+        match = re.match(pattern, question.strip(), flags=re.IGNORECASE)
+        if not match:
+            continue
+        topic = match.group(1).strip()
+        topic = re.sub(r"^(?:the|a|an)\s+", "", topic, flags=re.IGNORECASE)
+        if topic.lower() in _GENERIC_LABELS:
+            return ""
+        if _valid_card_subject(topic):
+            return topic[:1].upper() + topic[1:]
+    return ""
+
+
 def compile_study_material(text: str, filename: str, status: str = "verified") -> dict:
     concepts = []
     notes = []
@@ -440,7 +536,7 @@ def compile_study_material(text: str, filename: str, status: str = "verified") -
 
         unit_cards = []
         for statement in _study_sentences(body):
-            generated = _fact_card(statement, topic)
+            generated = _fact_card(statement)
             if not generated:
                 continue
             front, back = generated
@@ -486,22 +582,22 @@ def compile_lecture_window(text: str, filename: str, heard_at: float, window_num
     ]
     if not sentences:
         return {"concepts": [], "notes": [], "cards": []}
-    instructional_text = " ".join(sentences)
-    topic = _infer_lecture_topic(instructional_text)
     citation = f"{filename} · {int(heard_at // 60):02d}:{int(heard_at % 60):02d}"
     card_pairs = []
     seen = set()
     for sentence in sentences:
-        generated = _fact_card(sentence, topic)
-        if not generated or generated[0].lower() in seen:
+        generated = _fact_card(sentence)
+        if not generated or not _usable_lecture_answer(generated[1]) or generated[0].lower() in seen:
             continue
         seen.add(generated[0].lower())
         card_pairs.append(generated)
         if len(card_pairs) >= 2:
             break
-    if not card_pairs and topic not in {"this lecture section", "and", "anterior", "muscle", "this muscle"}:
-        answer = " ".join(sentences[:2])[:520]
-        card_pairs.append((f"What did the lecturer explain about {topic}?", answer))
+    if not card_pairs:
+        return {"concepts": [], "notes": [], "cards": []}
+    topic = _topic_from_card_question(card_pairs[0][0])
+    if not topic:
+        return {"concepts": [], "notes": [], "cards": []}
     concept = {"name": topic, "status": "provisional", "source": citation}
     note = {
         "title": topic,

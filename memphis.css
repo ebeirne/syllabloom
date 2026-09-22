@@ -136,8 +136,15 @@
 
   .lecture-result-actions {
     width: 100%;
-    display: grid !important;
-    grid-template-columns: 1fr;
+    min-width: 0;
+    display: flex !important;
+    flex-direction: column;
+    grid-auto-flow: row;
+  }
+
+  .lecture-result-actions .button {
+    width: 100% !important;
+    max-width: 100%;
   }
 
   .media-library-actions {

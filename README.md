@@ -17,7 +17,7 @@ Syllabloom turns lectures, slides, syllabi, and course files into editable, sour
 - Anki preferences for limits, learning steps, lapses, ordering, burying, Easy Days, audio, timers, FSRS, and SM-2
 - Class calendar and new-card release planning around lectures, quizzes, assignments, and exams
 - Full profile hub with Clerk identity controls, current tier, active classes, and editable important dates
-- Dedicated billing page that mounts Clerk Billing's Stripe-powered pricing and checkout UI when Plans are enabled
+- Dedicated billing page with a stable Syllabloom plan comparison and an isolated Clerk checkout dialog for live production billing
 - Responsive student workspace and task-specific Syllabloom companion scenes
 - Real medical-class fixtures and regression reports
 
@@ -44,7 +44,7 @@ The core interface, generic source parsing, PowerPoint import, source-linked not
 
 ### Email sign-in
 
-The beta uses Clerk for passwordless email sign-in. Set the publishable key before starting the server:
+The beta uses Clerk for email/password and Google sign-in. Set the publishable key before starting the server:
 
 ```powershell
 $env:CLERK_PUBLISHABLE_KEY = "pk_test_your_key"
@@ -55,7 +55,7 @@ Use the same `CLERK_PUBLISHABLE_KEY` environment variable in Vercel. Until cloud
 
 ### Billing
 
-The billing page is wired to Clerk Billing for individual users. It checks the signed-in user's `student` Plan, mounts Clerk's live pricing table when Billing and public Plans exist, and sends account, payment-method, and statement management to Clerk's secure user profile.
+The billing page is wired to Clerk Billing for individual users. It checks the signed-in user's `student` Plan and keeps the product-owned comparison visible at every viewport. Clerk's pricing and Stripe checkout UI is isolated in a dialog and only mounts when the site uses a `pk_live_` production key. Test-mode deployments are explicitly labeled as a free beta and cannot present a live checkout. Account, payment-method, and statement management stays in Clerk's secure user profile.
 
 For development, enable Billing in the Clerk Dashboard and use Clerk's shared development gateway. Create a public `student` Plan with monthly and annual prices. Production needs a production Clerk instance connected to an independent Stripe account; a Stripe account attached to a development instance cannot be reused for production.
 

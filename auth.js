@@ -7,6 +7,7 @@
   let signInMounted = false;
   let configured = false;
   let authResolved = false;
+  let liveBilling = false;
   let closing = false;
   let billingMount = null;
 
@@ -14,6 +15,7 @@
     get configured() { return configured; },
     get resolved() { return authResolved; },
     get signedIn() { return Boolean(clerk?.isSignedIn); },
+    get liveBilling() { return liveBilling; },
     open: openDialog,
     openClerkProfile,
     mountBilling,
@@ -209,6 +211,7 @@
   async function mountBilling(node) {
     if (!node || !clerk || !configured) return { ready: false, reason: 'auth-not-ready' };
     if (!clerk.isSignedIn) return { ready: false, reason: 'sign-in-required' };
+    if (!liveBilling) return { ready: false, reason: 'billing-preview' };
     try {
       const plansResponse = await clerk.billing.getPlans({});
       const plans = Array.isArray(plansResponse?.data) ? plansResponse.data : Array.isArray(plansResponse) ? plansResponse : [];
@@ -218,6 +221,9 @@
         const appearance = billingAppearance();
         clerk.mountPricingTable(node, {
           for: 'user',
+          layout: 'default',
+          collapseFeatures: true,
+          ctaPosition: 'top',
           highlightedPlan: 'student',
           newSubscriptionRedirectUrl: `${window.location.origin}/#profile`,
           appearance,
@@ -292,6 +298,7 @@
       }
 
       configured = true;
+      liveBilling = publishableKey.startsWith('pk_live_');
       const encodedDomain = publishableKey.split('_')[2];
       const frontendDomain = window.atob(encodedDomain).slice(0, -1);
       await loadScript(`https://${frontendDomain}/npm/@clerk/ui@1/dist/ui.browser.js`);

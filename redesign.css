@@ -503,10 +503,11 @@
 }
 
 .billing-plan-fallback article {
-  min-height: 410px;
+  min-height: 380px;
   padding: 30px;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto auto auto 1fr auto;
+  align-content: start;
   background: var(--cream);
   border: 1.5px solid var(--ink);
   border-radius: 30px;
@@ -563,7 +564,7 @@
 
 .billing-plan-fallback .button {
   width: 100%;
-  margin-top: auto;
+  align-self: end;
 }
 
 .billing-fine-print {
@@ -755,7 +756,7 @@
   }
 
   .billing-plan-fallback article {
-    min-height: 370px;
+    min-height: 0;
     padding: 26px 22px;
   }
 }
@@ -4304,11 +4305,27 @@ textarea {
 
 @media (max-width: 980px) {
   .sidebar {
-    grid-template-columns: auto minmax(160px, 220px) 1fr !important;
+    grid-template-columns: auto minmax(150px, 200px) 1fr auto !important;
+    gap: 6px !important;
   }
 
   .sidebar-bottom {
+    display: flex !important;
+  }
+
+  .sidebar-bottom [data-go],
+  .sidebar-bottom #addClass {
     display: none !important;
+  }
+
+  .sidebar .nav-button {
+    padding-right: 9px !important;
+    padding-left: 9px !important;
+  }
+
+  .account-nav-action {
+    min-width: 42px;
+    padding: 0 10px !important;
   }
 
   .pane-heading.friendly-heading {
@@ -4329,6 +4346,24 @@ textarea {
 
   .capture-inspector > section:nth-child(2n) {
     border-right: 0 !important;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 840px) {
+  .sidebar {
+    grid-template-columns: 46px minmax(145px, 190px) 1fr auto !important;
+  }
+
+  .sidebar .brand {
+    width: 46px;
+    padding-right: 2px;
+    overflow: hidden;
+    font-size: 0 !important;
+  }
+
+  .sidebar .nav-button {
+    padding-right: 7px !important;
+    padding-left: 7px !important;
   }
 }
 
@@ -4356,6 +4391,20 @@ textarea {
 
   .page {
     padding: 0 0 96px !important;
+  }
+
+  .lecture-result-actions {
+    width: 100%;
+    min-width: 0;
+    display: flex !important;
+    flex-direction: column;
+    gap: 9px !important;
+  }
+
+  .lecture-result-actions .button {
+    width: 100% !important;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .mobile-header {
@@ -7483,7 +7532,7 @@ select option {
 }
 
 .billing-plan-fallback article {
-  min-height: 430px;
+  min-height: 390px;
   padding: 34px;
   border-width: 2px;
   box-shadow: 4px 4px 0 var(--pink);
@@ -7492,7 +7541,6 @@ select option {
 .billing-plan-fallback article.student-plan-preview {
   background: var(--grass);
   box-shadow: 5px 5px 0 var(--sun);
-  transform: rotate(0.4deg);
 }
 
 .billing-plan-fallback article.student-plan-preview > span {
@@ -7515,48 +7563,55 @@ select option {
   box-shadow: 4px 4px 0 var(--ink) !important;
 }
 
-.billing-page .cl-card,
-.billing-page .cl-pricingTableCard {
-  background: #fffdf6 !important;
-  border: 1.5px solid var(--ink) !important;
-  border-radius: 28px !important;
-  box-shadow: 4px 4px 0 var(--ink) !important;
+.billing-checkout-dialog {
+  width: min(980px, calc(100% - 32px));
 }
 
-.billing-page .cl-pricingTableCardHeader,
-.billing-page .cl-pricingTableCardBody,
-.billing-page .cl-pricingTableCardFooter,
-.billing-page .cl-pricingTableCardFeatures,
-.billing-page .cl-pricingTableCardFeature {
-  background: transparent !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
+.billing-checkout-shell {
+  padding: 44px;
+  position: relative;
+  overflow: hidden;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 34px;
+  box-shadow: 8px 8px 0 var(--ink);
 }
 
-.billing-page .cl-formButtonPrimary,
-.billing-page .cl-pricingTableCardButton {
-  background: var(--pink) !important;
-  border: 1.5px solid var(--ink) !important;
-  border-radius: var(--radius-control) !important;
-  box-shadow: 3px 3px 0 var(--ink) !important;
-  color: var(--ink) !important;
-  font-weight: 850 !important;
+.billing-checkout-shell > header {
+  max-width: 680px;
+  margin-bottom: 28px;
 }
 
-.billing-page .cl-pricingTableCardButton:hover,
-.billing-page .cl-formButtonPrimary:hover {
-  transform: translateY(1px);
-  box-shadow: 2px 2px 0 var(--ink) !important;
+.billing-checkout-shell h1 {
+  margin: 16px 0 12px;
+  color: var(--ink);
+  font-size: clamp(38px, 6vw, 64px);
+  font-weight: 620;
+  letter-spacing: -0.055em;
+  line-height: 0.98;
+  text-wrap: balance;
 }
 
-.billing-page .cl-avatarBox,
-.billing-page .cl-userPreviewAvatarBox,
-.billing-page .cl-userButtonAvatarBox {
-  overflow: hidden !important;
-  border: 2px solid var(--ink) !important;
-  border-radius: 50% !important;
-  box-shadow: 3px 3px 0 var(--sun) !important;
+.billing-checkout-shell p {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.billing-checkout-shell .clerk-pricing-table {
+  min-height: 280px;
+}
+
+@media (max-width: 900px) {
+  .billing-plan-fallback {
+    grid-template-columns: 1fr;
+  }
+
+  .billing-plan-fallback article {
+    min-height: 0;
+  }
 }
 
 @media (max-width: 980px) {
@@ -7640,6 +7695,10 @@ select option {
 
   .billing-plan-fallback article.student-plan-preview {
     transform: none;
+  }
+
+  .billing-checkout-shell {
+    padding: 34px 22px 26px;
   }
 }
 

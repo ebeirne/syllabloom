@@ -720,24 +720,47 @@
     const status = document.querySelector('#billingConnectionStatus');
     const mount = document.querySelector('#clerkPricingTable');
     const fallback = document.querySelector('#billingPlanFallback');
+    const upgradeButton = document.querySelector('#billingSetupPending');
+    const finePrint = document.querySelector('#billingFinePrint');
     mount.hidden = true;
     fallback.hidden = false;
+    upgradeButton.disabled = false;
+    delete upgradeButton.dataset.checkoutReady;
     if (!state.account.signedIn) {
-      status.textContent = 'Sign in to see your billing';
-      document.querySelector('#billingSetupPending').textContent = 'Sign in to choose Student';
+      status.textContent = 'Free beta access';
+      upgradeButton.textContent = 'Sign in to choose Student';
+      finePrint.textContent = 'The public beta is free. Sign in to keep your class library separated on this device.';
       return;
     }
-    status.textContent = 'Checking Clerk Billing';
+    if (state.account.plan === 'student') {
+      status.textContent = 'Student plan active';
+      upgradeButton.textContent = 'Student is active';
+      upgradeButton.disabled = true;
+      finePrint.textContent = 'Manage payment methods and statements from Account & security.';
+      return;
+    }
+    status.textContent = 'Checking billing status';
+    mount.hidden = false;
     const result = await window.SyllabloomAuth?.mountBilling?.(mount);
     if (state.view !== 'billing') return;
     if (result?.ready) {
       status.textContent = 'Secure checkout by Clerk + Stripe';
-      mount.hidden = false;
-      fallback.hidden = true;
+      upgradeButton.textContent = 'Choose Student';
+      upgradeButton.dataset.checkoutReady = 'true';
+      finePrint.textContent = 'Payments are processed by Stripe through Clerk Billing. Syllabloom never stores card numbers.';
       return;
     }
-    document.querySelector('#billingSetupPending').textContent = 'Billing setup pending';
-    status.textContent = result?.reason === 'no-plans' ? 'Plans are not configured yet' : 'Billing setup is not connected yet';
+    mount.hidden = true;
+    upgradeButton.disabled = true;
+    if (result?.reason === 'billing-preview') {
+      upgradeButton.textContent = 'Student billing opens after beta';
+      status.textContent = 'Free public beta';
+      finePrint.textContent = 'This build uses Clerk test mode. No live payment can be submitted.';
+      return;
+    }
+    upgradeButton.textContent = 'Billing setup pending';
+    status.textContent = result?.reason === 'no-plans' ? 'Plans are not configured yet' : 'Billing is not connected yet';
+    finePrint.textContent = 'Checkout stays closed until Clerk Billing has a live plan and production keys.';
   }
 
   async function detectRuntimeCapabilities() {
@@ -2756,7 +2779,20 @@
   document.querySelector('#billingManageAccount').addEventListener('click', () => window.SyllabloomAuth?.openClerkProfile?.());
   document.querySelector('#billingSetupPending').addEventListener('click', () => {
     if (!state.account.signedIn) return window.SyllabloomAuth?.open?.();
-    showToast('Clerk Billing is ready in the UI. Connect plans in the Clerk Dashboard to turn on checkout.');
+    const button = document.querySelector('#billingSetupPending');
+    if (button.dataset.checkoutReady === 'true') {
+      const dialog = document.querySelector('#billingCheckoutDialog');
+      if (!dialog.open) dialog.showModal();
+      return;
+    }
+    showToast('The beta is free. Live Student billing is not open yet.');
+  });
+  document.querySelectorAll('[data-close-billing-checkout]').forEach(button => button.addEventListener('click', () => {
+    const dialog = document.querySelector('#billingCheckoutDialog');
+    if (dialog.open) dialog.close();
+  }));
+  document.querySelector('#billingCheckoutDialog').addEventListener('click', event => {
+    if (event.target === event.currentTarget) event.currentTarget.close();
   });
   document.querySelector('[data-profile-add-class]').addEventListener('click', startClassSetup);
   document.querySelector('#profileClassList').addEventListener('click', event => {
