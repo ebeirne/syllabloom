@@ -1263,10 +1263,22 @@
     openOnboarding(1);
   }
 
-  function startOrResumeClass() {
+  function classIsReadyForCurrentUser() {
     const savedOwnerId = classProfileOwnerId || cachedAccountUserId;
     const profileBelongsToUser = !state.account.signedIn || !savedOwnerId || savedOwnerId === state.account.userId;
-    const hasClassReady = profileBelongsToUser && (localStorage.getItem('rounds-onboarded') === '1' || state.classMode === 'custom');
+    return profileBelongsToUser && (localStorage.getItem('rounds-onboarded') === '1' || state.classMode === 'custom');
+  }
+
+  function updateMarketingStartLabels() {
+    const hasClassReady = classIsReadyForCurrentUser();
+    document.querySelectorAll('[data-start-onboarding]').forEach(button => {
+      button.dataset.startLabel ||= button.textContent.trim();
+      button.textContent = hasClassReady ? 'Open your class' : button.dataset.startLabel;
+    });
+  }
+
+  function startOrResumeClass() {
+    const hasClassReady = classIsReadyForCurrentUser();
     if (!hasClassReady) {
       startClassSetup();
       return;
@@ -1312,6 +1324,7 @@
 
   function showLanding(historyMode = 'push') {
     state.creatingClass = false;
+    updateMarketingStartLabels();
     document.querySelector('#landing').classList.remove('hidden');
     document.querySelector('#onboarding').classList.add('hidden');
     const app = document.querySelector('#mainApp');
@@ -3044,6 +3057,7 @@
       if (!cachedAccountUserId && classProfileOwnerId === state.account.userId) persistClassProfile();
     }
     state.account.plan = detail.plan === 'student' ? 'student' : 'free';
+    updateMarketingStartLabels();
     saveAccount();
     closeMediaPreview();
     renderMediaLibrary();
