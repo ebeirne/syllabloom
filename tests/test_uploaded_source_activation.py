@@ -30,6 +30,13 @@ class UploadedSourceActivationContractTests(unittest.TestCase):
         self.assertIn("function activeAssessmentQuestions()", self.app)
         self.assertIn("const questions = activeAssessmentQuestions();", self.app)
         self.assertIn("Quick check from ${latestSource.name}", self.app)
+        self.assertIn("card.reviewStatus !== 'skipped'", self.app)
+        self.assertIn("sectionCards.length >= 3", self.app)
+        self.assertIn("if (prompt.startsWith('when ')) return 'when';", self.app)
+        self.assertIn("return 'definition';", self.app)
+        self.assertIn("return 'relation';", self.app)
+        self.assertIn("questionForm(candidate.front) === questionForm(card.front)", self.app)
+        self.assertNotIn("distractors.push('I need to review this topic')", self.app)
 
     def test_custom_plan_uses_uploaded_concepts_instead_of_anatomy_fixture(self):
         self.assertIn("function sourceConceptNames()", self.app)

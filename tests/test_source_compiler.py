@@ -104,6 +104,86 @@ Repolarization results from potassium leaving the neuron.
         self.assertTrue(all("Slide" in card["source"] for card in compiled["cards"]))
         self.assertTrue(all(card["status"] == "verified" for card in compiled["cards"]))
 
+    def test_psychology_slides_keep_only_direct_source_supported_cards(self) -> None:
+        text = """Slide 1
+Memory, Attention, and Decision Making
+PSY 241 Unit lecture and cumulative review
+How people hold information, lose it, find it again, and use it to choose
+PSY 241
+Slide 2
+Questions for this unit
+Which memory system is required by a task?
+Identify one condition where automatic processing helps.
+PSY 241
+Slide 3
+Memory systems differ by function and duration
+Sensory memory briefly preserves modality-specific detail after stimulation ends.
+Working memory maintains and manipulates a limited amount of information for an active goal.
+Episodic memory represents personally experienced events with contextual detail.
+PSY 241
+Slide 4
+Task switching creates measurable costs
+A switch cost is the increase in response time or error when the required task changes from the previous trial.
+Multitasking often means rapid switching.
+PSY 241
+Slide 5
+Experimental design challenge
+Question: Does retrieval practice improve delayed explanation more than restudy?
+Independent variable: retrieval practice with feedback versus matched-time restudy.
+Dependent variable: accuracy on a delayed explanation test one week later.
+PSY 241
+Slide 6
+Key terms for review
+Encoding specificity: cue effectiveness depends on overlap with encoding.
+Consolidation: stabilization and reorganization after learning.
+PSY 241
+"""
+
+        compiled = compile_study_material(text, "PSY241_Memory_Attention_Decision_Making.pptx")
+        fronts = {card["front"] for card in compiled["cards"]}
+        backs = [card["back"] for card in compiled["cards"]]
+        concept_names = {concept["name"] for concept in compiled["concepts"]}
+
+        self.assertIn("What does sensory memory briefly preserve?", fronts)
+        self.assertIn("What is a switch cost?", fronts)
+        self.assertIn("What does multitasking often mean?", fronts)
+        self.assertIn("What outcome does the experiment test?", fronts)
+        self.assertIn("What is the independent variable in the experiment?", fronts)
+        self.assertIn("What is encoding specificity?", fronts)
+        self.assertNotIn("Questions for this unit", concept_names)
+        self.assertFalse(any(front.startswith("What are the key ideas") for front in fronts))
+        self.assertFalse(any(front in {"What is question?", "What is independent variable?"} for front in fronts))
+        self.assertTrue(all("PSY 241" not in back and "\n" not in back for back in backs))
+        outcome_card = next(card for card in compiled["cards"] if card["front"] == "What outcome does the experiment test?")
+        self.assertEqual(outcome_card["back"], "whether retrieval practice improves delayed explanation more than restudy")
+
+    def test_card_templates_keep_grammar_and_answers_atomic(self) -> None:
+        text = """Slide 1
+Attention mechanisms
+Source-monitoring errors occur when a person remembers a detail but misattributes its source.
+Late-selection theories allow semantic processing before response selection.
+Controlled processing requires attention, responds flexibly to goals, and becomes vulnerable when tasks compete.
+Slide 2
+Learning conditions
+Interleaving mixes categories or problem types across practice.
+Practice can reduce resource demands, but an automatic response can become costly when the mapping changes.
+Slide 3
+Bias
+Search bias favors questions and evidence that could confirm an existing belief.
+Interpretation bias treats ambiguous evidence as supportive of a preferred conclusion.
+"""
+
+        compiled = compile_study_material(text, "psychology-notes.pptx")
+        cards = {card["front"]: card["back"] for card in compiled["cards"]}
+
+        self.assertIn("When do source-monitoring errors occur?", cards)
+        self.assertIn("What do late-selection theories allow?", cards)
+        self.assertEqual(cards["What does controlled processing require?"], "attention")
+        self.assertEqual(cards["What does interleaving mix?"], "categories or problem types across practice")
+        self.assertIn("What does search bias favor?", cards)
+        self.assertIn("What does interpretation bias treat?", cards)
+        self.assertFalse(any(" practice can " in question.lower() for question in cards))
+
     def test_end_to_end_powerpoint_import_uses_normal_slide_text(self) -> None:
         presentation = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <p:presentation xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:sldIdLst><p:sldId id="256" r:id="rId1"/><p:sldId id="257" r:id="rId2"/></p:sldIdLst></p:presentation>"""

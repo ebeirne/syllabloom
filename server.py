@@ -198,8 +198,13 @@ _GENERIC_LABELS = {
     "reverse",
     "summary",
     "source",
+    "question",
 }
 _BRAND_LINES = {"rounds", "syllabloom", "source signals"}
+_INSTRUCTION_STARTS = {
+    "compare", "design", "describe", "discuss", "evaluate", "explain", "identify",
+    "imagine", "list", "predict", "remember", "state", "use",
+}
 _LECTURE_STOPWORDS = {
     "about", "after", "again", "also", "because", "before", "being", "between",
     "could", "does", "doing", "during", "each", "from", "going", "have", "having",
@@ -218,9 +223,9 @@ _BAD_SUBJECT_STARTS = {
     "you're", "youre",
 }
 _BAD_SUBJECT_WORDS = {
-    "anything", "example", "examples", "everything", "he", "her", "here", "hers", "him",
+    "anything", "because", "can", "cannot", "example", "examples", "everything", "he", "her", "here", "hers", "him",
     "his", "i", "it", "its", "me", "mine", "my", "nothing", "our", "ours", "she",
-    "somebody", "someone", "something", "that", "their", "theirs", "them", "there", "these",
+    "may", "might", "somebody", "someone", "something", "that", "their", "theirs", "them", "there", "these",
     "they", "thing", "things", "this", "those", "us", "we", "what", "whatever", "you",
     "your", "yours",
 }
@@ -243,6 +248,16 @@ def _clean_study_line(value: str) -> str:
     value = re.sub(r"^[\s\u2022\u25aa\u25cf\u25e6\-*]+", "", value or "")
     value = re.sub(r"\s+", " ", value).strip()
     return value
+
+
+def _is_course_chrome_line(value: str) -> bool:
+    cleaned = re.sub(r"\s+", " ", value or "").strip()
+    lowered = cleaned.lower()
+    if lowered in _BRAND_LINES:
+        return True
+    if re.fullmatch(r"[A-Z]{2,6}\s*[- ]?\d{2,4}", cleaned):
+        return True
+    return bool(re.match(r"^[A-Z]{2,6}\s*[- ]?\d{2,4}\s+(?:unit|course)\b", cleaned, flags=re.IGNORECASE))
 
 
 def _study_units(text: str) -> list[dict]:
@@ -270,13 +285,16 @@ def _study_sentences(lines: list[str]) -> list[str]:
         parts = re.split(r"(?<=[.!?])\s+(?=[A-Z0-9])", line)
         for part in parts:
             cleaned = _clean_study_line(part).strip(" ;")
+            first_word = next(iter(re.findall(r"[A-Za-z]+", cleaned.lower())), "")
+            if (cleaned.endswith("?") and ":" not in cleaned) or first_word in _INSTRUCTION_STARTS:
+                continue
             if len(re.findall(r"\b\w+\b", cleaned)) >= 4:
                 sentences.append(cleaned)
     return sentences
 
 
 def _unit_topic(lines: list[str], fallback: str) -> tuple[str, int]:
-    usable = [(index, line) for index, line in enumerate(lines) if line.lower() not in _BRAND_LINES]
+    usable = [(index, line) for index, line in enumerate(lines) if not _is_course_chrome_line(line)]
     if not usable:
         return fallback, 0
 
@@ -351,6 +369,8 @@ def _looks_plural_subject(value: str) -> bool:
     last = words[-1]
     if last in {"children", "criteria", "data", "media", "men", "people", "phenomena", "women"}:
         return True
+    if last in {"access", "analysis", "bias", "class", "focus", "process", "progress"}:
+        return False
     return last.endswith("s") and not last.endswith(("is", "ss", "us"))
 
 
@@ -371,14 +391,51 @@ def _usable_lecture_answer(value: str) -> bool:
     return not any(phrase in lowered for phrase in conversational)
 
 
-def _fact_card(statement: str) -> tuple[str, str] | None:
+def _focused_card_answer(value: str) -> str:
+    """Keep an atomic answer when a slide sentence chains a second claim."""
+    answer = value.strip()
+    answer = re.split(
+        r",\s+(?:but|although|while|which|(?:and\s+)?(?:asks?|becomes?|coordinates?|provides?|responds?|supplies|updates?))\b",
+        answer,
+        maxsplit=1,
+        flags=re.IGNORECASE,
+    )[0]
+    answer = re.split(
+        r"\s+and\s+(?:asks?|becomes?|can|may|often|provides?|responds?|supplies|then|updates?)\b",
+        answer,
+        maxsplit=1,
+        flags=re.IGNORECASE,
+    )[0]
+    return answer.strip().rstrip(".")
+
+
+def _fact_card(statement: str, topic: str = "") -> tuple[str, str] | None:
     statement = statement.strip().rstrip(".")
     if len(statement) < 18 or len(statement) > 520:
+        return None
+
+    first_word = next(iter(re.findall(r"[A-Za-z]+", statement.lower())), "")
+    if first_word in _INSTRUCTION_STARTS:
         return None
 
     colon = re.match(r"^([^:]{2,72}):\s+(.{12,})$", statement)
     if colon:
         label, answer = colon.group(1).strip(), colon.group(2).strip()
+        normalized_label = label.lower()
+        if normalized_label == "question" and "experimental design" in topic.lower():
+            outcome = answer.rstrip("?")
+            if outcome.lower().startswith("does "):
+                clause = outcome[5:6].lower() + outcome[6:]
+                clause = re.sub(
+                    r"\b(affect|cause|change|decrease|differ|improve|increase|lead|predict|produce|reduce|support)\b",
+                    lambda match: match.group(1) + ("es" if match.group(1).endswith(("s", "x", "z", "ch", "sh")) else "s"),
+                    clause,
+                    count=1,
+                )
+                outcome = "whether " + clause
+            return "What outcome does the experiment test?", outcome
+        if normalized_label in {"independent variable", "dependent variable"} and "experimental design" in topic.lower():
+            return f"What is the {normalized_label} in the experiment?", answer
         if label.lower() not in _GENERIC_LABELS and _valid_card_subject(label):
             return f"What is {_question_subject(label)}?", answer
 
@@ -390,6 +447,19 @@ def _fact_card(statement: str) -> tuple[str, str] | None:
     if equivalence and _valid_card_subject(equivalence.group(1)):
         subject = _question_subject(equivalence.group(1))
         return f"What is one {subject} equal to?", equivalence.group(2).strip()
+
+    frequency_definition = re.match(
+        r"^(.{2,90}?)\s+(often|usually|typically)\s+(means|is|are)\s+(.{8,})$",
+        statement,
+        flags=re.IGNORECASE,
+    )
+    if frequency_definition and _valid_card_subject(frequency_definition.group(1)):
+        subject = _question_subject(frequency_definition.group(1))
+        frequency = frequency_definition.group(2).lower()
+        verb = frequency_definition.group(3).lower()
+        if verb == "means":
+            return f"What does {subject} {frequency} mean?", frequency_definition.group(4).strip()
+        return f"What {'are' if verb == 'are' else 'is'} {subject} {frequency}?", frequency_definition.group(4).strip()
 
     definition = re.match(
         r"^(.{2,90}?)\s+(is defined as|are defined as|was defined as|were defined as|refers to|means|is|are|was|were)\s+(.{12,})$",
@@ -408,6 +478,17 @@ def _fact_card(statement: str) -> tuple[str, str] | None:
             question_word = "were" if verb.startswith("were") else "was" if verb.startswith("was") else "are" if verb.startswith("are") else "is"
             return f"What {question_word} {_question_subject(subject)}?", answer
 
+    conditional = re.match(
+        r"^(.{2,90}?)\s+(occurs?|develops?|improves?|declines?)\s+when\s+(.{8,})$",
+        statement,
+        flags=re.IGNORECASE,
+    )
+    if conditional and _valid_card_subject(conditional.group(1)):
+        subject = _question_subject(conditional.group(1))
+        verb = conditional.group(2).lower()
+        base = {"occurs": "occur", "occur": "occur", "develops": "develop", "develop": "develop", "improves": "improve", "improve": "improve", "declines": "decline", "decline": "decline"}[verb]
+        return f"When {'do' if _looks_plural_subject(conditional.group(1)) else 'does'} {subject} {base}?", f"When {conditional.group(3).strip()}"
+
     location = re.match(r"^(.{2,90}?)\s+(occurs?|takes place|is found|are found)\s+(in|at|within|on)\s+(.{4,})$", statement, flags=re.IGNORECASE)
     if location and _valid_card_subject(location.group(1)):
         return f"Where does {_question_subject(location.group(1))} occur?", f"{location.group(3)} {location.group(4).strip()}"
@@ -421,13 +502,71 @@ def _fact_card(statement: str) -> tuple[str, str] | None:
         answer = re.sub(r",?\s+(?:right|okay|correct)\?$", "", inclusion.group(3).strip(), flags=re.IGNORECASE)
         return f"What does {_question_subject(inclusion.group(1))} include?", answer
 
-    causal = re.match(r"^(.{2,90}?)\s+(causes?|leads to|results in|increases?|decreases?)\s+(.{8,})$", statement, flags=re.IGNORECASE)
-    if causal and _valid_card_subject(causal.group(1)):
-        return f"What effect does {_question_subject(causal.group(1))} have?", f"It {causal.group(2).lower()} {causal.group(3).strip()}."
+    cause_source = re.match(r"^(.{2,90}?)\s+results? from\s+(.{8,})$", statement, flags=re.IGNORECASE)
+    if cause_source and _valid_card_subject(cause_source.group(1)):
+        return f"What causes {_question_subject(cause_source.group(1))}?", cause_source.group(2).strip()
 
-    function = re.match(r"^(.{2,90}?)\s+(allows?|enables?|helps?|functions? to|is responsible for)\s+(.{8,})$", statement, flags=re.IGNORECASE)
+    causal = re.match(r"^(.{2,90}?)\s+(causes?|leads to|results in|increases?|decreases?|raises?|inflates?|reduces?)\s+(.{8,})$", statement, flags=re.IGNORECASE)
+    if causal and _valid_card_subject(causal.group(1)):
+        subject = _question_subject(causal.group(1))
+        plural = _looks_plural_subject(causal.group(1))
+        pronoun = "They" if plural else "It"
+        verb = causal.group(2).lower()
+        if plural and verb.endswith("s") and verb not in {"results"}:
+            verb = verb[:-1]
+        return f"What effect {'do' if plural else 'does'} {subject} have?", f"{pronoun} {verb} {causal.group(3).strip()}."
+
+    function = re.match(r"^(.{2,90}?)(?:\s+(also|still|often|usually|typically))?\s+(allows?|enables?|helps?|functions? to|is responsible for)\s+(.{8,})$", statement, flags=re.IGNORECASE)
     if function and _valid_card_subject(function.group(1)):
-        return f"What is the function of {_question_subject(function.group(1))}?", f"It {function.group(2).lower()} {function.group(3).strip()}."
+        subject = _question_subject(function.group(1))
+        auxiliary = "do" if _looks_plural_subject(function.group(1)) else "does"
+        adverb = function.group(2)
+        verb = function.group(3).lower()
+        answer = _focused_card_answer(function.group(4))
+        if verb.startswith("help"):
+            if answer.lower().startswith("only when "):
+                return f"When {auxiliary} {subject} help?", "When " + answer[10:]
+            return f"How {auxiliary} {subject}{f' {adverb}' if adverb else ''} help?", answer
+        if verb.startswith(("allow", "enable")):
+            base = "allow" if verb.startswith("allow") else "enable"
+            return f"What {auxiliary} {subject}{f' {adverb}' if adverb else ''} {base}?", answer
+        return f"What is the function of {subject}?", answer
+
+    relation = re.match(r"^(.{2,90}?)\s+(depends on|comes from)\s+(.{8,})$", statement, flags=re.IGNORECASE)
+    if relation and _valid_card_subject(relation.group(1)):
+        subject = _question_subject(relation.group(1))
+        phrase = "depend on" if relation.group(2).lower() == "depends on" else "come from"
+        return f"What {'do' if _looks_plural_subject(relation.group(1)) else 'does'} {subject} {phrase}?", _focused_card_answer(relation.group(3))
+
+    action = re.match(
+        r"^(.{2,90}?)\s+(briefly preserves|maintains and manipulates|allocates|alternates|binds|coordinates|corrects|described|describes|disrupts|distributes|estimates|evaluates|favors|groups|integrates|judges|maintains|makes|mixes|needs|pairs|predicts|predict|presents|preserves|proposed|proposes|protects|provides|reflects|remembers|reorganizes|repeats|represents|requires|require|retains|shows|stabilizes|supplies|supports|tests|treats|updates|uses)\s+(.{8,})$",
+        statement,
+        flags=re.IGNORECASE,
+    )
+    if action and _valid_card_subject(action.group(1)):
+        verb = action.group(2).lower()
+        raw_subject = action.group(1).strip()
+        subject = raw_subject if verb in {"described", "proposed"} and len(raw_subject.split()) == 1 else _question_subject(raw_subject)
+        base_verbs = {
+            "allocates": "allocate", "alternates": "alternate", "binds": "bind", "coordinates": "coordinate",
+            "corrects": "correct", "described": "describe", "describes": "describe", "disrupts": "disrupt",
+            "distributes": "distribute", "estimates": "estimate", "evaluates": "evaluate", "favors": "favor",
+            "groups": "group", "integrates": "integrate", "judges": "judge", "maintains": "maintain",
+            "makes": "make", "mixes": "mix", "needs": "need", "pairs": "pair", "predict": "predict",
+            "predicts": "predict", "presents": "present", "preserves": "preserve", "proposed": "propose",
+            "proposes": "propose", "protects": "protect", "provides": "provide", "reflects": "reflect",
+            "remembers": "remember", "reorganizes": "reorganize", "repeats": "repeat", "represents": "represent",
+            "require": "require", "requires": "require", "retains": "retain", "shows": "show",
+            "stabilizes": "stabilize", "supplies": "supply", "supports": "support", "tests": "test",
+            "treats": "treat", "updates": "update", "uses": "use", "briefly preserves": "briefly preserve",
+            "maintains and manipulates": "maintain and manipulate",
+        }
+        auxiliary = "did" if verb in {"described", "proposed"} else "do" if _looks_plural_subject(raw_subject) else "does"
+        if verb == "makes":
+            made = re.match(r"^(.+?)\s+(easier|harder)\s+to\s+(.+)$", _focused_card_answer(action.group(3)), flags=re.IGNORECASE)
+            if made:
+                return f"What {auxiliary} {subject} make {made.group(2).lower()} to {made.group(3)}?", made.group(1).strip()
+        return f"What {auxiliary} {subject} {base_verbs[verb]}?", _focused_card_answer(action.group(3))
     return None
 
 
@@ -509,7 +648,7 @@ def compile_study_material(text: str, filename: str, status: str = "verified") -
         topic, title_index = _unit_topic(lines, stem)
         has_title = len(topic) <= 120 and len(topic.split()) <= 16
         body = lines[title_index + 1 :] if has_title and title_index + 1 < len(lines) else lines
-        body = [line for line in body if line.lower() not in _BRAND_LINES]
+        body = [line for line in body if not _is_course_chrome_line(line)]
         body = [line for line in body if line.lower() not in _GENERIC_SECTION_TITLES]
         if not body:
             continue
@@ -518,12 +657,6 @@ def compile_study_material(text: str, filename: str, status: str = "verified") -
 
         citation = f"{filename} · Slide {unit['number']}" if text.lstrip().startswith("Slide ") else filename
         note_lines = body[:6]
-        concepts.append({
-            "name": topic,
-            "status": status,
-            "source": citation,
-            "slideNumber": unit["number"] if text.lstrip().startswith("Slide ") else None,
-        })
         notes.append({
             "title": topic,
             "section": topic,
@@ -535,8 +668,13 @@ def compile_study_material(text: str, filename: str, status: str = "verified") -
         })
 
         unit_cards = []
+        case_subject = ""
+        if topic.lower().startswith("case analysis:"):
+            case_subject = topic.split(":", 1)[1].split("'s", 1)[0].strip().lower()
         for statement in _study_sentences(body):
-            generated = _fact_card(statement)
+            if case_subject and statement.lower().startswith(case_subject + " "):
+                continue
+            generated = _fact_card(statement, topic)
             if not generated:
                 continue
             front, back = generated
@@ -545,16 +683,16 @@ def compile_study_material(text: str, filename: str, status: str = "verified") -
                 continue
             seen_cards.add(key)
             unit_cards.append((front, back))
-            if len(unit_cards) >= 2:
+            if len(unit_cards) >= 3:
                 break
 
-        if len(body) > 1:
-            answer = "\n".join(f"• {line}" for line in body[:6])
-            summary = (_topic_question(topic, body), answer)
-            key = (summary[0].lower(), summary[1].lower())
-            if key not in seen_cards:
-                seen_cards.add(key)
-                unit_cards.append(summary)
+        if unit_cards:
+            concepts.append({
+                "name": topic,
+                "status": status,
+                "source": citation,
+                "slideNumber": unit["number"] if text.lstrip().startswith("Slide ") else None,
+            })
 
         for front, back in unit_cards[:3]:
             cards.append({

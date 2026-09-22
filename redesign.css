@@ -8570,3 +8570,89 @@ body .anki-settings-dialog .anki-collection-setting {
     transition-duration: .01ms;
   }
 }
+
+/* A single illustrated icon family replaces the mismatched text glyphs in primary navigation. */
+
+.sidebar .nav-button::before,
+.mobile-bottom-nav .nav-button::before {
+  content: none !important;
+  display: none !important;
+}
+
+.nav-button .nav-icon {
+  width: 29px;
+  height: 29px;
+  flex: 0 0 29px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--ink);
+  background: var(--sky);
+  border: 1.75px solid var(--ink);
+  border-radius: 9px 12px 10px 13px;
+  box-shadow: 2px 2px 0 var(--ink);
+  transform: rotate(-2deg);
+  transition: transform var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out);
+}
+
+.nav-button .nav-icon svg {
+  width: 19px;
+  height: 19px;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.nav-button[data-view="capture"] .nav-icon {
+  background: var(--pink);
+  transform: rotate(2deg);
+}
+
+.nav-button[data-view="cards"] .nav-icon {
+  background: var(--sun);
+  transform: rotate(-1deg);
+}
+
+.nav-button[data-view="study"] .nav-icon {
+  background: var(--grass);
+  transform: rotate(2deg);
+}
+
+.nav-button:hover .nav-icon,
+.nav-button:focus-visible .nav-icon {
+  transform: translateY(-2px) rotate(3deg);
+  box-shadow: 3px 4px 0 var(--ink);
+}
+
+.nav-button.active .nav-icon {
+  background: var(--paper);
+  transform: translateY(1px) rotate(0);
+  box-shadow: 1px 1px 0 var(--ink);
+}
+
+@media (max-width: 760px) {
+  .mobile-bottom-nav .nav-button {
+    gap: 4px !important;
+  }
+
+  .mobile-bottom-nav .nav-button .nav-icon {
+    width: 28px;
+    height: 28px;
+    flex-basis: 28px;
+  }
+
+  .mobile-bottom-nav .nav-button .nav-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-button .nav-icon {
+    transition-duration: .01ms;
+  }
+}

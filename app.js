@@ -221,14 +221,42 @@
   ];
 
   function sourceAssessmentQuestions() {
-    const cards = state.lectureCards.filter(card => card.front && card.back).slice(0, 12);
-    return cards.slice(0, 3).map((card, index) => {
-      const correctAnswer = shortCue(card.back, 220);
-      const distractors = [...new Set(cards
-        .filter(candidate => candidate !== card)
-        .map(candidate => shortCue(candidate.back, 220))
+    const usable = state.lectureCards.filter(card => {
+      const front = String(card.front || '').trim();
+      const back = String(card.back || '').replace(/\s+/g, ' ').trim();
+      const answerWords = back.match(/\b\w+\b/g) || [];
+      return card.reviewStatus !== 'skipped'
+        && front.endsWith('?')
+        && !/^What (?:is|are) the key ideas? about/i.test(front)
+        && !/[\n\r•]/.test(String(card.back || ''))
+        && front.length <= 150
+        && back.length <= 260
+        && answerWords.length >= 2
+        && answerWords.length <= 36;
+    });
+    const candidates = usable.length ? usable : state.lectureCards.filter(card => card.front && card.back && card.reviewStatus !== 'skipped');
+    const sectionCards = candidates.filter((card, index) => candidates.findIndex(candidate => (candidate.section || candidate.slideNumber) === (card.section || card.slideNumber)) === index);
+    const pool = sectionCards.length >= 3 ? sectionCards : candidates;
+    const positions = pool.length <= 3 ? pool.map((_, index) => index) : [0, Math.floor((pool.length - 1) / 2), pool.length - 1];
+    const cards = [...new Set(positions)].map(index => pool[index]).filter(Boolean);
+    const questionForm = question => {
+      const prompt = String(question || '').trim().toLowerCase();
+      if (prompt.startsWith('when ')) return 'when';
+      if (/^what (?:is|are)\b/.test(prompt)) return 'definition';
+      if (prompt.startsWith('what effect ')) return 'effect';
+      if (prompt.startsWith('what causes ')) return 'cause';
+      if (/^what (?:does|do|did)\b/.test(prompt)) return 'relation';
+      if (prompt.startsWith('how ')) return 'how';
+      if (prompt.startsWith('where ')) return 'where';
+      return 'other';
+    };
+    return cards.map((card, index) => {
+      const correctAnswer = shortCue(card.back, 260);
+      const sameForm = candidates.filter(candidate => candidate !== card && questionForm(candidate.front) === questionForm(card.front));
+      const distractorPool = sameForm.length >= 2 ? sameForm : candidates.filter(candidate => candidate !== card);
+      const distractors = [...new Set(distractorPool
+        .map(candidate => shortCue(candidate.back, 260))
         .filter(answer => answer && answer !== correctAnswer))].slice(0, 3);
-      if (!distractors.length) distractors.push('I need to review this topic');
       const choices = [correctAnswer, ...distractors];
       const rotation = index % choices.length;
       const options = [...choices.slice(rotation), ...choices.slice(0, rotation)];

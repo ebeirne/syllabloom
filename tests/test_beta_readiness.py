@@ -105,6 +105,18 @@ class BetaReadinessContractTests(unittest.TestCase):
         self.assertIn(".source-kind-menu", styles)
         self.assertIn('.source-kind-option[aria-selected="true"]', styles)
 
+    def test_primary_navigation_uses_one_themed_svg_icon_family(self) -> None:
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        styles = (ROOT / "redesign.css").read_text(encoding="utf-8")
+
+        self.assertEqual(page.count('class="nav-icon"'), 8)
+        self.assertGreaterEqual(page.count('aria-hidden="true"><svg viewBox="0 0 24 24"'), 8)
+        self.assertIn(".nav-button .nav-icon svg", styles)
+        self.assertIn('.nav-button[data-view="capture"] .nav-icon', styles)
+        self.assertIn('.nav-button[data-view="cards"] .nav-icon', styles)
+        self.assertIn('.nav-button[data-view="study"] .nav-icon', styles)
+        self.assertIn("content: none !important", styles)
+
 
 if __name__ == "__main__":
     unittest.main()
