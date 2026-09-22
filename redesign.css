@@ -7508,6 +7508,199 @@ select option {
   }
 }
 
+/* Destructive choices stay inside the product and explain exactly what leaves. */
+
+.remove-lecture-dialog {
+  width: min(660px, calc(100% - 30px));
+}
+
+.remove-lecture-shell {
+  min-height: 390px;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  overflow: hidden;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 34px 40px 36px 31px;
+  box-shadow: 8px 8px 0 var(--ink);
+}
+
+.remove-lecture-copy {
+  padding: 48px 18px 38px 42px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.remove-lecture-copy h1 {
+  max-width: 9ch;
+  margin: 22px 0 16px;
+  color: var(--ink);
+  font-size: clamp(42px, 6vw, 60px);
+  font-weight: 600;
+  letter-spacing: -0.06em;
+  line-height: 0.94;
+}
+
+.remove-lecture-copy > p {
+  max-width: 42ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.remove-lecture-copy > p strong {
+  color: var(--ink);
+}
+
+.remove-lecture-actions {
+  width: 100%;
+  margin-top: auto;
+  padding-top: 28px;
+  display: flex;
+  gap: 10px;
+}
+
+.remove-lecture-actions .button {
+  min-height: 52px !important;
+}
+
+.remove-lecture-confirm {
+  background: #dfa095 !important;
+  border: 1.5px solid var(--ink) !important;
+  box-shadow: 3px 3px 0 var(--ink) !important;
+  color: var(--ink) !important;
+  font-weight: 820 !important;
+}
+
+.remove-lecture-confirm:hover {
+  background: #e8ada3 !important;
+  box-shadow: 1px 1px 0 var(--ink) !important;
+  transform: translate(2px, 2px);
+}
+
+.remove-lecture-art {
+  position: relative;
+  overflow: hidden;
+  background: var(--pink);
+  border-left: 2px solid var(--ink);
+}
+
+.remove-lecture-art::before {
+  content: "";
+  width: 112px;
+  height: 112px;
+  position: absolute;
+  top: -30px;
+  right: -24px;
+  background: var(--sun);
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+}
+
+.remove-lecture-art > span {
+  width: 28px;
+  height: 130px;
+  position: absolute;
+  left: 17px;
+  bottom: -30px;
+  background: var(--grass);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  transform: rotate(28deg);
+}
+
+.remove-lecture-art img {
+  width: 245px;
+  max-width: none;
+  position: absolute;
+  right: -38px;
+  bottom: -20px;
+  filter: drop-shadow(0 10px 0 rgba(23, 21, 21, 0.13));
+}
+
+@media (min-width: 761px) {
+  .sidebar {
+    margin-bottom: 28px !important;
+  }
+
+  .app-toolbar,
+  .capture-toolbar {
+    margin-bottom: 22px !important;
+  }
+
+  #capture .capture-main {
+    padding-top: 0 !important;
+  }
+
+  #capture .capture-heading.friendly-heading {
+    margin-bottom: 26px !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 132px;
+    align-items: center;
+    gap: 30px;
+  }
+
+  #capture .capture-heading h1 {
+    max-width: 12ch;
+    margin-bottom: 14px !important;
+    font-size: clamp(56px, 6.6vw, 88px) !important;
+  }
+
+  #capture .capture-heading .rounds-buddy {
+    width: 124px;
+    height: 112px;
+    display: block !important;
+    justify-self: end;
+  }
+}
+
+@media (max-width: 760px) {
+  .remove-lecture-dialog {
+    width: calc(100% - 20px);
+  }
+
+  .remove-lecture-shell {
+    min-height: 0;
+    grid-template-columns: 1fr;
+    border-radius: 28px 31px 30px 26px;
+    box-shadow: 5px 5px 0 var(--ink);
+  }
+
+  .remove-lecture-copy {
+    padding: 34px 22px 24px;
+  }
+
+  .remove-lecture-copy h1 {
+    max-width: 10ch;
+    font-size: 44px;
+  }
+
+  .remove-lecture-art {
+    min-height: 130px;
+    order: -1;
+    border-left: 0;
+    border-bottom: 2px solid var(--ink);
+  }
+
+  .remove-lecture-art img {
+    width: 180px;
+    right: 50%;
+    bottom: -55px;
+    transform: translateX(50%);
+  }
+
+  .remove-lecture-actions {
+    flex-direction: column;
+  }
+
+  .remove-lecture-actions .button {
+    width: 100%;
+  }
+}
+
 #study .rating[data-rating="Hard"] {
   background: var(--work-warm) !important;
 }

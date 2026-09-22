@@ -1296,6 +1296,7 @@
   let libraryMediaUrl = null;
   let libraryMediaId = null;
   let editingMediaId = null;
+  let pendingRemoveMediaId = null;
   let activeRecordingTitle = '';
   let lastTranscript = '';
   const MEDIA_DATABASE = 'syllabloom-media';
@@ -1502,6 +1503,22 @@
 
   function mediaDisplayTitle(item) {
     return cleanLectureTitle(item?.title) || lectureName(item?.name);
+  }
+
+  async function openRemoveLectureDialog(id) {
+    const item = await getMediaAsset(id);
+    if (!item) throw new Error('This lecture is no longer available for this account.');
+    pendingRemoveMediaId = id;
+    document.querySelector('#removeLectureName').textContent = mediaDisplayTitle(item);
+    const dialog = document.querySelector('#removeLectureDialog');
+    if (!dialog.open) dialog.showModal();
+    window.requestAnimationFrame(() => document.querySelector('#cancelRemoveLecture')?.focus());
+  }
+
+  function closeRemoveLectureDialog() {
+    const dialog = document.querySelector('#removeLectureDialog');
+    pendingRemoveMediaId = null;
+    if (dialog.open) dialog.close();
   }
 
   function defaultRecordingTitle() {
@@ -2462,13 +2479,35 @@
         return;
       }
       if (!deleteButton) return;
-      if (!window.confirm('Remove this lecture from this device?')) return;
-      closeMediaPreview();
-      await deleteMediaAsset(deleteButton.dataset.deleteMedia);
+      await openRemoveLectureDialog(deleteButton.dataset.deleteMedia);
+    } catch (error) {
+      showToast(error.message || 'The lecture library could not be updated');
+    }
+  });
+  document.querySelectorAll('[data-cancel-remove-lecture]').forEach(button => button.addEventListener('click', closeRemoveLectureDialog));
+  document.querySelector('#removeLectureDialog').addEventListener('close', () => {
+    pendingRemoveMediaId = null;
+  });
+  document.querySelector('#removeLectureDialog').addEventListener('click', event => {
+    if (event.target === event.currentTarget) closeRemoveLectureDialog();
+  });
+  document.querySelector('#confirmRemoveLecture').addEventListener('click', async event => {
+    const id = pendingRemoveMediaId;
+    if (!id) return closeRemoveLectureDialog();
+    const button = event.currentTarget;
+    button.disabled = true;
+    button.textContent = 'Removing…';
+    try {
+      if (libraryMediaId === id) closeMediaPreview();
+      await deleteMediaAsset(id);
+      closeRemoveLectureDialog();
       await renderMediaLibrary();
       showToast('Lecture removed from this device');
     } catch (error) {
-      showToast(error.message || 'The lecture library could not be updated');
+      showToast(error.message || 'The lecture could not be removed');
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Remove lecture';
     }
   });
   document.querySelector('#mediaLibraryList').addEventListener('submit', async event => {

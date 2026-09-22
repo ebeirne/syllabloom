@@ -3500,7 +3500,7 @@
       .source-reference dd { margin: 4px 0 0; font-size: 15px; line-height: 1.5; }
     }
   </style>
-  <link rel="stylesheet" href="redesign.css?v=20260921-ready-cards-1">
+  <link rel="stylesheet" href="redesign.css?v=20260921-remove-dialog-1">
   <link rel="stylesheet" href="memphis.css?v=20260921-ready-cards-1">
 </head>
 <body>
@@ -4703,6 +4703,25 @@
     </form>
   </dialog>
 
+  <dialog id="removeLectureDialog" class="account-dialog remove-lecture-dialog" aria-labelledby="removeLectureTitle" aria-describedby="removeLectureDescription">
+    <div class="remove-lecture-shell">
+      <button class="dialog-close account-dialog-close" type="button" data-cancel-remove-lecture aria-label="Close remove lecture confirmation">Close</button>
+      <div class="remove-lecture-copy">
+        <span class="account-kicker">Saved lecture</span>
+        <h1 id="removeLectureTitle">Remove this lecture?</h1>
+        <p id="removeLectureDescription"><strong id="removeLectureName">This lecture</strong> will be removed from this device. Any cards already created will stay, but you will not be able to play the recording again.</p>
+        <div class="remove-lecture-actions">
+          <button id="cancelRemoveLecture" class="button" type="button" data-cancel-remove-lecture>Keep lecture</button>
+          <button id="confirmRemoveLecture" class="button remove-lecture-confirm" type="button">Remove lecture</button>
+        </div>
+      </div>
+      <div class="remove-lecture-art" aria-hidden="true">
+        <span></span>
+        <img class="character-cutout" src="assets/rounds-mascot-listening.webp" width="900" height="900" alt="" />
+      </div>
+    </div>
+  </dialog>
+
   <dialog id="classLimitDialog" class="account-dialog class-limit-dialog" aria-labelledby="classLimitTitle">
     <div class="account-dialog-shell">
       <button class="dialog-close account-dialog-close" type="button" data-close-class-limit aria-label="Close class limit message">Close</button>
@@ -4747,7 +4766,7 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="muscle-data.js?v=20260921-loop"></script>
   <script src="auth.js?v=20260921-account-polish-2"></script>
-  <script src="app.js?v=20260921-ready-cards-1"></script>
+  <script src="app.js?v=20260921-remove-dialog-1"></script>
   <script type="module" src="motion-effects.js?v=20260921-motion-smooth-2"></script>
 </body>
 </html>
