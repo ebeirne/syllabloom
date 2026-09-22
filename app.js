@@ -1,6 +1,8 @@
 (() => {
   const source = window.MUSCLE_SOURCE;
   const records = source.records;
+  const savedAccount = storedJson('syllabloom-account', {});
+  const cachedAccountUserId = savedAccount.userId || '';
   const savedClassProfile = storedJson('syllabloom-class-profile', {
     mode: 'sample',
     className: 'Human Anatomy',
@@ -9,6 +11,7 @@
     useDemoSyllabus: true,
     includeSampleMaterial: true
   });
+  let classProfileOwnerId = savedClassProfile.ownerUserId || cachedAccountUserId;
   const demoSyllabusSource = {
     id: 'demo-anatomy-syllabus',
     name: 'Anatomy syllabus example',
@@ -159,7 +162,7 @@
       plan: 'free',
       classLimit: 1,
       classesUsed: 0,
-      ...storedJson('syllabloom-account', {}),
+      ...savedAccount,
       signedIn: false,
       email: '',
       userId: '',
@@ -836,7 +839,7 @@
   function renderProfile() {
     const studentPlan = state.account.plan === 'student';
     const tierName = studentPlan ? 'Student' : 'Free';
-    const used = Math.max(0, Number(state.account.classesUsed) || 0);
+    const used = accountClassUsage();
     const signedInName = state.account.displayName || state.account.email?.split('@')[0] || 'Your Syllabloom account';
     const emailText = state.account.signedIn
       ? state.account.email || 'Signed-in account'
@@ -851,7 +854,7 @@
     document.querySelector('#profileTierDescription').textContent = studentPlan
       ? 'Unlimited classes, course-source imports, and the complete class-to-Anki workflow.'
       : '1 active class, course-source imports, lecture storage, and Anki export.';
-    document.querySelector('#profileClassUsage').textContent = studentPlan ? `${Math.max(used, state.classMode === 'custom' ? 1 : 0)} active` : `${used} of 1`;
+    document.querySelector('#profileClassUsage').textContent = studentPlan ? `${used} active` : `${used} of 1`;
     document.querySelector('#manageClerkProfile').textContent = state.account.signedIn ? 'Account & security' : 'Sign in';
 
     const exam = nextExamEvent();
@@ -1070,6 +1073,26 @@
 
   function saveAccount() {
     localStorage.setItem('syllabloom-account', JSON.stringify(state.account));
+    if (!state.account.signedIn || !state.account.userId) return;
+    const usageByUser = storedJson('syllabloom-class-usage-by-user', {});
+    usageByUser[state.account.userId] = Math.max(0, Number(state.account.classesUsed) || 0);
+    localStorage.setItem('syllabloom-class-usage-by-user', JSON.stringify(usageByUser));
+  }
+
+  function accountClassUsage() {
+    const savedUsage = Math.max(0, Number(state.account.classesUsed) || 0);
+    const hasActiveCustomClass = state.classMode === 'custom'
+      && !state.includeSampleMaterial
+      && (!state.account.signedIn || !classProfileOwnerId || classProfileOwnerId === state.account.userId);
+    return Math.max(savedUsage, hasActiveCustomClass ? 1 : 0);
+  }
+
+  function syncAccountClassUsage() {
+    if (!state.account.signedIn || !state.account.userId) return;
+    const usage = accountClassUsage();
+    if (usage === Number(state.account.classesUsed || 0)) return;
+    state.account.classesUsed = usage;
+    saveAccount();
   }
 
   function setClassLabels(className, term) {
@@ -1162,17 +1185,20 @@
   }
 
   function persistClassProfile() {
+    if (!classProfileOwnerId && state.account.signedIn) classProfileOwnerId = state.account.userId;
     localStorage.setItem('syllabloom-class-profile', JSON.stringify({
       mode: state.classMode,
       className: state.className,
       term: state.classTerm,
       syllabusName: state.syllabusName,
       useDemoSyllabus: state.useDemoSyllabus,
-      includeSampleMaterial: state.includeSampleMaterial
+      includeSampleMaterial: state.includeSampleMaterial,
+      ownerUserId: classProfileOwnerId || ''
     }));
   }
 
   function prepareNewClassSetup() {
+    classProfileOwnerId = state.account.userId || classProfileOwnerId;
     state.classMode = 'custom';
     state.includeSampleMaterial = false;
     state.useDemoSyllabus = false;
@@ -1214,7 +1240,7 @@
 
   function showClassLimit() {
     const dialog = document.querySelector('#classLimitDialog');
-    const used = Math.max(1, Number(state.account.classesUsed) || 0);
+    const used = Math.max(1, accountClassUsage());
     const limit = Math.max(1, Number(state.account.classLimit) || 1);
     document.querySelector('#classLimitReadout').textContent = `${used} of ${limit} free class used`;
     dialog.showModal();
@@ -1227,7 +1253,7 @@
       return;
     }
     const limit = state.account.plan === 'student' ? Number.MAX_SAFE_INTEGER : Math.max(1, Number(state.account.classLimit) || 1);
-    if ((Number(state.account.classesUsed) || 0) >= limit) {
+    if (accountClassUsage() >= limit) {
       showClassLimit();
       return;
     }
@@ -2607,6 +2633,7 @@
       state.latestSessionId = `source-${latestSource.id}`;
       syncLectureCards(cards);
       persistClassProfile();
+      syncAccountClassUsage();
     }
     renderSource();
     updateGenerationCount();
@@ -2657,6 +2684,7 @@
       state.sources.push(payload.source);
       persistClassSources();
       persistClassProfile();
+      syncAccountClassUsage();
       const sourceCards = (payload.source.draftCards || []).map(card => ({ ...card, sourceId: payload.source.id }));
       if (sourceCards.length) {
         state.latestSessionId = `source-${payload.source.id}`;
@@ -2976,14 +3004,27 @@
   });
   window.addEventListener('syllabloom:auth-change', event => {
     const detail = event.detail || {};
-    const priorUserId = state.account.userId;
     state.account.signedIn = Boolean(detail.signedIn);
     state.account.email = detail.email || '';
     state.account.userId = detail.userId || '';
     state.account.displayName = detail.displayName || '';
     state.account.imageUrl = detail.imageUrl || '';
-    if (state.account.signedIn && state.account.userId && priorUserId !== state.account.userId) {
-      state.account.classesUsed = 0;
+    if (state.account.signedIn && state.account.userId) {
+      if (!classProfileOwnerId && !cachedAccountUserId) classProfileOwnerId = state.account.userId;
+      const usageByUser = storedJson('syllabloom-class-usage-by-user', {});
+      const hasScopedUsage = Object.prototype.hasOwnProperty.call(usageByUser, state.account.userId);
+      const canUseActiveProfile = !classProfileOwnerId || classProfileOwnerId === state.account.userId;
+      const activeProfileUsage = canUseActiveProfile ? accountClassUsage() : 0;
+      if (hasScopedUsage) {
+        state.account.classesUsed = Math.max(Number(usageByUser[state.account.userId]) || 0, activeProfileUsage);
+      } else if (state.account.userId === cachedAccountUserId) {
+        state.account.classesUsed = Math.max(Number(savedAccount.classesUsed) || 0, activeProfileUsage);
+      } else if (!cachedAccountUserId) {
+        state.account.classesUsed = activeProfileUsage;
+      } else {
+        state.account.classesUsed = 0;
+      }
+      if (!cachedAccountUserId && classProfileOwnerId === state.account.userId) persistClassProfile();
     }
     state.account.plan = detail.plan === 'student' ? 'student' : 'free';
     saveAccount();
@@ -3221,7 +3262,7 @@
     renderSource();
     updateGenerationCount();
     if (state.creatingClass) {
-      state.account.classesUsed = Math.max(1, Number(state.account.classesUsed) || 0);
+      state.account.classesUsed = Math.max(1, accountClassUsage());
       saveAccount();
     }
     closeOnboarding();
