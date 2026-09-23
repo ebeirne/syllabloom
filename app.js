@@ -11,6 +11,7 @@
     useDemoSyllabus: true,
     includeSampleMaterial: true
   });
+  const savedSources = storedJson('syllabloom-sources', []);
   let classProfileOwnerId = savedClassProfile.ownerUserId || cachedAccountUserId;
   const demoSyllabusSource = {
     id: 'demo-anatomy-syllabus',
@@ -41,6 +42,8 @@
 
   const storedReviewHistory = storedJson('syllabloom-review-history', []);
   const savedReviewHistory = Array.isArray(storedReviewHistory) ? storedReviewHistory : [];
+  const savedCourseState = storedJson('syllabloom-course-state', {});
+  const betaClassLimit = 1;
 
   function storedJson(key, fallback) {
     try {
@@ -129,10 +132,10 @@
     view: 'home',
     selectedId: records[0].id,
     field: 'attachment',
-    statuses: {},
-    edits: {},
+    statuses: savedCourseState.statuses || {},
+    edits: savedCourseState.edits || {},
     studyIndex: 0,
-    reviewCount: 146 + savedReviewHistory.length,
+    reviewCount: savedReviewHistory.length,
     reviewHistory: savedReviewHistory,
     planCorrections: 0,
     setupStep: 1,
@@ -144,14 +147,18 @@
     includeSampleMaterial: savedClassProfile.includeSampleMaterial !== false,
     assessmentIndex: 0,
     assessmentScore: 0,
-    baselineScore: 62,
+    baselineScore: savedCourseState.baselineAssessed === true
+      ? Math.min(100, Math.max(0, Number(savedCourseState.baselineScore) || 0))
+      : 0,
+    baselineAssessed: savedCourseState.baselineAssessed === true,
     lectureCards: [],
-    sources: storedJson('syllabloom-sources', []),
+    sources: Array.isArray(savedSources) ? savedSources : [],
     latestSessionId: null,
     anki: { ...defaultAnkiPreferences, ...storedJson('syllabloom-anki-preferences', {}) },
     calendarEvents: storedJson('syllabloom-calendar-events', initialCalendarEvents),
     calendarCursor: new Date(),
-    dailyStudyMinutes: 35,
+    showFederalHolidays: localStorage.getItem('syllabloom-show-federal-holidays') !== 'false',
+    dailyStudyMinutes: Number(savedCourseState.dailyStudyMinutes) || 35,
     selectedTypes: ['attachment', 'action', 'innervation'],
     creatingClass: false,
     pendingClassSetup: false,
@@ -160,10 +167,10 @@
     missCounts: storedJson('syllabloom-miss-counts', {}),
     missedItem: null,
     account: {
-      plan: 'free',
-      classLimit: 1,
       classesUsed: 0,
       ...savedAccount,
+      plan: 'free',
+      classLimit: betaClassLimit,
       signedIn: false,
       email: '',
       userId: '',
@@ -175,6 +182,325 @@
   const appViews = new Set(['home', 'capture', 'source', 'knowledge', 'profile', 'billing', 'cards', 'study']);
   const marketingHashes = new Set(['landing', 'how-it-works', 'anki-first', 'made-for-class', 'pricing']);
   let restoringShellHistory = false;
+
+  const syncedStorageKeys = new Set([
+    'syllabloom-class-profile',
+    'syllabloom-sources',
+    'syllabloom-anki-preferences',
+    'syllabloom-calendar-events',
+    'syllabloom-review-history',
+    'syllabloom-miss-counts',
+    'syllabloom-course-state'
+  ]);
+  let cloudSyncUserId = '';
+  let cloudSyncRevision = 0;
+  let cloudSyncReady = false;
+  let cloudSyncInitializing = false;
+  let cloudSyncApplying = false;
+  let cloudSyncDirty = false;
+  let cloudSyncInFlight = false;
+  let cloudSyncTimer = 0;
+  let cloudSyncPollTimer = 0;
+  let cloudSyncErrorShown = false;
+  let calendarOcrLibraryPromise = null;
+  let calendarImportOcrText = '';
+  let sourceQueueItems = [];
+  let sourceBatchRunning = false;
+  let sourceBatchProgress = null;
+  let sourceBatchFeedback = '';
+
+  function isSyncedStorageKey(key) {
+    return syncedStorageKeys.has(key) || key.startsWith('rounds-review-');
+  }
+
+  function persistCourseState() {
+    localStorage.setItem('syllabloom-course-state', JSON.stringify({
+      statuses: state.statuses,
+      edits: state.edits,
+      dailyStudyMinutes: state.dailyStudyMinutes,
+      baselineScore: state.baselineScore,
+      baselineAssessed: state.baselineAssessed
+    }));
+  }
+
+  function cloudUserData() {
+    const lectureReviews = {};
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!key?.startsWith('rounds-review-')) continue;
+      try {
+        lectureReviews[key] = JSON.parse(localStorage.getItem(key) || '[]');
+      } catch (_) {
+        lectureReviews[key] = [];
+      }
+    }
+    return {
+      schemaVersion: 1,
+      classProfile: {
+        mode: state.classMode,
+        className: state.className,
+        term: state.classTerm,
+        syllabusName: state.syllabusName,
+        useDemoSyllabus: state.useDemoSyllabus,
+        includeSampleMaterial: state.includeSampleMaterial,
+        ownerUserId: cloudSyncUserId
+      },
+      sources: state.sources,
+      ankiPreferences: state.anki,
+      calendarEvents: state.calendarEvents,
+      reviewHistory: state.reviewHistory.slice(-2000),
+      missCounts: state.missCounts,
+      courseState: {
+        statuses: state.statuses,
+        edits: state.edits,
+        dailyStudyMinutes: state.dailyStudyMinutes,
+        baselineScore: state.baselineScore,
+        baselineAssessed: state.baselineAssessed
+      },
+      lectureReviews,
+      classesUsed: accountClassUsage()
+    };
+  }
+
+  function applyCloudUserData(data, updatedAt, revision) {
+    if (!data || data.schemaVersion !== 1) return false;
+    cloudSyncApplying = true;
+    cloudSyncDirty = false;
+    state.classMode = data.classProfile?.mode || 'sample';
+    state.className = data.classProfile?.className || 'Human Anatomy';
+    state.classTerm = data.classProfile?.term || 'Fall 2023';
+    state.syllabusName = data.classProfile?.syllabusName || 'No syllabus added';
+    state.useDemoSyllabus = Boolean(data.classProfile?.useDemoSyllabus);
+    state.includeSampleMaterial = data.classProfile?.includeSampleMaterial !== false;
+    classProfileOwnerId = cloudSyncUserId;
+    state.sources = Array.isArray(data.sources) ? data.sources : [];
+    state.lectureCards = [];
+    state.latestSessionId = null;
+    state.anki = { ...defaultAnkiPreferences, ...(data.ankiPreferences || {}) };
+    state.calendarEvents = Array.isArray(data.calendarEvents) ? data.calendarEvents : [];
+    state.reviewHistory = Array.isArray(data.reviewHistory) ? data.reviewHistory.slice(-2000) : [];
+    state.reviewCount = state.reviewHistory.length;
+    document.querySelector('#reviewCount').textContent = String(state.reviewCount);
+    state.missCounts = data.missCounts && typeof data.missCounts === 'object' ? data.missCounts : {};
+    state.statuses = data.courseState?.statuses && typeof data.courseState.statuses === 'object' ? data.courseState.statuses : {};
+    state.edits = data.courseState?.edits && typeof data.courseState.edits === 'object' ? data.courseState.edits : {};
+    state.dailyStudyMinutes = Math.min(240, Math.max(10, Number(data.courseState?.dailyStudyMinutes) || 35));
+    state.baselineAssessed = data.courseState?.baselineAssessed === true;
+    state.baselineScore = state.baselineAssessed
+      ? Math.min(100, Math.max(0, Number(data.courseState?.baselineScore) || 0))
+      : 0;
+    state.account.classesUsed = Math.max(0, Number(data.classesUsed) || 0);
+
+    localStorage.setItem('syllabloom-class-profile', JSON.stringify({ ...data.classProfile, ownerUserId: cloudSyncUserId }));
+    localStorage.setItem('syllabloom-sources', JSON.stringify(state.sources));
+    localStorage.setItem('syllabloom-anki-preferences', JSON.stringify(state.anki));
+    localStorage.setItem('syllabloom-calendar-events', JSON.stringify(state.calendarEvents));
+    localStorage.setItem('syllabloom-review-history', JSON.stringify(state.reviewHistory));
+    localStorage.setItem('syllabloom-miss-counts', JSON.stringify(state.missCounts));
+    persistCourseState();
+    for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+      const key = localStorage.key(index);
+      if (key?.startsWith('rounds-review-')) localStorage.removeItem(key);
+    }
+    Object.entries(data.lectureReviews || {}).forEach(([key, value]) => {
+      if (key.startsWith('rounds-review-')) localStorage.setItem(key, JSON.stringify(value));
+    });
+    localStorage.setItem('syllabloom-cloud-sync-owner', cloudSyncUserId);
+    localStorage.setItem('syllabloom-cloud-sync-revision', String(revision || 0));
+    localStorage.setItem('syllabloom-cloud-sync-updated-at', updatedAt || '');
+    localStorage.setItem('syllabloom-cloud-local-updated-at', '0');
+    localStorage.setItem('rounds-onboarded', state.classMode === 'custom' ? '1' : '0');
+    saveAccount();
+    cloudSyncRevision = Number(revision) || 0;
+    cloudSyncApplying = false;
+    setClassLabels(state.className, state.classTerm);
+    syncAnkiFormFromState();
+    document.querySelector('#dailyStudyMinutes').value = String(state.dailyStudyMinutes);
+    document.querySelector('#examDateInput').value = nextExamEvent()?.date || dateAfter(12);
+    loadStoredSources().then(() => {
+      renderSource();
+      updateGenerationCount();
+      renderEditor();
+      renderStudy();
+      renderClassPlanner();
+      renderProfile();
+      renderHomeForActiveClass();
+      updateAssessmentIntro();
+    });
+    return true;
+  }
+
+  async function cloudRequest(method, payload = null, userId = cloudSyncUserId) {
+    const token = await window.SyllabloomAuth?.getToken?.();
+    if (!token || !state.account.signedIn || state.account.userId !== userId || cloudSyncUserId !== userId) {
+      throw Object.assign(new Error('Sign in again to sync this workspace.'), { status: 401 });
+    }
+    const response = await fetch('/api/user-data', {
+      method,
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...(payload ? { 'Content-Type': 'application/json' } : {})
+      },
+      ...(payload ? { body: JSON.stringify(payload) } : {})
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw Object.assign(new Error(result.error || 'Cloud sync could not complete.'), { status: response.status });
+    return result;
+  }
+
+  async function flushCloudSync() {
+    if (!cloudSyncReady || !cloudSyncDirty || cloudSyncInFlight || !state.account.signedIn || !cloudSyncUserId) return;
+    const userId = cloudSyncUserId;
+    cloudSyncInFlight = true;
+    cloudSyncDirty = false;
+    try {
+      const result = await cloudRequest('PUT', { expectedRevision: cloudSyncRevision, data: cloudUserData() }, userId);
+      if (cloudSyncUserId !== userId || state.account.userId !== userId) return;
+      cloudSyncRevision = Number(result.revision) || cloudSyncRevision;
+      cloudSyncApplying = true;
+      localStorage.setItem('syllabloom-cloud-sync-revision', String(cloudSyncRevision));
+      localStorage.setItem('syllabloom-cloud-sync-updated-at', result.updatedAt || '');
+      localStorage.setItem('syllabloom-cloud-local-updated-at', '0');
+      cloudSyncApplying = false;
+      cloudSyncErrorShown = false;
+    } catch (error) {
+      cloudSyncDirty = true;
+      if (error.status === 409) {
+        try {
+          const remote = await cloudRequest('GET', null, userId);
+          if (remote.data && cloudSyncUserId === userId && state.account.userId === userId) {
+            localStorage.setItem('syllabloom-cloud-local-recovery', JSON.stringify(cloudUserData()));
+            applyCloudUserData(remote.data, remote.updatedAt, remote.revision);
+            cloudSyncReady = true;
+            showToast('A newer workspace was saved on another device. Your unsynced copy is kept on this device.');
+          }
+        } catch (_) {
+          // Keep local data queued; a later reconnect or page visit can retry.
+        }
+      } else if (!cloudSyncErrorShown && error.status !== 401) {
+        cloudSyncErrorShown = true;
+        showToast('Saved on this device. Cloud sync will retry when the connection is back.');
+      }
+    } finally {
+      cloudSyncInFlight = false;
+      if (cloudSyncDirty && cloudSyncReady) window.setTimeout(flushCloudSync, 1200);
+    }
+  }
+
+  function queueCloudSync() {
+    if (cloudSyncApplying) return;
+    localStorage.setItem('syllabloom-cloud-local-updated-at', String(Date.now()));
+    if (!cloudSyncReady || !state.account.signedIn || !cloudSyncUserId) {
+      cloudSyncDirty = true;
+      return;
+    }
+    cloudSyncDirty = true;
+    window.clearTimeout(cloudSyncTimer);
+    cloudSyncTimer = window.setTimeout(flushCloudSync, 900);
+  }
+
+  async function refreshCloudWorkspace() {
+    if (!cloudSyncReady || !state.account.signedIn || !cloudSyncUserId || cloudSyncDirty || cloudSyncInFlight) return;
+    const userId = cloudSyncUserId;
+    try {
+      const remote = await cloudRequest('GET', null, userId);
+      if (cloudSyncUserId !== userId || state.account.userId !== userId) return;
+      if (Number(remote.revision) <= cloudSyncRevision || !remote.data) return;
+      if (applyCloudUserData(remote.data, remote.updatedAt, remote.revision)) showToast('Your workspace was updated from another device.');
+    } catch (_) {
+      // Offline reads do not interrupt the locally saved workspace.
+    }
+  }
+
+  async function initializeCloudWorkspace(userId) {
+    if (!userId || !state.account.signedIn) return;
+    if (cloudSyncUserId === userId && cloudSyncReady) return refreshCloudWorkspace();
+    if (cloudSyncInitializing) return;
+    cloudSyncInitializing = true;
+    cloudSyncUserId = userId;
+    cloudSyncReady = false;
+    cloudSyncRevision = 0;
+    cloudSyncDirty = false;
+    window.clearInterval(cloudSyncPollTimer);
+    try {
+      const remote = await cloudRequest('GET', null, userId);
+      if (cloudSyncUserId !== userId || state.account.userId !== userId) return;
+      const localOwner = localStorage.getItem('syllabloom-cloud-sync-owner') || classProfileOwnerId || cachedAccountUserId;
+      if (localOwner && localOwner !== userId) {
+        if (remote.data) {
+          applyCloudUserData(remote.data, remote.updatedAt, remote.revision);
+        } else {
+          cloudSyncApplying = true;
+          for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+            const key = localStorage.key(index);
+            if (key && (isSyncedStorageKey(key) || key === 'syllabloom-cloud-local-updated-at')) localStorage.removeItem(key);
+          }
+          localStorage.setItem('syllabloom-cloud-sync-owner', userId);
+          cloudSyncApplying = false;
+          window.location.reload();
+          return;
+        }
+      } else if (remote.data) {
+        const localUpdatedAt = Number(localStorage.getItem('syllabloom-cloud-local-updated-at')) || 0;
+        const remoteUpdatedAt = Date.parse(remote.updatedAt || '') || 0;
+        if (localOwner === userId && localUpdatedAt > remoteUpdatedAt + 5000) {
+          cloudSyncRevision = Number(remote.revision) || 0;
+          cloudSyncReady = true;
+          cloudSyncDirty = true;
+          await flushCloudSync();
+        } else {
+          applyCloudUserData(remote.data, remote.updatedAt, remote.revision);
+          showToast('Your saved class workspace is ready on this device.');
+        }
+      } else {
+        cloudSyncRevision = 0;
+        cloudSyncReady = true;
+        classProfileOwnerId = userId;
+        persistClassProfile();
+        cloudSyncDirty = true;
+        await flushCloudSync();
+        showToast('Your class and study settings are now syncing with your account.');
+      }
+      cloudSyncRevision = Math.max(Number(remote.revision) || 0, cloudSyncRevision);
+      cloudSyncReady = true;
+      cloudSyncPollTimer = window.setInterval(() => {
+        if (cloudSyncReady) refreshCloudWorkspace();
+        else initializeCloudWorkspace(cloudSyncUserId);
+      }, 60_000);
+      if (cloudSyncDirty) window.setTimeout(flushCloudSync, 1000);
+    } catch (error) {
+      cloudSyncReady = false;
+      if (!cloudSyncErrorShown && error.status !== 401) {
+        cloudSyncErrorShown = true;
+        showToast('This workspace is saved on this device. Cloud sync will retry when available.');
+      }
+      window.clearInterval(cloudSyncPollTimer);
+      cloudSyncPollTimer = window.setInterval(() => initializeCloudWorkspace(cloudSyncUserId), 60_000);
+    }
+    finally {
+      cloudSyncInitializing = false;
+      if (state.account.signedIn && state.account.userId && state.account.userId !== cloudSyncUserId) {
+        initializeCloudWorkspace(state.account.userId);
+      }
+    }
+  }
+
+  const originalStorageSetItem = Storage.prototype.setItem;
+  Storage.prototype.setItem = function (key, value) {
+    originalStorageSetItem.call(this, key, value);
+    if (this === window.localStorage && isSyncedStorageKey(String(key))) queueCloudSync();
+  };
+  window.addEventListener('focus', () => {
+    if (cloudSyncReady) refreshCloudWorkspace();
+    else if (cloudSyncUserId && state.account.signedIn) initializeCloudWorkspace(cloudSyncUserId);
+  });
+  window.addEventListener('online', () => {
+    if (cloudSyncUserId && state.account.signedIn) {
+      if (cloudSyncReady) queueCloudSync();
+      else initializeCloudWorkspace(cloudSyncUserId);
+    }
+  });
 
   function shellRoute() {
     return window.history.state?.syllabloom || null;
@@ -203,13 +529,17 @@
       question: 'What innervates the masseter?',
       options: ['Facial nerve', 'Masseteric nerve of the mandibular division of trigeminal', 'Hypoglossal nerve', 'Femoral nerve'],
       correct: 1,
-      explanation: 'The source lists the masseteric nerve from the mandibular division of the trigeminal nerve.'
+      explanation: 'The source lists the masseteric nerve from the mandibular division of the trigeminal nerve.',
+      sampleMuscle: 'Masseter',
+      sampleField: 'innervation'
     },
     {
       question: 'Which muscle elevates and retracts the mandible?',
       options: ['Temporalis', 'Buccinator', 'Lateral pterygoid', 'Platysma'],
       correct: 0,
-      explanation: 'The temporalis elevates and retracts the mandible.'
+      explanation: 'The temporalis elevates and retracts the mandible.',
+      sampleMuscle: 'Temporalis',
+      sampleField: 'action'
     },
     {
       question: 'Where does tibialis anterior attach?',
@@ -220,7 +550,9 @@
         'Femoral condyles to the calcaneus'
       ],
       correct: 2,
-      explanation: 'The source connects the lateral tibia and interosseous membrane to the medial cuneiform and first metatarsal.'
+      explanation: 'The source connects the lateral tibia and interosseous membrane to the medial cuneiform and first metatarsal.',
+      sampleMuscle: 'Tibialis anterior',
+      sampleField: 'attachment'
     }
   ];
 
@@ -269,7 +601,10 @@
         question: card.front,
         options,
         correct: options.indexOf(correctAnswer),
-        explanation: `${card.back} Source: ${sourceLabel}.`
+        explanation: `${card.back} Source: ${sourceLabel}.`,
+        cardId: `lecture-${card.id}`,
+        concept: card.section || card.concept || '',
+        sourceName: sourceLabel
       };
     });
   }
@@ -279,9 +614,12 @@
   }
 
   function sourceConceptNames() {
-    return [...new Set(state.sources.flatMap(sourceItem => (sourceItem.concepts || [])
-      .map(concept => String(concept?.name || concept || '').trim())
-      .filter(Boolean)))];
+    return [...new Set([
+      ...state.sources.flatMap(sourceItem => (sourceItem.concepts || [])
+        .map(concept => String(concept?.name || concept || '').trim())
+        .filter(Boolean)),
+      ...state.lectureCards.map(card => String(card.section || card.concept || '').trim()).filter(Boolean)
+    ])];
   }
 
   function updateAssessmentIntro() {
@@ -461,6 +799,111 @@
     syncSelection();
   }
 
+  function initializeThemedSelectPickers() {
+    document.querySelectorAll('[data-themed-select-picker]').forEach(picker => {
+      if (picker.dataset.themedSelectReady === 'true') return;
+      const select = picker.querySelector('select');
+      const trigger = picker.querySelector('.source-kind-trigger');
+      const label = trigger?.querySelector('[data-select-current]');
+      const menu = picker.querySelector('.source-kind-menu');
+      const options = [...(menu?.querySelectorAll('[data-select-value]') || [])];
+      if (!select || !trigger || !label || !menu || !options.length) return;
+      picker.dataset.themedSelectReady = 'true';
+
+      const supportsPopover = typeof menu.showPopover === 'function';
+      if (!supportsPopover) {
+        menu.removeAttribute('popover');
+        menu.hidden = true;
+      }
+
+      const isOpen = () => supportsPopover ? menu.matches(':popover-open') : !menu.hidden;
+      const syncSelection = () => {
+        const selected = options.find(option => option.dataset.selectValue === select.value) || options[0];
+        label.textContent = selected.textContent.trim();
+        options.forEach(option => option.setAttribute('aria-selected', option === selected ? 'true' : 'false'));
+        return selected;
+      };
+      const positionMenu = () => {
+        if (!isOpen()) return;
+        const rect = trigger.getBoundingClientRect();
+        const gutter = 12;
+        const maxWidth = Math.max(160, window.innerWidth - gutter * 2);
+        const width = Math.min(Math.max(rect.width, 184), maxWidth);
+        const left = Math.min(Math.max(gutter, rect.left), Math.max(gutter, window.innerWidth - width - gutter));
+        const menuHeight = menu.offsetHeight;
+        const openAbove = rect.bottom + 8 + menuHeight > window.innerHeight - gutter && rect.top > menuHeight + gutter;
+        menu.style.width = `${width}px`;
+        menu.style.left = `${left}px`;
+        menu.style.top = `${openAbove ? rect.top - menuHeight - 8 : rect.bottom + 8}px`;
+      };
+      const setOpenState = open => {
+        picker.classList.toggle('is-open', open);
+        trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+      };
+      const closeMenu = ({ restoreFocus = false } = {}) => {
+        if (!isOpen()) return;
+        if (supportsPopover) menu.hidePopover();
+        else menu.hidden = true;
+        setOpenState(false);
+        if (restoreFocus) trigger.focus();
+      };
+      const openMenu = focusLast => {
+        if (isOpen()) return;
+        if (supportsPopover) menu.showPopover();
+        else menu.hidden = false;
+        setOpenState(true);
+        window.requestAnimationFrame(() => {
+          positionMenu();
+          const selected = syncSelection();
+          (focusLast ? options.at(-1) : selected).focus();
+        });
+      };
+      const chooseOption = option => {
+        select.value = option.dataset.selectValue;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        syncSelection();
+        closeMenu({ restoreFocus: true });
+      };
+
+      trigger.addEventListener('click', () => isOpen() ? closeMenu() : openMenu(false));
+      trigger.addEventListener('keydown', event => {
+        if (!['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) return;
+        event.preventDefault();
+        openMenu(event.key === 'ArrowUp');
+      });
+      options.forEach(option => option.addEventListener('click', () => chooseOption(option)));
+      menu.addEventListener('keydown', event => {
+        const currentIndex = options.indexOf(document.activeElement);
+        let nextIndex = currentIndex;
+        if (event.key === 'ArrowDown') nextIndex = (currentIndex + 1 + options.length) % options.length;
+        else if (event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + options.length) % options.length;
+        else if (event.key === 'Home') nextIndex = 0;
+        else if (event.key === 'End') nextIndex = options.length - 1;
+        else if (event.key === 'Escape') {
+          event.preventDefault();
+          closeMenu({ restoreFocus: true });
+          return;
+        } else if ((event.key === 'Enter' || event.key === ' ') && currentIndex >= 0) {
+          event.preventDefault();
+          chooseOption(options[currentIndex]);
+          return;
+        } else {
+          return;
+        }
+        event.preventDefault();
+        options[nextIndex].focus();
+      });
+      if (supportsPopover) menu.addEventListener('toggle', event => setOpenState(event.newState === 'open'));
+      else document.addEventListener('pointerdown', event => {
+        if (isOpen() && !picker.contains(event.target) && !menu.contains(event.target)) closeMenu();
+      });
+      window.addEventListener('resize', positionMenu);
+      window.addEventListener('scroll', positionMenu, { passive: true, capture: true });
+      select.addEventListener('change', syncSelection);
+      syncSelection();
+    });
+  }
+
   function numberValue(selector, fallback) {
     const value = Number(document.querySelector(selector)?.value);
     return Number.isFinite(value) ? value : fallback;
@@ -493,9 +936,11 @@
     }).join(' ');
   }
 
- function fullAnkiDeckName() {
-  return state.anki.deck.trim() || state.className || 'Syllabloom';
-}
+  function fullAnkiDeckName() {
+    const deck = state.anki.deck.trim() || state.className.trim() || 'Syllabloom';
+    const setName = state.anki.setName.trim();
+    return setName ? `${deck}::${setName}` : deck;
+  }
 
   function syncAnkiFormFromState() {
     const values = {
@@ -573,7 +1018,7 @@
     const checked = selector => document.querySelector(selector).checked;
     state.anki = {
       ...state.anki,
-      deck: text('#ankiDeckNameFull') || 'Syllabloom',
+      deck: text('#ankiDeckNameFull') || state.className.trim() || 'Syllabloom',
       setName: text('#ankiSetNameFull'),
       presetName: text('#ankiPresetName') || 'Syllabloom',
       tags: text('#ankiTagsFull'),
@@ -660,11 +1105,11 @@
 
   function releaseStrategyLabel(value) {
     return ({
-      'weakest-deadline': 'weak topics near the next deadline',
-      weakest: 'weakest topics first',
+      'weakest-deadline': 'missed topics paced to the next deadline',
+      weakest: 'most-missed topics first',
       syllabus: 'syllabus order',
       'recent-source': 'the most recent source first'
-    })[value] || 'weak topics near the next deadline';
+    })[value] || 'source order until study results are available';
   }
 
   function refreshAnkiLearningPreview() {
@@ -685,9 +1130,17 @@
     const scheduler = document.querySelector('#ankiSchedulerReadout');
     const history = document.querySelector('#ankiHistoryReadout');
     if (status) status.textContent = enabled ? `FSRS · ${Math.round(retention * 100)}% target` : 'SM-2 preset';
-    if (scheduler) scheduler.textContent = `${orderLabels[order] || orderLabels.after}. New cards follow ${releaseStrategyLabel(strategy)}.`;
+    const hasWeaknessEvidence = state.lectureCards.some(card => Number(state.missCounts[`lecture-${card.id}`]) > 0);
+    const chosenStrategy = strategy === 'syllabus'
+      ? 'source order'
+      : strategy === 'recent-source'
+        ? 'the latest source first'
+        : hasWeaknessEvidence
+          ? releaseStrategyLabel(strategy)
+          : 'source order until study results identify weak topics';
+    if (scheduler) scheduler.textContent = `${orderLabels[order] || orderLabels.after}. New-card selection: ${chosenStrategy}. Anki schedules review intervals after export.`;
     if (history) history.textContent = enabled
-      ? `Demo history: ${state.reviewCount} answers. Keep default FSRS parameters until there are several hundred real reviews.`
+      ? `${state.reviewCount} answer${state.reviewCount === 1 ? '' : 's'} recorded here. Anki schedules review intervals after export.`
       : 'FSRS is off. Anki will use the legacy scheduler settings below.';
   }
 
@@ -702,9 +1155,7 @@
     const settingsDestination = document.querySelector('#ankiSettingsDestination');
     const exportHeading = document.querySelector('#ankiExportHeading');
     if (count) count.textContent = approvedLabel;
-    if (exportHeading) {
-  exportHeading.textContent = `Export ${fullDeck} cards to Anki`;
-}
+    if (exportHeading) exportHeading.textContent = `Export ${fullDeck} cards to Anki`;
     if (exportSummary) exportSummary.textContent = summary;
     if (settingsCount) settingsCount.textContent = approvedLabel;
     if (settingsDestination) settingsDestination.textContent = `${fullDeck} · ${state.anki.presetName}`;
@@ -726,6 +1177,138 @@
     return [...state.calendarEvents].sort((left, right) => left.date.localeCompare(right.date));
   }
 
+  function setCalendarImportStatus(message, isError = false) {
+    const status = document.querySelector('#calendarScheduleImportStatus');
+    status.textContent = message;
+    status.classList.toggle('is-error', isError);
+  }
+
+  function loadCalendarOcrLibrary() {
+    if (window.Tesseract?.createWorker) return Promise.resolve(window.Tesseract);
+    if (calendarOcrLibraryPromise) return calendarOcrLibraryPromise;
+    calendarOcrLibraryPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js';
+      script.async = true;
+      script.onload = () => window.Tesseract?.createWorker
+        ? resolve(window.Tesseract)
+        : reject(new Error('The text reader loaded but did not start. Try a different photo or enter the dates by hand.'));
+      script.onerror = () => reject(new Error('The on-device text reader could not load. Check your connection, then try again.'));
+      document.head.appendChild(script);
+    }).catch(error => {
+      calendarOcrLibraryPromise = null;
+      throw error;
+    });
+    return calendarOcrLibraryPromise;
+  }
+
+  function renderCalendarImportCandidates(text) {
+    calendarImportOcrText = text;
+    const year = Number(document.querySelector('#calendarScheduleImportYear').value) || state.calendarCursor.getFullYear();
+    const candidates = window.SyllabloomCalendarFeatures.parseDatedSchedule(text, year);
+    const container = document.querySelector('#calendarScheduleImportCandidates');
+    if (!candidates.length) {
+      container.innerHTML = '<p class="calendar-import-empty">No clear individual dates found. Try a sharper photo of a dated schedule or enter the dates manually. Weekly repeating timetables are not expanded yet.</p>';
+      document.querySelector('#calendarScheduleImportSave').disabled = true;
+      setCalendarImportStatus('Text was read, but no reliable dated events were detected. The photo was not saved.');
+      return;
+    }
+    container.innerHTML = candidates.map((candidate, index) => `<fieldset class="calendar-import-candidate" data-import-candidate="${index}">
+      <label class="calendar-import-include"><input type="checkbox" data-import-include checked><span>Add this date</span></label>
+      <label>Event name<input class="text-input" data-import-title maxlength="120" value="${escapeHtml(candidate.title)}" required></label>
+      <div class="calendar-import-fields"><label>Date<input class="text-input" data-import-date type="date" value="${escapeHtml(candidate.date)}" required></label><label>Type<select class="text-input" data-import-type><option value="lecture"${candidate.type === 'lecture' ? ' selected' : ''}>Lecture</option><option value="quiz"${candidate.type === 'quiz' ? ' selected' : ''}>Quiz</option><option value="exam"${candidate.type === 'exam' ? ' selected' : ''}>Exam</option><option value="assignment"${candidate.type === 'assignment' ? ' selected' : ''}>Assignment or due date</option><option value="holiday"${candidate.type === 'holiday' ? ' selected' : ''}>School break / closure</option></select></label></div>
+      <small>Read from: ${escapeHtml(candidate.sourceLine)}</small>
+    </fieldset>`).join('');
+    document.querySelector('#calendarScheduleImportSave').disabled = false;
+    setCalendarImportStatus(`${candidates.length} possible date${candidates.length === 1 ? '' : 's'} found. Check every date and name before adding them.`);
+    updateCalendarImportSaveButton();
+  }
+
+  function updateCalendarImportSaveButton() {
+    const container = document.querySelector('#calendarScheduleImportCandidates');
+    const selected = [...container.querySelectorAll('[data-import-candidate]')]
+      .filter(row => row.querySelector('[data-import-include]')?.checked);
+    const valid = selected.filter(row => row.querySelector('[data-import-title]')?.value.trim() && row.querySelector('[data-import-date]')?.value);
+    document.querySelector('#calendarScheduleImportSave').disabled = valid.length === 0;
+  }
+
+  async function importCalendarSchedulePhoto(file) {
+    const dialog = document.querySelector('#calendarScheduleImportDialog');
+    const inputYear = document.querySelector('#calendarScheduleImportYear');
+    inputYear.value = state.calendarCursor.getFullYear();
+    calendarImportOcrText = '';
+    document.querySelector('#calendarScheduleImportCandidates').innerHTML = '';
+    document.querySelector('#calendarScheduleImportSave').disabled = true;
+    if (!file.type.startsWith('image/')) {
+      dialog.showModal();
+      setCalendarImportStatus('Choose an image file such as JPG, PNG, or WEBP.', true);
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      dialog.showModal();
+      setCalendarImportStatus('This image is over 15 MB. Choose a smaller photo or screenshot.', true);
+      return;
+    }
+    dialog.showModal();
+    setCalendarImportStatus('Loading the on-device text reader…');
+    let worker;
+    try {
+      const tesseract = await loadCalendarOcrLibrary();
+      worker = await tesseract.createWorker('eng', 1, {
+        logger: progress => {
+          if (progress.status === 'recognizing text') {
+            setCalendarImportStatus(`Reading the photo on this device… ${Math.round((progress.progress || 0) * 100)}%`);
+          } else if (progress.status === 'loading language traineddata') {
+            setCalendarImportStatus('Preparing English text recognition…');
+          }
+        }
+      });
+      const bitmap = await createImageBitmap(file);
+      const scale = Math.min(1, 2400 / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      canvas.getContext('2d', { alpha: false }).drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      bitmap.close();
+      setCalendarImportStatus('Reading the photo on this device…');
+      const result = await worker.recognize(canvas);
+      renderCalendarImportCandidates(result.data.text || '');
+    } catch (error) {
+      setCalendarImportStatus(error.message || 'Could not read this photo. Try a clearer JPG or PNG.', true);
+    } finally {
+      if (worker) await worker.terminate().catch(() => {});
+    }
+  }
+
+  function saveCalendarImportCandidates() {
+    const rows = [...document.querySelectorAll('#calendarScheduleImportCandidates [data-import-candidate]')];
+    const additions = [];
+    for (const row of rows) {
+      if (!row.querySelector('[data-import-include]')?.checked) continue;
+      const title = row.querySelector('[data-import-title]').value.trim();
+      const date = row.querySelector('[data-import-date]').value;
+      const type = row.querySelector('[data-import-type]').value;
+      const parsedDate = new Date(`${date}T12:00:00`);
+      if (!title || !date || Number.isNaN(parsedDate.getTime()) || localIsoDate(parsedDate) !== date) continue;
+      if (state.calendarEvents.some(item => item.date === date && item.title.trim().toLocaleLowerCase() === title.toLocaleLowerCase())) continue;
+      if (additions.some(item => item.date === date && item.title.toLocaleLowerCase() === title.toLocaleLowerCase())) continue;
+      additions.push({ id: `photo-date-${Date.now()}-${additions.length}`, date, type, title });
+    }
+    if (!additions.length) {
+      setCalendarImportStatus('No new valid dates were selected. Existing matching dates were left unchanged.', true);
+      return;
+    }
+    state.calendarEvents.push(...additions);
+    localStorage.setItem('syllabloom-calendar-events', JSON.stringify(state.calendarEvents));
+    const firstDate = additions.map(event => event.date).sort()[0];
+    const [year, month] = firstDate.split('-').map(Number);
+    state.calendarCursor = new Date(year, month - 1, 1, 12);
+    calendarImportOcrText = '';
+    document.querySelector('#calendarScheduleImportDialog').close();
+    renderClassPlanner();
+    showToast(`${additions.length} schedule date${additions.length === 1 ? '' : 's'} added. Review them on your calendar.`);
+  }
+
   function nextExamEvent() {
     const today = localIsoDate(new Date());
     return calendarEventsSorted().find(event => event.type === 'exam' && event.date >= today)
@@ -736,6 +1319,14 @@
     const monthDate = new Date(state.calendarCursor.getFullYear(), state.calendarCursor.getMonth(), 1, 12);
     const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(monthDate);
     document.querySelector('#calendarMonthLabel').textContent = monthLabel;
+    const holidayToggle = document.querySelector('#showFederalHolidays');
+    if (holidayToggle) holidayToggle.checked = state.showFederalHolidays;
+    const referenceHolidays = state.showFederalHolidays
+      ? [monthDate.getFullYear() - 1, monthDate.getFullYear(), monthDate.getFullYear() + 1]
+        .flatMap(year => window.SyllabloomCalendarFeatures.getUsFederalHolidays(year))
+      : [];
+    const monthHolidays = referenceHolidays.filter(event => event.date.startsWith(`${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}-`));
+    const visibleEvents = [...state.calendarEvents, ...monthHolidays];
     const firstWeekday = (monthDate.getDay() + 6) % 7;
     const daysInMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
     const today = localIsoDate(new Date());
@@ -743,26 +1334,46 @@
     for (let index = 0; index < firstWeekday; index += 1) cells.push('<span class="calendar-day calendar-day-empty"></span>');
     for (let day = 1; day <= daysInMonth; day += 1) {
       const date = localIsoDate(new Date(monthDate.getFullYear(), monthDate.getMonth(), day, 12));
-      const events = state.calendarEvents.filter(event => event.date === date);
-      cells.push(`<button type="button" class="calendar-day${date === today ? ' is-today' : ''}${events.length ? ' has-event' : ''}" data-calendar-date="${date}" aria-label="${date}${events.length ? `, ${events.map(event => event.title).join(', ')}` : ''}"><span>${day}</span>${events.slice(0, 2).map(event => `<i class="event-${escapeHtml(event.type)}">${escapeHtml(event.title)}</i>`).join('')}</button>`);
+      const events = visibleEvents.filter(event => event.date === date);
+      const spokenEvents = events.map(event => `${event.title}${event.federalReference ? ' (U.S. federal holiday reference; campus closure not confirmed)' : ''}`).join(', ');
+      cells.push(`<button type="button" class="calendar-day${date === today ? ' is-today' : ''}${events.length ? ' has-event' : ''}" data-calendar-date="${date}" aria-label="${date}${events.length ? `, ${escapeHtml(spokenEvents)}` : ''}"><span>${day}</span>${events.slice(0, 2).map(event => `<i class="event-${escapeHtml(event.type)}${event.federalReference ? ' is-reference-holiday' : ''}"${event.federalReference ? ' title="U.S. federal holiday reference only"' : ''}>${escapeHtml(event.title)}</i>`).join('')}</button>`);
     }
     document.querySelector('#calendarGrid').innerHTML = cells.join('');
 
-    const upcoming = calendarEventsSorted().filter(event => event.date >= today).slice(0, 5);
+    const currentYear = new Date().getFullYear();
+    const upcomingHolidays = state.showFederalHolidays
+      ? [currentYear - 1, currentYear, currentYear + 1]
+        .flatMap(year => window.SyllabloomCalendarFeatures.getUsFederalHolidays(year))
+      : [];
+    const upcoming = [...state.calendarEvents, ...upcomingHolidays]
+      .filter(event => event.date >= today)
+      .sort((left, right) => left.date.localeCompare(right.date))
+      .slice(0, 5);
     document.querySelector('#upcomingEvents').innerHTML = upcoming.length
       ? upcoming.map(event => {
         const date = new Date(`${event.date}T12:00:00`);
         const label = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date);
-        return `<div class="upcoming-event"><span class="event-dot event-${escapeHtml(event.type)}"></span><div><strong>${escapeHtml(event.title)}</strong><small>${label} · ${labelCase(event.type)}</small></div><button type="button" data-remove-event="${escapeHtml(event.id)}" aria-label="Remove ${escapeHtml(event.title)}">Remove</button></div>`;
+        const eventDescription = event.federalReference ? 'U.S. federal reference · campus closure varies' : labelCase(event.type);
+        const yearCitation = event.yearSource === 'course term' && event.sourceTerm
+          ? ` · year from ${escapeHtml(event.sourceTerm)}`
+          : event.yearSource === 'source name'
+            ? ' · year from the uploaded file name'
+            : '';
+        const sourceCitation = event.sourceText
+          ? `<span class="calendar-source-citation">From ${escapeHtml(event.sourceName || 'your syllabus')}: ${escapeHtml(event.sourceText)}${yearCitation}</span>`
+          : '';
+        return `<div class="upcoming-event"><span class="event-dot event-${escapeHtml(event.type)}${event.federalReference ? ' is-reference-holiday' : ''}"></span><div><strong>${escapeHtml(event.title)}</strong><small>${label} · ${escapeHtml(eventDescription)}${sourceCitation}</small></div>${event.federalReference ? '<span class="calendar-reference-badge">Reference</span>' : `<button type="button" data-remove-event="${escapeHtml(event.id)}" aria-label="Remove ${escapeHtml(event.title)}">Remove</button>`}</div>`;
       }).join('')
       : '<p>No upcoming class dates. Add the next lecture or exam.</p>';
 
     const exam = nextExamEvent();
-    const examDate = exam ? new Date(`${exam.date}T12:00:00`) : new Date(Date.now() + 12 * 86400000);
-    const daysLeft = Math.max(1, Math.ceil((examDate - new Date()) / 86400000));
+    const daysLeft = exam
+      ? Math.max(1, Math.ceil((new Date(`${exam.date}T12:00:00`) - new Date()) / 86400000))
+      : null;
     const cardSupply = state.includeSampleMaterial ? 42 : state.lectureCards.length;
+    const examPaceLimit = daysLeft ? Math.ceil(cardSupply / daysLeft) : cardSupply;
     const availableNew = cardSupply
-      ? Math.max(1, Math.min(state.anki.newPerDay, Math.floor(state.dailyStudyMinutes / 2), Math.ceil(cardSupply / daysLeft)))
+      ? Math.max(1, Math.min(state.anki.newPerDay, Math.floor(state.dailyStudyMinutes / 2), examPaceLimit))
       : 0;
     const topicOrders = {
       'weakest-deadline': ['Upper-limb attachments', 'Forearm innervation', 'Muscles of mastication', 'Facial expression actions', 'Lower-limb actions', 'Mixed recall', 'Catch-up and card edits'],
@@ -771,10 +1382,35 @@
       'recent-source': ['Latest lecture highlights', 'Latest lecture weak points', 'New slide terminology', 'Source-linked recall', 'Earlier source gaps', 'Mixed recall', 'Catch-up and card edits']
     };
     const customTopics = sourceConceptNames();
+    const missByTopic = new Map();
+    state.lectureCards.forEach(card => {
+      const misses = Number(state.missCounts[`lecture-${card.id}`]) || 0;
+      if (!misses) return;
+      const topic = card.section || card.muscle || '';
+      if (topic) missByTopic.set(topic, (missByTopic.get(topic) || 0) + misses);
+    });
+    if (state.includeSampleMaterial) records.forEach(record => {
+      const misses = state.selectedTypes.reduce((total, field) => total + (Number(state.missCounts[keyFor(record, field)]) || 0), 0);
+      if (misses) missByTopic.set(record.section, (missByTopic.get(record.section) || 0) + misses);
+    });
+    const missEntries = [...missByTopic.entries()];
+    const hasWeaknessEvidence = [...missByTopic.values()].some(count => count > 0);
+    const latestConcepts = [...state.sources].reverse()
+      .find(item => item.concepts?.length)?.concepts
+      ?.map(concept => String(concept?.name || concept || '').trim()).filter(Boolean) || [];
+    const recentTopics = [...latestConcepts, ...customTopics.filter(topic => !latestConcepts.includes(topic))];
+    const strategyTopics = state.anki.releaseStrategy === 'recent-source'
+      ? recentTopics
+      : state.anki.releaseStrategy === 'weakest' || state.anki.releaseStrategy === 'weakest-deadline'
+        ? window.SyllabloomCourseMap?.prioritizeTopics(customTopics, missEntries) || customTopics
+        : customTopics;
+    const sampleTopics = topicOrders[state.anki.releaseStrategy] || topicOrders['weakest-deadline'];
     const topics = state.includeSampleMaterial
-      ? (topicOrders[state.anki.releaseStrategy] || topicOrders['weakest-deadline'])
-      : customTopics.length
-        ? customTopics
+      ? state.anki.releaseStrategy === 'weakest' || state.anki.releaseStrategy === 'weakest-deadline'
+        ? window.SyllabloomCourseMap?.prioritizeTopics(sampleTopics, missEntries) || sampleTopics
+        : sampleTopics
+      : strategyTopics.length
+        ? strategyTopics
         : ['Add class material', 'Build the first ready set', 'Take a quick check', 'Set the next deadline'];
     const rows = [];
     let releasedCards = 0;
@@ -791,11 +1427,20 @@
         : Math.max(0, Math.min(remainingCards, state.anki.newPerDay, availableNew + (event?.type === 'lecture' ? 2 : 0)));
       releasedCards += newCards;
       const focus = event?.type === 'exam' ? event.title : event ? `${event.title}: ${topics[offset % topics.length]}` : topics[offset % topics.length];
-      rows.push(`<div class="release-plan-row"><strong>${escapeHtml(dayLabel)}</strong><span>${escapeHtml(focus)}</span><b>${newCards}</b><em>Due in Anki</em></div>`);
+      rows.push(`<div class="release-plan-row"><strong>${escapeHtml(dayLabel)}</strong><span>${escapeHtml(focus)}</span><b>${newCards}</b><em>Anki handles reviews</em></div>`);
     }
     document.querySelector('#releasePlanRows').innerHTML = rows.join('');
     const nextLabel = exam ? `${exam.title} in ${daysLeft} day${daysLeft === 1 ? '' : 's'}` : 'No exam date yet';
-    document.querySelector('#releasePlanSummary').textContent = `${nextLabel}. Up to ${availableNew} new card${availableNew === 1 ? '' : 's'} a day, ordered by ${releaseStrategyLabel(state.anki.releaseStrategy)}. Due reviews remain in Anki.`;
+    const orderSummary = state.includeSampleMaterial
+      ? 'this is the sample sequence; add your class material for course-specific priorities'
+      : state.anki.releaseStrategy === 'syllabus'
+      ? 'new cards follow source order'
+      : state.anki.releaseStrategy === 'recent-source'
+        ? 'new cards start with the latest source'
+        : hasWeaknessEvidence
+          ? 'topics with the most missed cards come first'
+          : 'new cards follow source order until study results identify weak topics';
+    document.querySelector('#releasePlanSummary').textContent = `${nextLabel}. Up to ${availableNew} new card${availableNew === 1 ? '' : 's'} a day${exam ? `, paced against ${exam.title}` : ''}; ${orderSummary}. Anki schedules due reviews after export.`;
     renderKnowledgeModel();
     renderProfileSchedule();
   }
@@ -803,25 +1448,43 @@
   function renderKnowledgeModel() {
     const list = document.querySelector('#knowledgeRows');
     if (!list) return;
-    const concepts = sourceConceptNames().slice(0, 8);
-    if (!state.includeSampleMaterial) {
-      document.querySelector('#baselineScore').textContent = state.baselineScore ? `${state.baselineScore}%` : 'New';
-      document.querySelector('#knowledgeObjectiveCount').textContent = String(concepts.length);
-      document.querySelector('#knowledgeSessionLength').textContent = `${state.dailyStudyMinutes} min`;
-      list.innerHTML = concepts.length
-        ? concepts.map(concept => `<div class="knowledge-row"><strong>${escapeHtml(concept)}</strong><div class="mastery-track"><span style="width:0%"></span></div><span class="knowledge-score">New</span><span>Not assessed</span></div>`).join('')
-        : '<div class="knowledge-empty"><strong>No learning map yet</strong><span>Add slides, notes, or a syllabus and the concepts will appear here.</span></div>';
-      return;
-    }
-    document.querySelector('#baselineScore').textContent = `${state.baselineScore}%`;
-    document.querySelector('#knowledgeObjectiveCount').textContent = '3';
-    document.querySelector('#knowledgeSessionLength').textContent = '28 min';
-    list.innerHTML = `
-      <div class="knowledge-row"><strong>Upper-limb attachments</strong><div class="mastery-track"><span style="width:42%"></span></div><span class="knowledge-score">42%</span><span>Priority</span></div>
-      <div class="knowledge-row"><strong>Forearm innervation</strong><div class="mastery-track"><span style="width:55%"></span></div><span class="knowledge-score">55%</span><span>Review</span></div>
-      <div class="knowledge-row"><strong>Muscles of mastication</strong><div class="mastery-track"><span style="width:68%"></span></div><span class="knowledge-score">68%</span><span>Developing</span></div>
-      <div class="knowledge-row"><strong>Facial expression actions</strong><div class="mastery-track"><span style="width:84%"></span></div><span class="knowledge-score">84%</span><span>Stable</span></div>
-      <div class="knowledge-row"><strong>Lower-limb actions</strong><div class="mastery-track"><span style="width:91%"></span></div><span class="knowledge-score">91%</span><span>Solid</span></div>`;
+    const allConcepts = state.includeSampleMaterial
+      ? Object.keys(source.sections || {})
+      : sourceConceptNames();
+    const concepts = allConcepts.slice(0, 8);
+    const mappedCards = state.includeSampleMaterial
+      ? records.flatMap(record => state.selectedTypes.map(field => ({
+        id: keyFor(record, field),
+        concept: record.section,
+        sourceName: source.document
+      })))
+      : state.lectureCards.map(card => ({
+        id: `lecture-${card.id}`,
+        concept: card.section || card.concept || '',
+        sourceName: card.source || state.sources.find(item => item.id === card.sourceId)?.name || ''
+      }));
+    const courseMap = window.SyllabloomCourseMap?.buildCourseMap({
+      concepts,
+      cards: mappedCards,
+      reviewHistory: state.reviewHistory,
+      className: state.className,
+      classTerm: state.classTerm
+    }) || [];
+    document.querySelector('#baselineScore').textContent = state.baselineAssessed ? `${state.baselineScore}%` : '—';
+    document.querySelector('#baselineScoreLabel').textContent = state.baselineAssessed ? 'first quick-check score' : 'not assessed yet';
+    document.querySelector('#knowledgeObjectiveCount').textContent = String(allConcepts.length);
+    document.querySelector('#knowledgeSessionLength').textContent = `${state.dailyStudyMinutes} min`;
+    list.innerHTML = courseMap.length
+      ? courseMap.map(concept => {
+        const sourceSummary = concept.sourceNames.length
+          ? `Source${concept.sourceNames.length === 1 ? '' : 's'}: ${concept.sourceNames.map(escapeHtml).join(', ')}`
+          : 'No source-linked cards yet';
+        const cardSummary = concept.cardCount
+          ? `${concept.practicedCount} of ${concept.cardCount} cards checked or studied · ${sourceSummary}`
+          : sourceSummary;
+        return `<div class="knowledge-row" data-course-status="${escapeHtml(concept.statusKind)}"><strong>${escapeHtml(concept.name)}</strong><div class="knowledge-evidence"><div class="mastery-track" role="progressbar" aria-label="Cards practiced for ${escapeHtml(concept.name)}" aria-valuemin="0" aria-valuemax="${concept.cardCount}" aria-valuenow="${concept.practicedCount}"><span style="width:${concept.coveragePercent}%"></span></div><small>${escapeHtml(cardSummary)}</small></div><span class="knowledge-score">${concept.cardCount ? `${concept.practicedCount}/${concept.cardCount}` : '—'}</span><span class="knowledge-status knowledge-status--${escapeHtml(concept.statusKind)}">${escapeHtml(concept.status)}</span></div>`;
+      }).join('')
+      : '<div class="knowledge-empty"><strong>No learning map yet</strong><span>Add slides, notes, or a syllabus and the concepts will appear here.</span></div>';
   }
 
   function renderProfileSchedule() {
@@ -840,8 +1503,6 @@
   }
 
   function renderProfile() {
-    const studentPlan = state.account.plan === 'student';
-    const tierName = studentPlan ? 'Student' : 'Free';
     const used = accountClassUsage();
     const signedInName = state.account.displayName || state.account.email?.split('@')[0] || 'Your Syllabloom account';
     const emailText = state.account.signedIn
@@ -852,12 +1513,10 @@
     avatar.alt = state.account.imageUrl ? `${signedInName} profile photo` : 'Syllabloom account mark';
     document.querySelector('#profileIdentityHeading').textContent = signedInName;
     document.querySelector('#profileEmail').textContent = emailText;
-    document.querySelector('#profileTierBadge').textContent = tierName;
-    document.querySelector('#profileTierName').textContent = tierName;
-    document.querySelector('#profileTierDescription').textContent = studentPlan
-      ? 'Unlimited classes, course-source imports, and the complete class-to-Anki workflow.'
-      : '1 active class, course-source imports, lecture storage, and Anki export.';
-    document.querySelector('#profileClassUsage').textContent = studentPlan ? `${used} active` : `${used} of 1`;
+    document.querySelector('#profileTierBadge').textContent = 'Free beta';
+    document.querySelector('#profileTierName').textContent = 'Free beta';
+    document.querySelector('#profileTierDescription').textContent = '1 active class, course-source imports, lecture storage, and Anki export.';
+    document.querySelector('#profileClassUsage').textContent = `${used} of ${betaClassLimit}`;
     document.querySelector('#manageClerkProfile').textContent = state.account.signedIn ? 'Account & security' : 'Sign in';
 
     const exam = nextExamEvent();
@@ -870,63 +1529,17 @@
   }
 
   function syncBillingSummary() {
-    const studentPlan = state.account.plan === 'student';
-    const tierName = studentPlan ? 'Student' : 'Free';
-    document.querySelector('#billingTierBadge').textContent = tierName;
-    document.querySelector('#billingCurrentDescription').textContent = studentPlan
-      ? 'Unlimited classes and course-source imports are active on this account.'
-      : 'You have 1 active class and can export ready cards to Anki.';
-    document.querySelector('#billingCurrentPrice').textContent = studentPlan ? '$9' : '$0';
-    document.querySelector('#billingCurrentCadence').textContent = studentPlan ? 'per month, billed yearly' : 'forever';
-    document.querySelector('#billingManageAccount').textContent = state.account.signedIn ? 'Payment & statements' : 'Sign in to manage';
+    document.querySelector('#billingTierBadge').textContent = 'Free beta';
+    document.querySelector('#billingCurrentDescription').textContent = 'One active class, with ready cards you can study here or export to Anki.';
+    document.querySelector('#billingCurrentPrice').textContent = '$0';
+    document.querySelector('#billingCurrentCadence').textContent = 'during beta';
+    document.querySelector('#billingManageAccount').textContent = state.account.signedIn ? 'Account & security' : 'Sign in';
   }
 
-  async function renderBillingPage() {
+  function renderBillingPage() {
     syncBillingSummary();
-    const status = document.querySelector('#billingConnectionStatus');
-    const mount = document.querySelector('#clerkPricingTable');
-    const fallback = document.querySelector('#billingPlanFallback');
-    const upgradeButton = document.querySelector('#billingSetupPending');
-    const finePrint = document.querySelector('#billingFinePrint');
-    mount.hidden = true;
-    fallback.hidden = false;
-    upgradeButton.disabled = false;
-    delete upgradeButton.dataset.checkoutReady;
-    if (!state.account.signedIn) {
-      status.textContent = 'Free beta access';
-      upgradeButton.textContent = 'Sign in to choose Student';
-      finePrint.textContent = 'The public beta is free. Sign in to manage your account; class files and study settings stay in this browser.';
-      return;
-    }
-    if (state.account.plan === 'student') {
-      status.textContent = 'Student plan active';
-      upgradeButton.textContent = 'Student is active';
-      upgradeButton.disabled = true;
-      finePrint.textContent = 'Manage payment methods and statements from Account & security.';
-      return;
-    }
-    status.textContent = 'Checking billing status';
-    mount.hidden = false;
-    const result = await window.SyllabloomAuth?.mountBilling?.(mount);
-    if (state.view !== 'billing') return;
-    if (result?.ready) {
-      status.textContent = 'Secure checkout by Clerk + Stripe';
-      upgradeButton.textContent = 'Choose Student';
-      upgradeButton.dataset.checkoutReady = 'true';
-      finePrint.textContent = 'Payments are processed by Stripe through Clerk Billing. Syllabloom never stores card numbers.';
-      return;
-    }
-    mount.hidden = true;
-    upgradeButton.disabled = true;
-    if (result?.reason === 'billing-preview') {
-      upgradeButton.textContent = 'Student billing opens after beta';
-      status.textContent = 'Free public beta';
-      finePrint.textContent = 'This build uses Clerk test mode. No live payment can be submitted.';
-      return;
-    }
-    upgradeButton.textContent = 'Billing setup pending';
-    status.textContent = result?.reason === 'no-plans' ? 'Plans are not configured yet' : 'Billing is not connected yet';
-    finePrint.textContent = 'Checkout stays closed until Clerk Billing has a live plan and production keys.';
+    document.querySelector('#billingConnectionStatus').textContent = 'Free beta · 1 class';
+    document.querySelector('#billingFinePrint').textContent = 'There is no paid plan or checkout during this beta. You can join without payment details.';
   }
 
   async function detectRuntimeCapabilities() {
@@ -942,10 +1555,12 @@
       document.querySelector('#useTestAudio').disabled = true;
       document.querySelector('#useTestAudio').textContent = 'Sample needs desktop transcription';
       document.querySelector('#captureState').textContent = 'Ready to record or upload';
-      document.querySelector('#recordingSafety').textContent = 'Saved under your account on this device';
+      updateMediaStorageCopy();
       const captureStatus = document.querySelector('.capture-status');
       captureStatus.querySelector('strong').textContent = 'Device library';
-      captureStatus.querySelector('span:last-child').textContent = 'Per-user media storage';
+      captureStatus.querySelector('span:last-child').textContent = state.account.signedIn
+        ? 'Per-user device library · no cloud media sync'
+        : 'Local device library · sign in to separate by account';
     } catch (_) {
       // The local prototype intentionally continues with the desktop feature set.
     }
@@ -1050,12 +1665,16 @@
       document.querySelector('#summarySyllabusMeta').textContent = activeSyllabus()
         ? 'Calendar and objectives are ready to map'
         : 'Calendar and objectives can be added later';
-      document.querySelector('#summaryBaseline').textContent = `${state.baselineScore}% starting point`;
-      document.querySelector('#summaryBaselineMeta').textContent = state.baselineScore === 100
-        ? 'Start with new material and let later misses refine the plan'
-        : state.baselineScore === 0
-          ? 'Foundation review shapes the first session'
-          : 'Missed topics shape the first session';
+      document.querySelector('#summaryBaseline').textContent = state.baselineAssessed
+        ? `${state.baselineScore}% first quick check`
+        : 'Not assessed';
+      document.querySelector('#summaryBaselineMeta').textContent = !state.baselineAssessed
+        ? 'No starting score is shown until you complete the quick check'
+        : state.baselineScore === 100
+          ? 'No questions missed in this first check; later answers can still refine priorities'
+          : state.baselineScore === 0
+            ? 'The first check suggests revisiting these foundations'
+            : 'The first check suggests reviewing the missed topics';
       document.querySelector('#summaryAnki').textContent = `${state.anki.format} · ${state.anki.newPerDay} new per day`;
     }
     document.querySelector('#onboarding').scrollTo({ top: 0, behavior: 'auto' });
@@ -1198,6 +1817,7 @@
       includeSampleMaterial: state.includeSampleMaterial,
       ownerUserId: classProfileOwnerId || ''
     }));
+    persistCourseState();
   }
 
   function prepareNewClassSetup() {
@@ -1212,6 +1832,7 @@
     state.edits = {};
     state.studyIndex = 0;
     state.baselineScore = 0;
+    state.baselineAssessed = false;
     state.calendarEvents = [];
     state.anki.deck = '';
     state.anki.tags = '';
@@ -1230,9 +1851,15 @@
     state.includeSampleMaterial = true;
     state.useDemoSyllabus = true;
     state.syllabusName = demoSyllabusSource.name;
+    state.baselineScore = 0;
+    state.baselineAssessed = false;
     state.sources = [];
-    state.lectureCards = [];
+    state.latestSessionId = null;
+    syncLectureCards([]);
     state.studyIndex = 0;
+    state.anki.deck = '';
+    state.anki.setName = '';
+    state.anki.tags = '';
     setClassLabels('Human Anatomy', 'Fall 2023');
     renderSource();
     updateGenerationCount();
@@ -1242,20 +1869,18 @@
   function showClassLimit() {
     const dialog = document.querySelector('#classLimitDialog');
     const used = Math.max(1, accountClassUsage());
-    const limit = Math.max(1, Number(state.account.classLimit) || 1);
-    document.querySelector('#classLimitReadout').textContent = `${used} of ${limit} free class used`;
+    document.querySelector('#classLimitReadout').textContent = `${used} of ${betaClassLimit} beta class used`;
     dialog.showModal();
   }
 
   function startClassSetup() {
+    if (accountClassUsage() >= betaClassLimit) {
+      showClassLimit();
+      return;
+    }
     if (!state.account.signedIn) {
       state.pendingClassSetup = true;
       window.dispatchEvent(new CustomEvent('syllabloom:auth-request', { detail: { intent: 'create-class' } }));
-      return;
-    }
-    const limit = state.account.plan === 'student' ? Number.MAX_SAFE_INTEGER : Math.max(1, Number(state.account.classLimit) || 1);
-    if (accountClassUsage() >= limit) {
-      showClassLimit();
       return;
     }
     prepareNewClassSetup();
@@ -1379,6 +2004,12 @@
     state.view = view;
     document.querySelectorAll('.page').forEach(page => page.classList.toggle('active', page.id === view));
     document.querySelectorAll('.nav-button').forEach(button => button.classList.toggle('active', button.dataset.view === view));
+    document.querySelectorAll('.sidebar-action[data-view]').forEach(button => {
+      const active = button.dataset.view === view;
+      button.classList.toggle('active', active);
+      if (active) button.setAttribute('aria-current', 'page');
+      else button.removeAttribute('aria-current');
+    });
     const inClassContext = view === 'source' || view === 'knowledge';
     const inAccountContext = view === 'profile' || view === 'billing';
     document.querySelector('#classSwitcher').classList.toggle('active-context', inClassContext);
@@ -1486,6 +2117,7 @@
       front: document.querySelector('#frontText').value.trim(),
       back: document.querySelector('#backText').value.trim()
     };
+    persistCourseState();
     if (!silent) showToast('Changes saved');
   }
 
@@ -1537,6 +2169,7 @@
       id: `review-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       cardId: studyCardKey(item),
       rating,
+      activity: 'study',
       className: state.className,
       classTerm: state.classTerm,
       reviewedAt: new Date().toISOString()
@@ -1549,6 +2182,45 @@
     } catch (_) {
       return false;
     }
+  }
+
+  function assessmentCardReference(item) {
+    if (item.cardId) return { cardId: item.cardId, concept: item.concept || '', sourceName: item.sourceName || '' };
+    const record = records.find(candidate => candidate.muscle === item.sampleMuscle);
+    if (!record) return { cardId: `quick-check-${state.assessmentIndex}`, concept: '', sourceName: source.document };
+    return {
+      cardId: keyFor(record, item.sampleField || 'attachment'),
+      concept: record.section,
+      sourceName: source.document
+    };
+  }
+
+  function recordMissCount(cardId) {
+    if (!cardId) return;
+    state.missCounts[cardId] = (state.missCounts[cardId] || 0) + 1;
+    localStorage.setItem('syllabloom-miss-counts', JSON.stringify(state.missCounts));
+  }
+
+  function recordQuickCheckResponse(item, correct) {
+    const reference = assessmentCardReference(item);
+    state.reviewHistory.push({
+      id: `quick-check-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      cardId: reference.cardId,
+      concept: reference.concept,
+      sourceName: reference.sourceName,
+      rating: correct ? 'Good' : 'Again',
+      activity: 'quick-check',
+      className: state.className,
+      classTerm: state.classTerm,
+      reviewedAt: new Date().toISOString()
+    });
+    state.reviewHistory = state.reviewHistory.slice(-2000);
+    state.reviewCount = state.reviewHistory.length;
+    localStorage.setItem('syllabloom-review-history', JSON.stringify(state.reviewHistory));
+    if (!correct) recordMissCount(reference.cardId);
+    document.querySelector('#reviewCount').textContent = String(state.reviewCount);
+    if (!correct) renderClassPlanner();
+    else renderKnowledgeModel();
   }
 
   function resetRatingControls() {
@@ -1642,8 +2314,7 @@
   function showMissExplanation(item) {
     const details = studyCardExplanation(item);
     const key = studyCardKey(item);
-    state.missCounts[key] = (state.missCounts[key] || 0) + 1;
-    localStorage.setItem('syllabloom-miss-counts', JSON.stringify(state.missCounts));
+    recordMissCount(key);
     state.missedItem = item;
 
     document.querySelector('#missExplanationIntro').textContent = `You marked this ${details.label} card as missed. Here is the distinction to keep.`;
@@ -1656,6 +2327,7 @@
     const panel = document.querySelector('#missExplanation');
     panel.hidden = false;
     document.querySelector('#study .study-controls').classList.add('is-explaining');
+    renderClassPlanner();
     window.dispatchEvent(new CustomEvent('syllabloom:miss-explained', { detail: { count: state.missCounts[key] } }));
     window.requestAnimationFrame(() => {
       panel.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'nearest' });
@@ -1677,6 +2349,7 @@
     options.querySelectorAll('.answer-option').forEach(button => button.addEventListener('click', () => {
       const answer = Number(button.dataset.answer);
       const correct = answer === item.correct;
+      recordQuickCheckResponse(item, correct);
       if (correct) state.assessmentScore += 1;
       options.querySelector(`[data-answer="${item.correct}"]`)?.classList.add('correct-answer');
       if (!correct) button.classList.add('selected-wrong');
@@ -1692,7 +2365,10 @@
           return;
         }
         state.baselineScore = Math.round((state.assessmentScore / questions.length) * 100);
+        state.baselineAssessed = true;
+        persistCourseState();
         document.querySelector('#baselineScore').textContent = `${state.baselineScore}%`;
+        document.querySelector('#baselineScoreLabel').textContent = 'first quick-check score';
         const baselinePlan = state.assessmentScore === questions.length
           ? 'Your first session will begin with new material and use later misses to adjust the plan.'
           : state.assessmentScore === 0
@@ -1835,6 +2511,7 @@
   let libraryMediaId = null;
   let editingMediaId = null;
   let pendingRemoveMediaId = null;
+  let pendingRemoveCardId = null;
   let activeRecordingTitle = '';
   let lastTranscript = '';
   const MEDIA_DATABASE = 'syllabloom-media';
@@ -1972,11 +2649,27 @@
     document.querySelector('#mediaLibraryPlayer').hidden = false;
   }
 
+  function mediaStorageMessage() {
+    return state.account.signedIn
+      ? 'Saved for this account on this device only. Recordings do not sync across devices.'
+      : 'Saved on this device only. Sign in to separate your library by account.';
+  }
+
+  function updateMediaStorageCopy() {
+    const ownerCopy = document.querySelector('#captureOwnerCopy');
+    if (ownerCopy) ownerCopy.textContent = state.account.signedIn
+      ? 'Per-user device library · no cloud media sync'
+      : 'Local device library · sign in to separate by account';
+    const safety = document.querySelector('#recordingSafety');
+    if (safety && (!mediaRecorder || mediaRecorder.state === 'inactive')) safety.textContent = mediaStorageMessage();
+  }
+
   async function renderMediaLibrary() {
     const list = document.querySelector('#mediaLibraryList');
     const label = document.querySelector('#mediaOwnerLabel');
     const summary = document.querySelector('#mediaStorageSummary');
     if (!list || !label || !summary) return;
+    updateMediaStorageCopy();
     label.textContent = state.account.signedIn
       ? (state.account.email || 'Signed-in account')
       : 'This browser';
@@ -2057,6 +2750,43 @@
     const dialog = document.querySelector('#removeLectureDialog');
     pendingRemoveMediaId = null;
     if (dialog.open) dialog.close();
+  }
+
+  function openRemoveCardDialog(card) {
+    pendingRemoveCardId = card.id;
+    document.querySelector('#removeCardPreview').textContent = card.front;
+    const dialog = document.querySelector('#removeCardDialog');
+    if (!dialog.open) dialog.showModal();
+    window.requestAnimationFrame(() => document.querySelector('#cancelRemoveCard')?.focus());
+  }
+
+  function closeRemoveCardDialog() {
+    pendingRemoveCardId = null;
+    const dialog = document.querySelector('#removeCardDialog');
+    if (dialog.open) dialog.close();
+  }
+
+  function removeLectureCard(id) {
+    const card = state.lectureCards.find(item => item.id === id);
+    if (!card) return false;
+    const key = card.sourceKey || lectureCardKey(card);
+    const updatedSet = window.SyllabloomCardSet.removeCardFromSet(state.lectureCards, state.sources, card);
+    state.lectureCards = updatedSet.cards;
+    state.sources = updatedSet.sources;
+    if (card.sourceId) persistClassSources();
+    saveLectureReview(card.sourceId ? [] : [key]);
+    renderSource();
+    updateGenerationCount();
+    updateReviewSurface();
+    renderLectureDraftQueue();
+    renderStudy();
+    updateAssessmentIntro();
+    renderSourceStudyOutput();
+    window.requestAnimationFrame(() => {
+      (document.querySelector('#lectureDraftQueue [data-lecture-action="delete"]')
+        || document.querySelector('#ankiExportHeading'))?.focus();
+    });
+    return true;
   }
 
   function defaultRecordingTitle() {
@@ -2151,7 +2881,7 @@
   }
 
   function lectureCardKey(card) {
-    return `${card.front || ''}::${card.section || ''}`;
+    return window.SyllabloomCardSet.cardKey(card);
   }
 
   function autoSizeTextArea(field) {
@@ -2169,21 +2899,36 @@
     }
   }
 
-  function saveLectureReview() {
+  function saveLectureReview(deletedKeys = []) {
     if (!state.latestSessionId) return;
-    const review = state.lectureCards.map(card => ({
+    const reviewByKey = new Map(state.lectureCards.map(card => [card.sourceKey || lectureCardKey(card), {
       key: card.sourceKey || lectureCardKey(card),
       front: card.front,
       back: card.back,
       reviewStatus: card.reviewStatus
-    }));
-    localStorage.setItem(`rounds-review-${state.latestSessionId}`, JSON.stringify(review));
+    }]));
+    const tombstones = new Map(savedLectureReview()
+      .filter(card => card.reviewStatus === 'deleted')
+      .map(card => [card.key, { key: card.key, reviewStatus: 'deleted' }]));
+    deletedKeys.forEach(key => tombstones.set(key, { key, reviewStatus: 'deleted' }));
+    tombstones.forEach((entry, key) => {
+      if (!reviewByKey.has(key)) reviewByKey.set(key, entry);
+    });
+    localStorage.setItem(`rounds-review-${state.latestSessionId}`, JSON.stringify([...reviewByKey.values()]));
   }
 
   function syncLectureCards(cards = []) {
     const prior = new Map(state.lectureCards.map(card => [card.sourceKey || lectureCardKey(card), card]));
-    savedLectureReview().forEach(card => prior.set(card.key, card));
-    state.lectureCards = cards.map((card, index) => {
+    const savedReview = savedLectureReview();
+    const deletedSessionKeys = new Set(savedReview.filter(card => card.reviewStatus === 'deleted').map(card => card.key));
+    savedReview.filter(card => card.reviewStatus !== 'deleted').forEach(card => prior.set(card.key, card));
+    state.lectureCards = cards.filter(card => {
+      if (card.sourceId) {
+        const sourceItem = state.sources.find(item => item.id === card.sourceId);
+        return !(sourceItem?.deletedCardKeys || []).includes(lectureCardKey(card));
+      }
+      return !deletedSessionKeys.has(lectureCardKey(card));
+    }).map((card, index) => {
       const existing = prior.get(lectureCardKey(card));
       return {
         ...card,
@@ -2208,6 +2953,9 @@
     const total = state.lectureCards.length;
     const waiting = state.lectureCards.filter(card => card.reviewStatus === 'waiting').length;
     const approved = collectApprovedCards().length;
+    document.querySelector('#reviewPageTitle').textContent = total || approved
+      ? 'Your cards are ready.'
+      : 'Your cards will appear here.';
     document.querySelector('#reviewEmpty').hidden = total > 0 || approved > 0;
     const exportButton = document.querySelector('#exportAnki');
     const studyButton = document.querySelector('#studyAccepted');
@@ -2243,7 +2991,8 @@
     section.hidden = false;
     const waiting = state.lectureCards.filter(card => card.reviewStatus === 'waiting').length;
     const approved = state.lectureCards.filter(card => card.reviewStatus === 'approved').length;
-    document.querySelector('#lectureDraftCount').textContent = `${approved} ready${waiting ? ` · ${waiting} need a check` : ''}`;
+    const skipped = state.lectureCards.filter(card => card.reviewStatus === 'skipped').length;
+    document.querySelector('#lectureDraftCount').textContent = `${state.lectureCards.length} in set · ${approved} ready${waiting ? ` · ${waiting} to check` : ''}${skipped ? ` · ${skipped} left out` : ''}`;
     const statusOrder = { waiting: 0, approved: 1, skipped: 2 };
     const orderedCards = [...state.lectureCards].sort((left, right) => statusOrder[left.reviewStatus] - statusOrder[right.reviewStatus]);
     queue.innerHTML = orderedCards.map((card, index) => `
@@ -2256,6 +3005,7 @@
         <div class="lecture-draft-actions">
           <button class="button primary" data-lecture-action="approve">${card.reviewStatus === 'approved' ? 'Ready' : 'Add to ready set'}</button>
           <button class="button" data-lecture-action="skip">${card.reviewStatus === 'skipped' ? 'Left out' : 'Leave out'}</button>
+          <button class="button lecture-card-delete" type="button" data-lecture-action="delete" aria-label="Remove card: ${escapeHtml(card.front)}">Delete card</button>
         </div>
       </article>
     `).join('');
@@ -2415,7 +3165,7 @@
       document.querySelector('#transcriptContent').innerHTML = `<div class="transcript-error media-saved-message"><strong>${storageError ? 'The media is available only in this preview.' : 'Your lecture is saved.'}</strong><span>${storageError ? escapeHtml(storageError.message) : 'Play it from your lecture library anytime. Automatic transcription and card drafting are coming next for the hosted beta.'}</span></div>`;
       document.querySelector('#recordingSafety').textContent = storageError
         ? 'Could not save this file on this device'
-        : 'Saved under your account on this device';
+        : mediaStorageMessage();
       if (!storageError) showToast('Lecture saved to your library');
       setAudioBusy(false);
       return;
@@ -2504,7 +3254,9 @@
   }
 
   function sourceMeta(sourceItem) {
-    const units = `${Number(sourceItem.unitCount || 0).toLocaleString()} ${sourceItem.unitLabel || 'items'}`;
+    const units = sourceItem.kind === 'syllabus'
+      ? `${Number(sourceItem.calendarEvents?.length || 0).toLocaleString()} calendar dates`
+      : `${Number(sourceItem.unitCount || 0).toLocaleString()} ${sourceItem.unitLabel || 'items'}`;
     const words = `${Number(sourceItem.wordCount || 0).toLocaleString()} words`;
     const objectives = sourceItem.objectiveCount ? ` · ${sourceItem.objectiveCount} objective cues` : '';
     const concepts = sourceItem.concepts?.length ? ` · ${sourceItem.concepts.length} concepts` : '';
@@ -2515,7 +3267,13 @@
       : sourceItem.storage === 'session'
         ? 'cards saved in this browser; original file not stored'
         : 'saved in this browser';
-    return `${sourceItem.kind} · ${units} · ${words}${objectives}${concepts}${notes}${drafts} · ${processing}`;
+    const classification = sourceItem.classificationReason && sourceItem.classificationReason !== 'Manually selected'
+      ? ` · ${sourceItem.classificationReason}`
+      : '';
+    const calendarWarnings = sourceItem.calendarWarnings?.length
+      ? ` · ${sourceItem.calendarWarnings.length} schedule date group${sourceItem.calendarWarnings.length === 1 ? '' : 's'} held back; year unclear`
+      : '';
+    return `${sourceItem.kind} · ${units} · ${words}${objectives}${concepts}${notes}${drafts}${classification}${calendarWarnings} · ${processing}`;
   }
 
   function persistClassSources() {
@@ -2523,7 +3281,7 @@
   }
 
   function activeSyllabus() {
-    return state.sources.find(item => item.kind === 'syllabus') || (state.useDemoSyllabus ? demoSyllabusSource : null);
+    return [...state.sources].reverse().find(item => item.kind === 'syllabus') || (state.useDemoSyllabus ? demoSyllabusSource : null);
   }
 
   function classMaterials() {
@@ -2531,17 +3289,17 @@
     return state.includeSampleMaterial ? [sampleMaterialSource, ...uploaded] : uploaded;
   }
 
-  function sourceRow(sourceItem, options = {}) {
-    const status = sourceItem.sample ? 'Example' : (sourceItem.draftCards?.length ? `${sourceItem.draftCards.length} cards` : 'Parsed');
-    const replace = options.syllabus
-      ? '<label for="syllabusInput" class="button" role="button" tabindex="0">Replace</label>'
-      : '';
+  function sourceRow(sourceItem) {
+    const status = sourceItem.sample
+      ? 'Example'
+      : sourceItem.kind === 'syllabus'
+        ? `${sourceItem.calendarEvents?.length || 0} dates`
+        : (sourceItem.draftCards?.length ? `${sourceItem.draftCards.length} cards` : 'Parsed');
     return `
       <div class="surface file-row" data-source-id="${escapeHtml(sourceItem.id)}">
-        <div><strong${options.syllabus ? ' id="syllabusName"' : ''}>${escapeHtml(sourceItem.name)}</strong><span${options.syllabus ? ' id="syllabusMeta"' : ''}>${escapeHtml(sourceMeta(sourceItem))}</span></div>
+        <div><strong>${escapeHtml(sourceItem.name)}</strong><span>${escapeHtml(sourceMeta(sourceItem))}</span></div>
         <div class="actions">
-          <span${options.syllabus ? ' id="syllabusStatus"' : ''} class="status">${escapeHtml(status)}</span>
-          ${replace}
+          <span class="status">${escapeHtml(status)}</span>
           <button class="button source-remove" type="button" data-remove-source="${escapeHtml(sourceItem.id)}">Remove</button>
         </div>
       </div>`;
@@ -2566,10 +3324,11 @@
 
   function renderStoredSources() {
     const library = document.querySelector('#sourceLibrary');
-    const syllabus = activeSyllabus();
+    const syllabi = state.sources.filter(item => item.kind === 'syllabus');
     const materials = classMaterials();
     const rows = [];
-    if (syllabus) rows.push(sourceRow(syllabus, { syllabus: true }));
+    if (syllabi.length) syllabi.forEach(item => rows.push(sourceRow(item)));
+    else if (state.useDemoSyllabus) rows.push(sourceRow(demoSyllabusSource));
     materials.forEach(item => rows.push(sourceRow(item)));
     library.innerHTML = rows.length
       ? rows.join('')
@@ -2616,11 +3375,17 @@
       state.includeSampleMaterial = false;
       state.statuses = {};
       state.edits = {};
+      state.baselineScore = 0;
+      state.baselineAssessed = false;
     } else {
       const removed = state.sources.find(item => item.id === sourceId);
       state.sources = state.sources.filter(item => item.id !== sourceId);
       state.lectureCards = state.lectureCards.filter(card => card.sourceId !== sourceId);
-      if (removed?.kind === 'syllabus') state.syllabusName = 'No syllabus added';
+      if (removed?.kind === 'syllabus') {
+        state.syllabusName = activeSyllabus()?.name || 'No syllabus added';
+        state.calendarEvents = state.calendarEvents.filter(event => event.sourceId !== sourceId);
+        localStorage.setItem('syllabloom-calendar-events', JSON.stringify(state.calendarEvents));
+      }
     }
     persistClassSources();
     persistClassProfile();
@@ -2633,10 +3398,7 @@
   }
 
   function sourceCardsFromLibrary() {
-    return state.sources.flatMap(sourceItem => (sourceItem.draftCards || []).map(card => ({
-      ...card,
-      sourceId: sourceItem.id
-    })));
+    return window.SyllabloomCardSet.sourceCards(state.sources);
   }
 
   async function loadStoredSources() {
@@ -2656,6 +3418,7 @@
         if (!state.anki.tags || state.anki.tags === 'human-anatomy::fall-2023') state.anki.tags = classTag(inferredClassName);
         state.calendarEvents = [];
         state.baselineScore = 0;
+        state.baselineAssessed = false;
         localStorage.setItem('syllabloom-calendar-events', JSON.stringify(state.calendarEvents));
         localStorage.setItem('syllabloom-anki-preferences', JSON.stringify(state.anki));
         syncAnkiFormFromState();
@@ -2671,20 +3434,200 @@
     updateAssessmentIntro();
   }
 
-  async function uploadSource(file, kind = 'material') {
+  function renderSourceQueue() {
+    const queue = document.querySelector('#sourceQueue');
+    const list = document.querySelector('#sourceQueueList');
+    const addButton = document.querySelector('#sourceQueueAdd');
+    const progress = document.querySelector('#sourceQueueProgress');
+    const clearButton = document.querySelector('#sourceQueueClear');
+    const uploadInput = document.querySelector('#sourceUpload');
+    const uploadLabel = document.querySelector('#sourceUploadLabel');
+    const defaultTypeTrigger = document.querySelector('#sourceKindTrigger');
+    const feedback = document.querySelector('#sourceBatchFeedback');
+    if (!queue || !list || !addButton || !progress) return;
+
+    queue.hidden = sourceQueueItems.length === 0;
+    feedback.hidden = !sourceBatchFeedback;
+    feedback.textContent = sourceBatchFeedback;
+    uploadInput.disabled = sourceBatchRunning;
+    uploadLabel.classList.toggle('disabled', sourceBatchRunning);
+    uploadLabel.setAttribute('aria-disabled', sourceBatchRunning ? 'true' : 'false');
+    uploadLabel.textContent = sourceBatchRunning
+      ? 'Adding documents…'
+      : sourceQueueItems.length ? 'Choose more documents' : 'Choose documents';
+    defaultTypeTrigger.disabled = sourceBatchRunning;
+    clearButton.disabled = sourceBatchRunning;
+
+    if (!sourceQueueItems.length) {
+      list.innerHTML = '';
+      addButton.disabled = true;
+      addButton.textContent = 'Add documents';
+      progress.textContent = 'Review the file types, then add them together.';
+      return;
+    }
+
+    list.innerHTML = sourceQueueItems.map(item => {
+      const statusLabel = item.status === 'processing'
+        ? 'Reading'
+        : item.status === 'done'
+          ? 'Added'
+          : item.status === 'failed'
+            ? item.retryable ? 'Needs retry' : 'Check file'
+            : 'Ready';
+      const statusClass = item.status === 'failed'
+        ? 'is-error'
+        : item.status === 'done'
+          ? 'is-done'
+          : item.status === 'processing' ? 'is-processing' : '';
+      const options = [
+        ['auto', 'Auto-detect'],
+        ['material', 'Class material'],
+        ['syllabus', 'Syllabus'],
+        ['assessment', 'Past assessment']
+      ];
+      const optionMarkup = options.map(([value, title]) =>
+        '<option value="' + value + '"' + (item.kind === value ? ' selected' : '') + '>' + title + '</option>'
+      ).join('');
+      const menuMarkup = options.map(([value, title]) =>
+        '<button class="source-kind-option" type="button" role="option" data-select-value="' + value + '" aria-selected="' + (item.kind === value ? 'true' : 'false') + '">' + title + '</button>'
+      ).join('');
+      const menuId = 'source-type-menu-' + item.id;
+      return `
+        <article class="source-queue-row ${statusClass}" data-source-queue-id="${escapeHtml(item.id)}">
+          <div class="source-queue-file">
+            <span class="source-queue-file-icon" aria-hidden="true">▤</span>
+            <div><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(formatFileSize(item.size))}</span></div>
+          </div>
+          <div class="source-queue-kind">
+            <span class="source-queue-kind-label">Document type</span>
+            <div class="source-kind-picker source-queue-kind-picker" data-themed-select-picker>
+              <select class="source-kind-native" data-source-queue-kind="${escapeHtml(item.id)}" aria-hidden="true" tabindex="-1">${optionMarkup}</select>
+              <button class="source-kind-trigger" type="button" aria-label="Document type for ${escapeHtml(item.name)}" aria-haspopup="listbox" aria-expanded="false" aria-controls="${menuId}" ${sourceBatchRunning ? 'disabled' : ''}>
+                <span data-select-current>${escapeHtml(options.find(option => option[0] === item.kind)?.[1] || 'Auto-detect')}</span>
+                <span class="source-kind-trigger-arrow" aria-hidden="true"></span>
+              </button>
+              <div id="${menuId}" class="source-kind-menu" role="listbox" aria-label="Document type for ${escapeHtml(item.name)}" popover="auto">${menuMarkup}</div>
+            </div>
+          </div>
+          <div class="source-queue-state">
+            <span class="source-queue-status ${statusClass}">${statusLabel}</span>
+            ${item.error ? '<small>' + escapeHtml(item.error) + '</small>' : ''}
+          </div>
+          <button class="source-queue-remove" type="button" data-remove-queued-source="${escapeHtml(item.id)}" aria-label="Remove ${escapeHtml(item.name)} from this batch" ${sourceBatchRunning ? 'disabled' : ''}>×</button>
+        </article>`;
+    }).join('');
+
+    const processable = sourceQueueItems.filter(item =>
+      item.status === 'queued' || (item.status === 'failed' && item.retryable)
+    );
+    addButton.disabled = sourceBatchRunning || processable.length === 0;
+    addButton.textContent = sourceBatchRunning
+      ? 'Adding documents…'
+      : sourceQueueItems.some(item => item.status === 'queued')
+        ? 'Add ' + processable.length + (processable.length === 1 ? ' document' : ' documents')
+        : processable.length === 1 ? 'Retry failed document' : 'Retry failed documents';
+
+    const current = sourceQueueItems.find(item => item.status === 'processing');
+    if (sourceBatchRunning && current && sourceBatchProgress) {
+      progress.textContent = 'Reading ' + sourceBatchProgress.current + ' of ' + sourceBatchProgress.total + ' · ' + current.name;
+    } else if (processable.length) {
+      progress.textContent = processable.length + ' ready. One unreadable file will not stop the others.';
+    } else {
+      progress.textContent = 'Remove or replace the marked files before adding this batch.';
+    }
+    initializeThemedSelectPickers();
+  }
+
+  function queueSourceFiles(files) {
+    const selected = window.SyllabloomSourceBatch.createQueueItems(
+      files,
+      document.querySelector('#sourceKind').value
+    );
+    sourceQueueItems = [...sourceQueueItems, ...selected];
+    sourceBatchFeedback = '';
+    renderSourceQueue();
+    if (selected.length) {
+      showToast(selected.length === 1
+        ? '1 document added to the import list'
+        : selected.length + ' documents added to the import list');
+    }
+  }
+
+  async function addQueuedSources() {
+    if (sourceBatchRunning) return;
+    const processable = sourceQueueItems.some(item =>
+      item.status === 'queued' || (item.status === 'failed' && item.retryable)
+    );
+    if (!processable) return;
+
+    sourceBatchRunning = true;
+    sourceBatchProgress = null;
+    sourceBatchFeedback = '';
+    renderSourceQueue();
+    const result = await window.SyllabloomSourceBatch.processQueue(
+      sourceQueueItems,
+      item => uploadSource(item.file, item.kind, { silent: true, manageButton: false }),
+      (item, details) => {
+        if (item.status === 'processing') {
+          sourceBatchProgress = { current: details.index + 1, total: details.total };
+        }
+        renderSourceQueue();
+      }
+    );
+
+    const completed = sourceQueueItems.filter(item => item.status === 'done');
+    const remainingItems = sourceQueueItems.filter(item => item.status !== 'done');
+    const cardCount = completed.reduce((total, item) => total + (item.result?.draftCards?.length || 0), 0);
+    const noteCount = completed.reduce((total, item) => total + (item.result?.notes?.length || 0), 0);
+    const calendarCount = completed.reduce((total, item) => total + (item.result?.calendarEvents?.length || 0), 0);
+    const calendarWarningCount = completed.reduce((total, item) => total + (item.result?.calendarWarnings?.length || 0), 0);
+    const contentDocumentCount = completed.filter(item => item.result?.kind !== 'syllabus').length;
+    sourceQueueItems = remainingItems;
+    sourceBatchRunning = false;
+    sourceBatchProgress = null;
+    const remaining = sourceQueueItems.length;
+    const feedbackParts = [];
+    if (completed.length) feedbackParts.push(completed.length + ' document' + (completed.length === 1 ? '' : 's') + ' added');
+    if (cardCount) feedbackParts.push(cardCount + ' source-based card' + (cardCount === 1 ? '' : 's') + ' ready');
+    if (noteCount) feedbackParts.push(noteCount + ' note section' + (noteCount === 1 ? '' : 's') + ' added');
+    if (calendarCount) feedbackParts.push(calendarCount + ' syllabus date' + (calendarCount === 1 ? '' : 's') + ' added to Calendar');
+    if (calendarWarningCount) feedbackParts.push(calendarWarningCount + ' calendar note' + (calendarWarningCount === 1 ? '' : 's') + ' need review');
+    if (contentDocumentCount && !cardCount) feedbackParts.push('No study cards were generated; check the document type or selectable text');
+    else if (completed.length) feedbackParts.push('Review the imported content in Materials and Review');
+    if (remaining) feedbackParts.push(remaining + ' document' + (remaining === 1 ? '' : 's') + ' still need attention');
+    sourceBatchFeedback = feedbackParts.length ? feedbackParts.join(' · ') + '.' : '';
+    renderSourceQueue();
+    showToast(remaining
+      ? remaining + ' document' + (remaining === 1 ? '' : 's') + ' need attention'
+      : result.succeeded + ' document' + (result.succeeded === 1 ? '' : 's') + ' added');
+  }
+
+  async function uploadSource(file, kind = 'auto', options = {}) {
     const label = document.querySelector('#sourceUploadLabel');
     const priorText = label.textContent;
-    label.textContent = 'Reading source…';
-    label.classList.add('disabled');
+    const manageButton = options.manageButton !== false;
+    if (manageButton) {
+      label.textContent = 'Reading source…';
+      label.classList.add('disabled');
+    }
     try {
+      const token = await window.SyllabloomAuth?.getToken?.();
+      const isLocalDevelopment = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+      if (!token && !isLocalDevelopment) throw new Error('Sign in before adding course materials.');
       const body = new FormData();
       body.append('source', file, file.name);
       body.append('kind', kind);
-      const response = await fetch('/api/source', { method: 'POST', body });
+      const response = await fetch('/api/source', {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body
+      });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'The document could not be read');
-      if (kind === 'syllabus') {
-        state.sources = state.sources.filter(item => item.kind !== 'syllabus');
+      const detectedKind = payload.source.kind || kind;
+      const previousSource = state.sources.find(item => item.id === payload.source.id);
+      payload.source = window.SyllabloomCardSet.mergeSource(previousSource, payload.source);
+      if (detectedKind === 'syllabus') {
         state.useDemoSyllabus = false;
         state.syllabusName = payload.source.name;
       }
@@ -2693,22 +3636,44 @@
       state.includeSampleMaterial = false;
       state.classMode = 'custom';
       state.useDemoSyllabus = false;
-      if (kind !== 'syllabus' && !state.sources.some(item => item.kind === 'syllabus')) state.syllabusName = 'No syllabus added';
+      if (detectedKind !== 'syllabus' && !state.sources.some(item => item.kind === 'syllabus')) state.syllabusName = 'No syllabus added';
       if (wasUsingSample) {
         state.statuses = {};
         state.edits = {};
         state.baselineScore = 0;
+        state.baselineAssessed = false;
         state.calendarEvents = [];
         localStorage.setItem('syllabloom-calendar-events', JSON.stringify(state.calendarEvents));
       }
       if (wasSampleClass) {
-        const inferredClassName = lectureName(file.name) || 'Untitled class';
-        setClassLabels(inferredClassName, 'Term not set');
+        const inferredClassName = payload.source.courseName || lectureName(file.name) || 'Untitled class';
+        const inferredTerm = payload.source.term || 'Term not set';
+        setClassLabels(inferredClassName, inferredTerm);
         state.anki.deck = inferredClassName;
         state.anki.setName = '';
         state.anki.tags = classTag(inferredClassName);
         localStorage.setItem('syllabloom-anki-preferences', JSON.stringify(state.anki));
         syncAnkiFormFromState();
+      }
+      if (detectedKind === 'syllabus') {
+        if (payload.source.courseName) setClassLabels(payload.source.courseName, payload.source.term || state.classTerm);
+        state.calendarEvents = state.calendarEvents.filter(event => event.sourceId !== payload.source.id);
+        const combinedEvents = [...state.calendarEvents, ...(payload.source.calendarEvents || [])];
+        state.calendarEvents = [...new Map(combinedEvents.map(event => [event.id, event])).values()];
+        localStorage.setItem('syllabloom-calendar-events', JSON.stringify(state.calendarEvents));
+        if (payload.source.calendarEvents?.length) {
+          const cursorYear = state.calendarCursor.getFullYear();
+          const cursorMonth = state.calendarCursor.getMonth();
+          const hasDatesInVisibleMonth = payload.source.calendarEvents.some(event => {
+            const eventDate = new Date(`${event.date}T12:00:00`);
+            return eventDate.getFullYear() === cursorYear && eventDate.getMonth() === cursorMonth;
+          });
+          const nearestFuture = payload.source.calendarEvents.find(event => event.date >= localIsoDate(new Date()));
+          if (!hasDatesInVisibleMonth && nearestFuture) {
+            const eventDate = new Date(`${nearestFuture.date}T12:00:00`);
+            state.calendarCursor = new Date(eventDate.getFullYear(), eventDate.getMonth(), 1, 12);
+          }
+        }
       }
       state.sources = state.sources.filter(item => item.id !== payload.source.id);
       state.sources.push(payload.source);
@@ -2728,17 +3693,33 @@
       updateReviewSurface();
       renderStudy();
       updateAssessmentIntro();
-      renderSourceStudyOutput(payload.source);
-      showToast(sourceCards.length
-        ? `${file.name} · ${sourceCards.length} cards and ${(payload.source.notes || []).length} note sections ready`
-        : `${file.name} was read, but it did not contain enough study text`);
+      renderSourceStudyOutput(detectedKind === 'syllabus' ? null : payload.source);
+      if (detectedKind === 'syllabus') {
+        const dateCount = payload.source.calendarEvents?.length || 0;
+        const hasYearWarning = (payload.source.calendarWarnings || []).length > 0;
+        if (!options.silent) {
+          showToast(dateCount
+            ? `${dateCount} syllabus dates added to Calendar${hasYearWarning ? '; dates with unclear years were left out' : ''}`
+            : hasYearWarning
+              ? `${file.name} read; dates need a clear calendar year before import`
+              : `${file.name} read · no clear dated schedule rows found`);
+        }
+      } else {
+        if (!options.silent) {
+          showToast(sourceCards.length
+            ? `${file.name} · ${sourceCards.length} cards and ${(payload.source.notes || []).length} note sections ready`
+            : `${file.name} was read, but it did not contain enough study text`);
+        }
+      }
       return payload.source;
     } catch (error) {
-      showToast(error.message);
+      if (!options.silent) showToast(error.message);
       throw error;
     } finally {
-      label.textContent = priorText;
-      label.classList.remove('disabled');
+      if (manageButton) {
+        label.textContent = priorText;
+        label.classList.remove('disabled');
+      }
     }
   }
 
@@ -2806,7 +3787,7 @@
       document.querySelector('#recordingPill').classList.remove('paused');
       document.querySelector('#mobileRecordingPill').classList.remove('paused');
       document.querySelector('.mobile-class-button').hidden = false;
-      document.querySelector('#recordingSafety').textContent = 'Saved under your account on this device';
+      updateMediaStorageCopy();
       if (recordingWakeLock) {
         await recordingWakeLock.release().catch(() => {});
         recordingWakeLock = null;
@@ -2874,8 +3855,8 @@
       drawLiveWaveform(microphoneStream);
       await requestRecordingWakeLock();
       document.querySelector('#recordingSafety').textContent = recordingWakeLock
-        ? 'Recording to your device library · screen kept awake'
-        : 'Recording to your device library · keep this screen open';
+        ? 'Recording on this device · screen kept awake'
+        : 'Recording on this device · keep this screen open';
     } catch (error) {
       activeRecordingTitle = '';
       titleInput.disabled = false;
@@ -3009,8 +3990,36 @@
     state.calendarCursor = new Date();
     renderClassPlanner();
   });
+  document.querySelector('#showFederalHolidays').addEventListener('change', event => {
+    state.showFederalHolidays = event.currentTarget.checked;
+    localStorage.setItem('syllabloom-show-federal-holidays', String(state.showFederalHolidays));
+    renderClassPlanner();
+  });
+  document.querySelector('#importSchedulePhoto').addEventListener('click', () => document.querySelector('#calendarSchedulePhotoInput').click());
+  document.querySelector('#calendarSchedulePhotoInput').addEventListener('change', async event => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = '';
+    if (!file) return;
+    await importCalendarSchedulePhoto(file);
+  });
+  document.querySelector('#closeCalendarScheduleImport').addEventListener('click', () => document.querySelector('#calendarScheduleImportDialog').close());
+  document.querySelector('#cancelCalendarScheduleImport').addEventListener('click', () => document.querySelector('#calendarScheduleImportDialog').close());
+  document.querySelector('#calendarScheduleImportDialog').addEventListener('close', () => {
+    calendarImportOcrText = '';
+    document.querySelector('#calendarScheduleImportCandidates').replaceChildren();
+  });
+  document.querySelector('#calendarScheduleImportYear').addEventListener('change', () => {
+    if (calendarImportOcrText) renderCalendarImportCandidates(calendarImportOcrText);
+  });
+  document.querySelector('#calendarScheduleImportCandidates').addEventListener('change', updateCalendarImportSaveButton);
+  document.querySelector('#calendarScheduleImportCandidates').addEventListener('input', updateCalendarImportSaveButton);
+  document.querySelector('#calendarScheduleImportForm').addEventListener('submit', event => {
+    event.preventDefault();
+    saveCalendarImportCandidates();
+  });
   document.querySelector('#dailyStudyMinutes').addEventListener('input', event => {
     state.dailyStudyMinutes = Math.min(240, Math.max(10, Number(event.target.value) || 35));
+    persistCourseState();
     renderClassPlanner();
   });
   document.querySelector('#releaseStrategy').addEventListener('change', event => {
@@ -3040,7 +4049,6 @@
     state.account.displayName = detail.displayName || '';
     state.account.imageUrl = detail.imageUrl || '';
     if (state.account.signedIn && state.account.userId) {
-      if (!classProfileOwnerId && !cachedAccountUserId) classProfileOwnerId = state.account.userId;
       const usageByUser = storedJson('syllabloom-class-usage-by-user', {});
       const hasScopedUsage = Object.prototype.hasOwnProperty.call(usageByUser, state.account.userId);
       const canUseActiveProfile = !classProfileOwnerId || classProfileOwnerId === state.account.userId;
@@ -3054,9 +4062,8 @@
       } else {
         state.account.classesUsed = 0;
       }
-      if (!cachedAccountUserId && classProfileOwnerId === state.account.userId) persistClassProfile();
     }
-    state.account.plan = detail.plan === 'student' ? 'student' : 'free';
+    state.account.plan = 'free';
     updateMarketingStartLabels();
     saveAccount();
     closeMediaPreview();
@@ -3073,26 +4080,18 @@
       state.pendingClassSetup = false;
       window.setTimeout(startClassSetup, 0);
     }
+    if (state.account.signedIn && state.account.userId) {
+      initializeCloudWorkspace(state.account.userId);
+    } else {
+      cloudSyncUserId = '';
+      cloudSyncReady = false;
+      cloudSyncDirty = false;
+      window.clearTimeout(cloudSyncTimer);
+      window.clearInterval(cloudSyncPollTimer);
+    }
   });
   document.querySelector('#manageClerkProfile').addEventListener('click', () => window.SyllabloomAuth?.openClerkProfile?.());
   document.querySelector('#billingManageAccount').addEventListener('click', () => window.SyllabloomAuth?.openClerkProfile?.());
-  document.querySelector('#billingSetupPending').addEventListener('click', () => {
-    if (!state.account.signedIn) return window.SyllabloomAuth?.open?.();
-    const button = document.querySelector('#billingSetupPending');
-    if (button.dataset.checkoutReady === 'true') {
-      const dialog = document.querySelector('#billingCheckoutDialog');
-      if (!dialog.open) dialog.showModal();
-      return;
-    }
-    showToast('The beta is free. Live Student billing is not open yet.');
-  });
-  document.querySelectorAll('[data-close-billing-checkout]').forEach(button => button.addEventListener('click', () => {
-    const dialog = document.querySelector('#billingCheckoutDialog');
-    if (dialog.open) dialog.close();
-  }));
-  document.querySelector('#billingCheckoutDialog').addEventListener('click', event => {
-    if (event.target === event.currentTarget) event.currentTarget.close();
-  });
   document.querySelector('[data-profile-add-class]').addEventListener('click', startClassSetup);
   document.querySelector('#profileClassList').addEventListener('click', event => {
     if (event.target.closest('[data-open-current-class]')) navigate('home');
@@ -3250,7 +4249,7 @@
   document.querySelector('#onboardingMaterials').addEventListener('change', async event => {
     const files = [...event.target.files];
     for (const file of files) {
-      await uploadSource(file, 'material').catch(() => {});
+      await uploadSource(file, 'auto').catch(() => {});
     }
     event.target.value = '';
   });
@@ -3314,23 +4313,33 @@
   }));
 
   initializeSourceKindPicker();
-
-  document.querySelector('#syllabusInput').addEventListener('change', async event => {
-    const file = event.target.files[0];
-    if (!file) return;
-    try {
-      await uploadSource(file, 'syllabus');
-    } catch (_) {
-      showToast('Could not parse this syllabus');
-    }
-    event.target.value = '';
-  });
+  initializeThemedSelectPickers();
 
   document.querySelector('#sourceUpload').addEventListener('change', async event => {
-    const file = event.target.files[0];
-    if (!file) return;
-    await uploadSource(file, document.querySelector('#sourceKind').value).catch(() => {});
+    const files = [...(event.target.files || [])];
     event.target.value = '';
+    if (files.length) queueSourceFiles(files);
+  });
+  document.querySelector('#sourceQueueList').addEventListener('change', event => {
+    const select = event.target.closest('[data-source-queue-kind]');
+    if (!select || sourceBatchRunning) return;
+    const item = sourceQueueItems.find(entry => entry.id === select.dataset.sourceQueueKind);
+    if (item) item.kind = select.value;
+  });
+  document.querySelector('#sourceQueueList').addEventListener('click', event => {
+    const removeButton = event.target.closest('[data-remove-queued-source]');
+    if (!removeButton || sourceBatchRunning) return;
+    const item = sourceQueueItems.find(entry => entry.id === removeButton.dataset.removeQueuedSource);
+    sourceQueueItems = sourceQueueItems.filter(entry => entry.id !== removeButton.dataset.removeQueuedSource);
+    sourceBatchFeedback = item ? item.name + ' removed from the import list.' : '';
+    renderSourceQueue();
+  });
+  document.querySelector('#sourceQueueAdd').addEventListener('click', addQueuedSources);
+  document.querySelector('#sourceQueueClear').addEventListener('click', () => {
+    if (sourceBatchRunning) return;
+    sourceQueueItems = [];
+    sourceBatchFeedback = '';
+    renderSourceQueue();
   });
 
   document.querySelector('#lectureDraftQueue').addEventListener('input', event => {
@@ -3345,15 +4354,39 @@
     }
   });
   document.querySelector('#lectureDraftQueue').addEventListener('click', event => {
-    const action = event.target.dataset.lectureAction;
+    const actionButton = event.target.closest('[data-lecture-action]');
+    const action = actionButton?.dataset.lectureAction;
     if (!action) return;
     const cardElement = event.target.closest('[data-lecture-card]');
     const card = state.lectureCards.find(item => item.id === cardElement?.dataset.lectureCard);
     if (!card) return;
+    if (action === 'delete') {
+      openRemoveCardDialog(card);
+      return;
+    }
     card.reviewStatus = action === 'approve' ? 'approved' : 'skipped';
     saveLectureReview();
     renderLectureDraftQueue();
     showToast(action === 'approve' ? 'Card added to the ready set' : 'Card left out');
+  });
+  document.querySelectorAll('[data-cancel-remove-card]').forEach(button => button.addEventListener('click', closeRemoveCardDialog));
+  document.querySelector('#removeCardDialog').addEventListener('close', () => {
+    pendingRemoveCardId = null;
+  });
+  document.querySelector('#removeCardDialog').addEventListener('click', event => {
+    if (event.target === event.currentTarget) closeRemoveCardDialog();
+  });
+  document.querySelector('#confirmRemoveCard').addEventListener('click', event => {
+    const id = pendingRemoveCardId;
+    if (!id) return closeRemoveCardDialog();
+    const button = event.currentTarget;
+    button.disabled = true;
+    button.textContent = 'Removing…';
+    const removed = removeLectureCard(id);
+    closeRemoveCardDialog();
+    showToast(removed ? 'Card removed from your set and Anki queue' : 'This card is no longer in the set');
+    button.disabled = false;
+    button.textContent = 'Remove card';
   });
   document.querySelector('#reviewAudioCards').addEventListener('click', () => {
     window.setTimeout(() => document.querySelector('#lectureDraftSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
@@ -3380,6 +4413,7 @@
       const key = keyFor(record, field);
       if (state.statuses[key] !== 'Skipped') state.statuses[key] = 'Approved';
     }));
+    persistCourseState();
     if (!state.selectedTypes.includes(state.field)) state.field = state.selectedTypes[0];
     document.querySelector('#classCardWorkspace').hidden = false;
     document.querySelector('#toggleClassCards').textContent = 'Close the full class card library';
@@ -3411,6 +4445,7 @@
   document.querySelector('#skipCard').addEventListener('click', () => {
     saveCurrent(true);
     state.statuses[keyFor(currentRecord())] = 'Skipped';
+    persistCourseState();
     updateReviewSurface();
     showToast('Card skipped');
     advanceRecord();
@@ -3418,6 +4453,7 @@
   document.querySelector('#approveCard').addEventListener('click', () => {
     saveCurrent(true);
     state.statuses[keyFor(currentRecord())] = 'Approved';
+    persistCourseState();
     updateReviewSurface();
     showToast('Card kept in the ready set');
     advanceRecord();
@@ -3444,6 +4480,7 @@
     });
     state.reviewCount += 1;
     document.querySelector('#reviewCount').textContent = state.reviewCount;
+    renderKnowledgeModel();
     showRatingReceipt(rating, persisted);
     if (rating === 'Again') {
       showMissExplanation(item);
@@ -3488,6 +4525,7 @@
   });
 
   setClassLabels(state.className, state.classTerm);
+  document.querySelector('#reviewCount').textContent = String(state.reviewCount);
   renderSource();
   updateGenerationCount();
   renderEditor();

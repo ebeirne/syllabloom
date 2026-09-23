@@ -7,18 +7,15 @@
   let signInMounted = false;
   let configured = false;
   let authResolved = false;
-  let liveBilling = false;
   let closing = false;
-  let billingMount = null;
 
   window.SyllabloomAuth = {
     get configured() { return configured; },
     get resolved() { return authResolved; },
     get signedIn() { return Boolean(clerk?.isSignedIn); },
-    get liveBilling() { return liveBilling; },
+    getToken: async () => clerk?.session?.getToken?.() || null,
     open: openDialog,
     openClerkProfile,
-    mountBilling,
     refresh: () => clerk ? updateAuthState() : false
   };
 
@@ -60,38 +57,6 @@
         }
       }
     };
-  }
-
-  function billingAppearance() {
-    const base = sharedAppearance();
-    return {
-      variables: {
-        ...base.variables,
-        colorPrimary: '#2f6b42',
-        colorTextOnPrimary: '#fffdf6',
-        colorBackground: '#fffdf6',
-        colorInputBackground: '#fffdf6',
-        borderRadius: '22px'
-      },
-      elements: {
-        rootBox: { width: '100%' },
-        cardBox: { width: '100%', boxShadow: 'none' },
-        badge: { background: '#f6b9d2', border: '1px solid #2c2e2a', borderRadius: '999px', color: '#2c2e2a', fontWeight: '800' },
-        pricingTableCard: { background: '#fffdf6', border: '1.5px solid #2c2e2a', borderRadius: '28px', boxShadow: '4px 4px 0 #2c2e2a' },
-        pricingTableCardHeader: { background: 'transparent', border: '0', boxShadow: 'none' },
-        pricingTableCardTitle: { color: '#2c2e2a', fontWeight: '850' },
-        pricingTableCardButton: { minHeight: '50px', background: '#f6b9d2', border: '1.5px solid #2c2e2a', borderRadius: '999px', boxShadow: '3px 3px 0 #2c2e2a', color: '#2c2e2a', fontWeight: '850' },
-        formButtonPrimary: { minHeight: '50px', background: '#f6b9d2', border: '1.5px solid #2c2e2a', borderRadius: '999px', boxShadow: '3px 3px 0 #2c2e2a', color: '#2c2e2a', fontWeight: '850' }
-      }
-    };
-  }
-
-  function currentPlan() {
-    try {
-      return clerk?.session?.checkAuthorization?.({ plan: 'student' }) ? 'student' : 'free';
-    } catch (_) {
-      return 'free';
-    }
   }
 
   async function closeDialog() {
@@ -208,36 +173,6 @@
     clerk.openUserProfile({ appearance: sharedAppearance() });
   }
 
-  async function mountBilling(node) {
-    if (!node || !clerk || !configured) return { ready: false, reason: 'auth-not-ready' };
-    if (!clerk.isSignedIn) return { ready: false, reason: 'sign-in-required' };
-    if (!liveBilling) return { ready: false, reason: 'billing-preview' };
-    try {
-      const plansResponse = await clerk.billing.getPlans({});
-      const plans = Array.isArray(plansResponse?.data) ? plansResponse.data : Array.isArray(plansResponse) ? plansResponse : [];
-      if (!plans.length) return { ready: false, reason: 'no-plans' };
-      if (billingMount && billingMount !== node) clerk.unmountPricingTable(billingMount);
-      if (billingMount !== node) {
-        const appearance = billingAppearance();
-        clerk.mountPricingTable(node, {
-          for: 'user',
-          layout: 'default',
-          collapseFeatures: true,
-          ctaPosition: 'top',
-          highlightedPlan: 'student',
-          newSubscriptionRedirectUrl: `${window.location.origin}/#profile`,
-          appearance,
-          checkoutProps: { appearance }
-        });
-        billingMount = node;
-      }
-      return { ready: true, planCount: plans.length };
-    } catch (error) {
-      console.info('Clerk Billing is not enabled for this instance yet.', error);
-      return { ready: false, reason: 'billing-disabled' };
-    }
-  }
-
   function updateAuthState() {
     if (!clerk) return false;
     authResolved = true;
@@ -256,15 +191,40 @@
         userId: clerk?.user?.id || '',
         displayName: clerk?.user?.fullName || clerk?.user?.firstName || '',
         imageUrl: clerk?.user?.imageUrl || '',
-        plan: signedIn ? currentPlan() : 'free'
+        plan: 'free'
       }
     }));
     if (signedIn && dialog.open) closeDialog();
     return signedIn;
   }
 
-  function markAuthUnavailable() {
+  function markAuthUnavailable(reason = 'not-configured') {
     authResolved = true;
+    const title = fallback.querySelector('#authUnavailableTitle');
+    const description = fallback.querySelector('#authUnavailableDescription');
+    const copy = reason === 'test-key-in-production'
+      ? [
+          'Beta sign-in is paused on this deployment.',
+          'This site is connected to Clerk test mode. Switch to the production Clerk key before inviting students.'
+        ]
+      : reason === 'config-error'
+        ? [
+            'Could not check beta sign-in.',
+            'Check your connection and try again. No account or email was submitted.'
+          ]
+        : reason === 'load-failed'
+          ? [
+              'Beta sign-in could not load.',
+              'Refresh the page or try again later. No account or email was submitted.'
+            ]
+          : [
+              'Beta sign-in is not connected on this build.',
+              'Connect the production Clerk configuration before inviting students. This preview will not pretend an account was created.'
+            ];
+    if (title) title.textContent = copy[0];
+    if (description) description.textContent = copy[1];
+    fallback.hidden = false;
+    mount.hidden = true;
     authButtons.forEach(button => {
       button.disabled = false;
       button.removeAttribute('aria-busy');
@@ -288,17 +248,20 @@
   async function configureClerk() {
     try {
       const response = await fetch('/api/auth-config', { headers: { Accept: 'application/json' } });
-      if (!response.ok) return;
+      if (!response.ok) {
+        markAuthUnavailable('config-error');
+        window.dispatchEvent(new CustomEvent('syllabloom:auth-ready', { detail: { configured: false } }));
+        return;
+      }
       const config = await response.json();
       const publishableKey = String(config.publishableKey || '');
       if (!publishableKey.startsWith('pk_')) {
-        markAuthUnavailable();
+        markAuthUnavailable(config.reason || 'not-configured');
         window.dispatchEvent(new CustomEvent('syllabloom:auth-ready', { detail: { configured: false } }));
         return;
       }
 
       configured = true;
-      liveBilling = publishableKey.startsWith('pk_live_');
       const encodedDomain = publishableKey.split('_')[2];
       const frontendDomain = window.atob(encodedDomain).slice(0, -1);
       await loadScript(`https://${frontendDomain}/npm/@clerk/ui@1/dist/ui.browser.js`);
@@ -315,7 +278,7 @@
       window.dispatchEvent(new CustomEvent('syllabloom:auth-ready', { detail: { configured: true } }));
     } catch (error) {
       console.info('Email sign-in is not configured on this build.', error);
-      markAuthUnavailable();
+      markAuthUnavailable('load-failed');
       window.dispatchEvent(new CustomEvent('syllabloom:auth-ready', { detail: { configured: false } }));
     }
   }

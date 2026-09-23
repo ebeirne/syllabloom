@@ -98,6 +98,35 @@ class AnkiExportTests(unittest.TestCase):
             connection.close()
             path.unlink(missing_ok=True)
 
+    def test_nested_anki_tags_keep_their_hierarchy_for_string_and_list_inputs(self) -> None:
+        package, _ = build_anki_package(
+            [
+                {
+                    "front": "What is demand?",
+                    "back": "The quantity buyers will purchase at a given price.",
+                    "source": "Economics lecture, Slide 2",
+                    "tags": "course::exam 1 economics::market-structures",
+                },
+                {
+                    "front": "What is a negative externality?",
+                    "back": "A cost imposed on third parties outside the transaction.",
+                    "source": "Economics lecture, Slide 3",
+                    "tags": ["course::exam-1", "economics::externalities"],
+                },
+            ],
+            {"deck": "Economics", "setName": "Market structures", "format": "Basic"},
+        )
+        connection, path = self.inspect_collection(package)
+        try:
+            note_tags = [row[0] for row in connection.execute("SELECT tags FROM notes")]
+            self.assertTrue(any("course::exam-1" in tags for tags in note_tags))
+            self.assertTrue(any("economics::market-structures" in tags for tags in note_tags))
+            self.assertTrue(any("economics::externalities" in tags for tags in note_tags))
+            self.assertFalse(any("course-exam-1" in tags for tags in note_tags))
+        finally:
+            connection.close()
+            path.unlink(missing_ok=True)
+
 
 if __name__ == "__main__":
     unittest.main()

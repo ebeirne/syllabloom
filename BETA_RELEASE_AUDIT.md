@@ -1,12 +1,33 @@
 # Syllabloom beta release audit
 
-Date: September 22, 2026
+Date: September 23, 2026
 
 ## Release decision
 
-Go for a controlled free student beta covering source import, editable cards, in-app study, Anki export, and on-device lecture storage.
+Hold beta invitations until production sign-in and authenticated data sync are verified. The production site now matches the free, single-class offer, but its sign-in is safely paused because Vercel is still configured with a Clerk test key.
 
-Not yet a paid production launch. Hosted lecture transcription, live Clerk and Stripe billing, cloud media sync, and signed-in browser automation still require production infrastructure.
+Do not advertise hosted transcription or cross-device media sync. Paid checkout is out of scope for this free beta.
+
+## September 23 pressure-test update
+
+The local working copy was tested across Today, Materials, Review, Study, Calendar, Profile, beta access, and the one-class guard. The existing PSY241 sample contains 39 slides, 32 mapped concepts, 39 note sections, and 87 ready cards. The landing page leads with the free one-class offer and course-files-to-Anki path, discloses local-only media limits, and uses an unassessed quick-check state rather than fabricated mastery. The Clerk test-key production guard and first-visit sign-in failure path were tested. The latest automated validation passed: 86 Python tests, 12 Node tests, JavaScript syntax checks, and `git diff --check`.
+
+The pressure test found several release blockers:
+
+- The first production snapshot still showed a paid Student tier. The new production deploy removes the paid tier and checkout path; the live landing now advertises one free class only.
+- Vercel's production Clerk publishable key is still a test key. The new endpoint suppresses it and sign-in shows a clear paused-beta notice, preventing test-mode accounts; production users cannot sign up until a Clerk production instance/key is configured.
+- Cross-device Neon-backed user-data sync is not verified. An unauthenticated request correctly returned 401, which does not establish that signed-in database reads and writes work.
+- Hosted transcription is disabled; lecture media remains browser/device-local.
+- Card quality is not consistently at the bar for a student beta. In the 87-card PSY241 sample, some prompts and answers are too terse or underspecified (for example, “double dissociation” → “stronger separation”). Do not represent the deck as quality-verified.
+- No production file upload, microphone permission, account mutation, or checkout was performed in this pass.
+
+The current recommendation is a hold on broad invitations. A tightly scoped, no-payment document/slide pilot could be reconsidered after replacing the deployed Clerk test configuration, verifying authenticated data persistence, and enforcing a measurable card-quality acceptance gate. Keep media capture clearly labeled as local-only until storage and transcription are implemented.
+
+## September 23 live deploy and multi-PDF smoke test
+
+The production working-tree deploy is READY at `https://syllabloom-beta.vercel.app/`. Live checks returned HTTP 200 for the landing page, health endpoint, Privacy, and Terms. The landing is free-only with no paid Student tier or fabricated 62% claim. `/api/health` reports `ok=true`, `mode=beta-cloud`, hosted transcription off, and browser-per-user media storage. `/api/auth-config` reports the production test-key guard; the publishable key is suppressed. An unauthenticated `/api/user-data` request correctly returned 401. The sign-in modal visibly explains that beta sign-in is paused.
+
+An isolated local browser/server test imported seven previously supplied CSCI 340 PDFs as one batch: one syllabus, five lecture files, and one answered quiz. Auto-detection assigned all three document categories correctly; the UI immediately reported 82 source-based cards and 15 note sections. The card review page showed 82 ready cards and the Anki export flow confirmed all 82 exported; existing package tests inspect a valid APKG archive and its Anki collection database. Several quiz prompts were made more self-contained, and a regression test covers the refinement. The four-page CSCI 340 syllabus has a course outline and grading policy but no dated class/assessment schedule, so zero calendar dates is accurate and no date was invented. This was a local smoke test with temporary storage, not a production upload or authenticated beta account.
 
 ## Real lecture evidence
 
@@ -75,17 +96,40 @@ Back, Forward, reload, and direct workspace links were retested. Every product v
 
 Lecture-library checks covered playback controls, rename entry and cancel, and the in-site removal confirmation. No saved lecture was deleted during QA.
 
-The Billing plan cards are equal height on desktop, single column on tablet and phone, and the public beta cannot show a live checkout when Clerk is using a test key.
+The Billing plan cards were checked for responsive layout on September 22. The September 23 production landing inspection still showed a paid Student plan and checkout CTA; no checkout was opened.
 
 ## Automated checks
 
-The release suite contains 30 passing tests plus 6 passing subtests. It covers ingestion, card quality, uploaded-source activation, Anki package generation, auth navigation contracts, billing preview safety, security headers, and responsive control contracts.
+The earlier release suite contained 30 passing tests plus 6 passing subtests. On September 23, the expanded local suite passed 86 Python tests and 12 Node tests, plus JavaScript syntax and whitespace checks. Coverage includes ingestion, card quality, uploaded-source activation, Anki package generation, auth navigation contracts, production test-key blocking, hosted source-upload authorization, free-beta limits, security headers, responsive controls, and honest unassessed mastery/scheduling states.
 
 ## Remaining production gates
 
-- Replace the Clerk development publishable key with a production instance.
-- Configure live Clerk Billing and Stripe products before enabling Student checkout.
+- Create/configure a Clerk production instance, then set its publishable key in the deployed production environment before inviting beta users.
+- Verify signed-in Neon-backed class/card/calendar/settings reads and writes across two devices or isolated browsers.
+- Improve and acceptance-test generated card quality across multiple subjects before describing generated cards as ready without qualification.
 - Add hosted transcription workers before promising server-side lecture processing.
-- Add cloud storage if students need their recordings and classes on multiple devices.
-- Add a Clerk testing token and authenticated end-to-end suite for session persistence and billing access.
+- Add cloud media storage only if multi-device recording access is part of the beta promise.
+- Run authenticated end-to-end checks for session persistence, class limits, data isolation, and browser back/forward navigation.
 - Keep lecture-derived cards review-required unless matching course sources verify their answers.
+
+## September 23 final production redeploy and beta gate
+
+After the multi-PDF QA, the hosted material-upload endpoint was found to accept requests without a signed-in account. The client now sends its Clerk session token, and the Vercel endpoint requires an authenticated user before processing a document. Local import QA remains available. With the currently configured test-mode Clerk key, production upload fails closed with HTTP 503 before parsing a file; a live-mode key with no session returns HTTP 401. This avoids exposing an unauthenticated document-processing endpoint while beta sign-in is paused.
+
+The final deployment is READY and aliased to `https://syllabloom-beta.vercel.app/` (deployment `dpl_3uQvr6iSxRbW93NSQKTnha4oM2Yo`). Live checks: landing, health, Privacy, and Terms return HTTP 200; unauthenticated workspace access returns 401; unauthenticated source upload returns the explicit 503 pause; security headers include HSTS and `X-Frame-Options: DENY`. The visible signup modal explains the Clerk test-mode blocker and leaves the sample preview available. Production environment inspection confirms only an encrypted `CLERK_PUBLISHABLE_KEY` entry and no production Clerk configuration usable for signup. Clerk `doctor` confirms that the linked app has no production instance configured and that its stored CLI auth token is expired/invalid; `clerk deploy --mode agent` reports deployment `not_started` and requires the human-run `clerk deploy` setup wizard. No student documents, signups, payment details, or account mutations were sent to production.
+
+Competitor positioning review: Quizlet, Knowt, and StudyFetch publicly offer material-to-flashcard/study-guide/quiz workflows, and StudyFetch also markets lecture notes, recording, and study scheduling. Anki already provides free cross-device sync. Syllabloom's most defensible beta distinction is narrower: one class workspace that maps syllabus dates and uploaded source material to editable, source-linked cards, with an Anki-ready export and study loop. This is a positioning hypothesis, not a proven quality or learning-outcome advantage. Do not market hosted lecture transcription or cross-device media sync; both are out of scope and must remain plainly disclosed.
+
+Decision remains HOLD for external free-beta invitations. Configure Clerk production authentication in Vercel, then verify a live signup plus authenticated upload, Neon persistence across isolated browsers/devices, user isolation, and one-class limits before inviting students. After that, run the agreed card-quality acceptance set; the existing PSY241 sample still contains terse/underspecified examples and does not pass a blanket "ready-to-use" quality claim.
+
+## September 23 Preview isolation and course-memory update
+
+The beta Preview path now uses Clerk development keys scoped to Preview only. A separate Neon branch, `vercel-preview-beta`, was created from the production schema only; production user rows were not copied. Vercel Preview has an encrypted `SYLLABLOOM_PREVIEW_DATABASE_URL` secret for that branch. The API now uses that variable only when `VERCEL_ENV=preview` and fails closed if it is missing, rather than falling back to the integration's shared `DATABASE_URL`. Production settings and data were left unchanged. The Vercel project is not connected to GitHub, so branch-specific Vercel settings are unavailable; the isolated database and Clerk values are scoped to the general Preview environment.
+
+The course-memory update maps exact concepts to source-backed cards, records actual quick-check/study responses by class and term, and prioritizes accumulated misses without inventing a mastery score. A false fixed answer count was removed. The narrow-phone landing overflow found in browser QA was corrected. Latest automated checks pass: 88 Python tests, 18 Node tests, JavaScript syntax checks, and `git diff --check`.
+
+This remains a Preview-only beta candidate, not a production release. The deployment still needs live verification of Clerk development sign-in, authenticated workspace write/read, one-class enforcement, and persistence from a second browser/device against the isolated Neon branch. Do not invite students until these checks pass. Development-mode Clerk identities are temporary and do not migrate to a production instance; before a production beta, configure a production Clerk instance and test the identity/data migration plan.
+
+## September 23 interactive Clerk setup attempt
+
+At the user's request, `clerk deploy` was started interactively. The wizard requires a production domain the operator owns and can configure in DNS, plus production OAuth credentials for any enabled social sign-in providers. The operator has not yet provided the domain or Google OAuth choice, so the wizard was canceled at its domain prompt. A read-only status check before cancellation showed no production instance ID; no Clerk production instance or DNS/OAuth changes were created. `clerk doctor` also reports the stored CLI token is expired/invalid. The next step is to obtain the operator's domain and sign-in choice, then re-authenticate with Clerk and resume the wizard.

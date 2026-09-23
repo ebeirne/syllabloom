@@ -6,11 +6,14 @@ from http import HTTPStatus
 from pathlib import Path
 
 from api._common import JsonHandler
-from server import SOURCE_SUFFIXES, source_summary
+from api.user_data import require_authenticated_beta_request
+from server import NoSelectableTextError, SOURCE_SUFFIXES, source_summary
 
 
 class handler(JsonHandler):
     def do_POST(self) -> None:
+        if not require_authenticated_beta_request(self, "adding course materials"):
+            return
         try:
             content_length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
@@ -53,12 +56,14 @@ class handler(JsonHandler):
                     if not chunk:
                         break
                     temporary.write(chunk)
-            summary = source_summary(temporary_path, filename, form.getfirst("kind", "material"))
+            summary = source_summary(temporary_path, filename, form.getfirst("kind", "auto"))
             summary["localOnly"] = False
             summary["storage"] = "session"
             self.send_json({"source": summary})
+        except NoSelectableTextError as exc:
+            self.send_json({"error": str(exc)}, HTTPStatus.UNPROCESSABLE_ENTITY)
         except Exception as exc:
-            print(f"Source import failed: {type(exc).__name__}: {exc}", flush=True)
+            print(f"Source import failed: {type(exc).__name__}", flush=True)
             self.send_json({"error": "The source could not be read in the beta."}, HTTPStatus.UNPROCESSABLE_ENTITY)
         finally:
             if temporary_path is not None:

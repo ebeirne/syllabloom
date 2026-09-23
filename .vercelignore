@@ -1,7 +1,14 @@
 __pycache__
+.git
+.venv
+.models
+tests
+.env*
 .pptx-build
+tmp/
 data/sessions
 data/latest-session.json
+data/source-library.json
 server.*.log
 test-audio/full-length-lecture-audio.m4a
 test-output

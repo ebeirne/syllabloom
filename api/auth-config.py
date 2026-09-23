@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 
-from api._common import JsonHandler
+from api._common import JsonHandler, clerk_auth_config
 
 
 class handler(JsonHandler):
@@ -13,9 +13,4 @@ class handler(JsonHandler):
             or os.environ.get("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY")
             or ""
         ).strip()
-        self.send_json(
-            {
-                "configured": publishable_key.startswith("pk_"),
-                "publishableKey": publishable_key,
-            }
-        )
+        self.send_json(clerk_auth_config(publishable_key, os.environ.get("VERCEL_ENV", "")))

@@ -25,6 +25,16 @@ class UploadedSourceActivationContractTests(unittest.TestCase):
         self.assertIn("state.latestSessionId = `source-${latestSource.id}`;", self.app)
         self.assertIn("syncLectureCards(cards);", self.app)
 
+    def test_opening_sample_class_clears_stale_source_cards_from_the_visible_queue(self):
+        sample_loader = self.app.split("function loadSampleClass()", 1)[1].split("function showClassLimit()", 1)[0]
+        self.assertIn("state.latestSessionId = null;", sample_loader)
+        self.assertIn("syncLectureCards([]);", sample_loader)
+
+    def test_empty_review_state_does_not_claim_cards_are_ready(self):
+        self.assertIn("id=\"reviewPageTitle\"", (ROOT / "index.html").read_text(encoding="utf-8"))
+        self.assertIn("document.querySelector('#reviewPageTitle').textContent = total || approved", self.app)
+        self.assertIn("'Your cards will appear here.'", self.app)
+
     def test_quick_check_uses_uploaded_cards(self):
         self.assertIn("function sourceAssessmentQuestions()", self.app)
         self.assertIn("function activeAssessmentQuestions()", self.app)

@@ -1,6 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
+  "functions": {
+    "api/**/*.py": {
+      "excludeFiles": "{.venv/**,.models/**,.git/**,tests/**,.env,.env.*,**/*.log,**/__pycache__/**,**/*.pyc}"
+    }
+  },
   "rewrites": [
     { "source": "/api/sessions/latest", "destination": "/api/session-latest" }
   ],

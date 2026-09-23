@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light" />
   <title>Syllabloom: Class in. Anki out.</title>
-  <meta name="description" content="Syllabloom turns lectures and course sources into ready-to-use, source-linked Anki cards, then adapts study plans to what you miss." />
+  <meta name="description" content="Try Syllabloom free with one class. Map a syllabus, prepare editable cards from course files, study here, or export your set to Anki." />
   <meta name="theme-color" content="#f5f1e4" />
   <link rel="icon" href="assets/syllabloom-mark.svg" type="image/svg+xml" />
   <style>
@@ -3505,8 +3505,8 @@
       .source-reference dd { margin: 4px 0 0; font-size: 15px; line-height: 1.5; }
     }
   </style>
-  <link rel="stylesheet" href="redesign.css?v=20260922-calendar-1">
-  <link rel="stylesheet" href="memphis.css?v=20260922-release-audit-1">
+  <link rel="stylesheet" href="redesign.css?v=20260923-beta-map-2">
+  <link rel="stylesheet" href="memphis.css?v=20260922-schedule-import-1">
 </head>
 <body>
   <section id="landing" class="marketing-home" aria-label="Syllabloom home page">
@@ -3531,15 +3531,17 @@
     <main>
       <section class="marketing-hero">
         <div class="marketing-hero-copy">
-          <h1>Walk out of class with your Anki cards ready.</h1>
-          <p>Syllabloom reads your slides, syllabus, notes, and course files, then writes a usable card set for you. Save lecture recordings beside the class, study here, or export the ready set to Anki.</p>
+          <p class="marketing-beta-kicker">Free student beta <span>·</span> one class <span>·</span> $0</p>
+          <h1>Your course files in. Anki cards out.</h1>
+          <p>Add a syllabus and your slides or notes. Syllabloom maps the course, prepares source-linked cards, and gives you a set to inspect, edit, study here, or export to Anki.</p>
           <div class="marketing-hero-actions">
-            <button class="button primary marketing-primary-cta" data-start-onboarding>Set up your first class</button>
-            <button class="marketing-link-button" data-open-sample>Open a real sample class <span aria-hidden="true"></span></button>
+            <button class="button primary marketing-primary-cta" data-start-onboarding>Start my free class</button>
+            <button class="marketing-link-button" data-open-sample>Preview a sample class <span aria-hidden="true"></span></button>
           </div>
           <div class="marketing-trust-line">
-            <span>Cards arrive ready to use</span>
-            <span>Anki stays your study system</span>
+            <span>One active class</span>
+            <span>No payment details</span>
+            <span>Editable Anki export</span>
           </div>
         </div>
         <div class="marketing-hero-visual" aria-label="A student turning lecture material into an organized Anki deck">
@@ -3550,7 +3552,7 @@
       <section class="marketing-statement" aria-label="What Syllabloom does">
         <p>Not another place to dump files. A loop between class, Anki, and what you still need to learn.</p>
         <div class="statement-path" aria-label="Syllabloom workflow summary">
-          <span>Class material</span><b>→</b><span>Verified cards</span><b>→</b><span>Anki</span><b>→</b><span>Recall</span><b>↺</b>
+          <span>Class material</span><b>→</b><span>Source-matched cards</span><b>→</b><span>Anki</span><b>→</b><span>Recall</span><b>↺</b>
         </div>
       </section>
 
@@ -3599,7 +3601,7 @@
           <div class="export-demo-card">
             <small>REACTION MECHANISMS · SN2</small>
             <p>Which conditions favor an SN2 reaction?</p>
-            <div><span>Source checked</span><b>Ready</b></div>
+            <div><span>Source linked</span><b>Ready to review</b></div>
           </div>
           <div class="export-demo-settings">
             <span><small>Format</small><strong>Basic</strong></span>
@@ -3628,18 +3630,48 @@
               <span></span><span></span><span></span><i>REC</i>
               <img class="lecture-companion character-cutout" src="assets/rounds-mascot-listening.webp" width="900" height="900" loading="lazy" decoding="async" alt="The Syllabloom companion listening and taking notes during a lecture" />
             </div>
-            <h3>Record without babysitting it.</h3>
-            <p>Name and save the lecture, mark important moments, and keep it beside the slides and notes that build your ready set.</p>
+            <h3>Keep recordings with the class.</h3>
+            <p>Name and save audio or video on this device beside the course files. Lecture transcription and recording-based cards are not included in this beta.</p>
           </article>
           <article class="class-feature">
-            <div class="feature-illustration feature-syllabus"><span>Week 4</span><b>Market structures</b><i>Exam 1</i></div>
+            <div class="feature-illustration feature-syllabus" aria-hidden="true">
+              <div class="calendar-preview">
+                <div class="calendar-preview-heading">
+                  <div><strong>September 2026</strong><small>SAMPLE · SYLLABUS-DERIVED DATES</small></div>
+                  <div class="calendar-preview-controls" aria-hidden="true">
+                    <div><svg viewBox="0 0 20 20"><path d="m12 4-6 6 6 6" /></svg></div>
+                    <div><svg viewBox="0 0 20 20"><path d="m8 4 6 6-6 6" /></svg></div>
+                  </div>
+                </div>
+                <div class="calendar-preview-week" aria-label="Week of September 21">
+                  <div class="calendar-preview-day"><small>MON</small><strong>21</strong></div>
+                  <div class="calendar-preview-day has-current"><small>TUE</small><strong>22</strong><div class="calendar-preview-day-tag">Today</div></div>
+                  <div class="calendar-preview-day"><small>WED</small><strong>23</strong></div>
+                  <div class="calendar-preview-day has-exam"><small>THU</small><strong>24</strong><div class="calendar-preview-day-tag">Exam</div></div>
+                  <div class="calendar-preview-day"><small>FRI</small><strong>25</strong></div>
+                  <div class="calendar-preview-day is-weekend"><small>SAT</small><strong>26</strong></div>
+                  <div class="calendar-preview-day is-weekend"><small>SUN</small><strong>27</strong></div>
+                </div>
+                <div class="calendar-preview-agenda">
+                  <div class="calendar-preview-agenda-heading">UP NEXT</div>
+                  <div class="calendar-preview-agenda-row">
+                    <div><small>THU · SEP 24</small><strong>Exam 1</strong></div>
+                    <div class="agenda-exam">Important</div>
+                  </div>
+                  <div class="calendar-preview-agenda-row">
+                    <div><small>TUE · SEP 29</small><strong>Market structures</strong></div>
+                    <div class="agenda-class">Class topic</div>
+                  </div>
+                </div>
+              </div>
+            </div>
             <h3>The syllabus is the map.</h3>
-            <p>Objectives and exam dates keep the agent focused on what this course expects.</p>
+            <p>Course dates and learning objectives give the study plan a map grounded in this class.</p>
           </article>
           <article class="class-feature">
-            <div class="feature-illustration feature-check"><strong>62%</strong><span>Start here</span></div>
+            <div class="feature-illustration feature-check"><strong>Quick check</strong><span>Set a real baseline</span></div>
             <h3>Study the gaps, not everything.</h3>
-            <p>A short baseline and every later answer refine the next session.</p>
+            <p>Start unassessed. A short check-in and your real study answers reveal what needs another pass.</p>
           </article>
         </div>
       </section>
@@ -3647,17 +3679,17 @@
       <section id="pricing" class="pricing-section" aria-labelledby="pricingTitle">
         <div class="pricing-heading">
           <div>
-            <h2 id="pricingTitle">One class is free. Make it count.</h2>
-            <p>Use the full class-to-Anki loop before paying. Upgrade when Syllabloom earns a place in the rest of your semester.</p>
+            <h2 id="pricingTitle">Free beta. One class. The full study loop.</h2>
+            <p>Try Syllabloom with one course, from syllabus and source materials through study and Anki export. There is no checkout during the beta.</p>
           </div>
           <div class="pricing-note">
             <img class="pricing-companion character-cutout" src="assets/rounds-mascot-celebrate.webp" width="900" height="900" loading="lazy" decoding="async" alt="The Syllabloom companion holding finished study cards" />
             <span>Built for student budgets</span>
           </div>
         </div>
-        <div class="pricing-board">
+        <div class="pricing-board beta-pricing-board">
           <article class="price-plan price-plan-free">
-            <header><div><h3>Free</h3><p>Your hardest class, start to finish.</p></div><strong>$0</strong></header>
+            <header><div><h3>Free beta</h3><p>Your hardest class, start to finish.</p></div><strong>$0</strong></header>
             <ul>
               <li>1 active class</li>
               <li>Slides, documents, and syllabus mapping</li>
@@ -3666,21 +3698,8 @@
             </ul>
             <button class="button price-action" data-start-onboarding>Start my free class</button>
           </article>
-          <article class="price-plan price-plan-plus">
-            <header><div><h3>Student</h3><p>Your whole course load in one loop.</p></div><div class="price-amount"><strong>$9</strong><span>per month<br />billed yearly</span></div></header>
-            <ul>
-              <li>Unlimited active classes</li>
-              <li>Expanded lecture library during beta</li>
-              <li>Unlimited slide and document imports</li>
-              <li>Class calendar, weak-topic plan, and Anki presets</li>
-            </ul>
-            <div class="price-plan-footer">
-              <button class="button primary price-action" data-open-billing>See Student billing</button>
-              <span>$12 month to month</span>
-            </div>
-          </article>
         </div>
-        <p class="pricing-footnote">No card required for the free class. Hosted lecture transcription is not included in this beta yet; slide and document cards, editing, studying, and Anki export are live.</p>
+        <p class="pricing-footnote">One active class per account. No payment details or paid upgrade during beta. Slide and document processing, card editing, in-app study, and Anki export are available to test. Audio/video stays on this device; lecture transcription is not included yet.</p>
       </section>
 
       <section class="marketing-final-cta">
@@ -3697,6 +3716,7 @@
       <div class="marketing-logo"><span class="brand-mark"><img src="assets/syllabloom-mark.svg" width="48" height="48" alt="" /></span><span>Syllabloom</span></div>
       <p>Class in. Anki out. The next session gets better.</p>
       <button class="marketing-text-button" data-open-sample>Open the working prototype</button>
+      <nav class="marketing-legal-links" aria-label="Legal information"><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></nav>
     </footer>
   </section>
 
@@ -3790,9 +3810,9 @@
           <h1>Set up Anki your way.</h1>
           <p>Start with the settings you touch most. The full preset editor keeps every deck-level option ready for export.</p>
           <div class="form-grid">
-            <div class="form-field"><label for="ankiDeckName">Deck name</label><input id="ankiDeckName" class="text-input" value="Human Anatomy" /></div>
+            <div class="form-field"><label for="ankiDeckName">Deck name</label><input id="ankiDeckName" class="text-input" placeholder="Uses your class name" /></div>
             <div class="form-field"><label for="ankiDailyLimit">Maximum new cards per day</label><input id="ankiDailyLimit" class="text-input" type="number" min="1" value="20" /></div>
-            <div class="form-field full"><label for="ankiTags">Tags</label><input id="ankiTags" class="text-input" value="human-anatomy::fall-2023" /></div>
+            <div class="form-field full"><label for="ankiTags">Tags</label><input id="ankiTags" class="text-input" placeholder="Optional tags" /></div>
           </div>
           <div class="preference-group">
             <h3>Card format</h3>
@@ -3846,9 +3866,9 @@
       <button id="recordingPill" class="recording-pill" data-go="capture" hidden><span></span><em>Recording</em><strong id="recordingPillTime">00:00</strong></button>
       <div class="sidebar-bottom">
         <span class="sidebar-section-label">Class</span>
-        <button class="sidebar-action" data-go="source">Materials</button>
-        <button class="sidebar-action" data-go="knowledge">Calendar</button>
-        <button class="sidebar-action account-nav-action" data-open-profile>Account</button>
+        <button class="sidebar-action" data-view="source" data-go="source"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><path d="M6 4.5h9l3 3V20H6z"/><path d="M15 4.5V8h3M8.5 12h7M8.5 15.5h7"/></svg></span><span>Materials</span></button>
+        <button class="sidebar-action" data-view="knowledge" data-go="knowledge"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h6"/></svg></span><span>Calendar</span></button>
+        <button class="sidebar-action account-nav-action" data-view="profile" data-open-profile><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><circle cx="12" cy="8" r="3"/><path d="M5.5 20c.5-3.6 2.9-5.5 6.5-5.5s6 1.9 6.5 5.5"/></svg></span><span>Account</span></button>
         <button id="addClass" class="sidebar-action">Add another class</button>
         <span id="sourceCount" hidden>192</span>
         <span id="sourceMiniText" hidden>List of muscles Fall 2023</span>
@@ -3872,7 +3892,7 @@
             <option value="source">Materials</option>
             <option value="knowledge">Calendar</option>
             <option value="profile">Profile</option>
-            <option value="billing">Billing</option>
+            <option value="billing">Beta access</option>
           </optgroup>
         </select>
       </header>
@@ -3880,7 +3900,7 @@
       <section id="capture" class="page">
         <header class="capture-toolbar">
           <div class="breadcrumbs"><span data-class-name>Human Anatomy</span><b>/</b><strong>Lecture</strong></div>
-          <div class="capture-status"><span class="status-light"></span><strong>Device library</strong><span>Saved separately for each signed-in user</span></div>
+          <div class="capture-status"><span class="status-light"></span><strong>Device library</strong><span id="captureOwnerCopy">Media stays on this device during beta</span></div>
         </header>
 
         <div class="capture-workspace">
@@ -3932,14 +3952,14 @@
                 <button id="useTestAudio" class="sample-button">Try the anatomy sample</button>
               </div>
               <div class="recorder-foot">
-                <span id="recordingSafety">Saved under your account on this device</span>
+                <span id="recordingSafety">Saved on this device only. Sign in to separate your library by account.</span>
                 <span>Keep this tab open while recording</span>
               </div>
             </section>
 
             <section class="media-library" aria-labelledby="mediaLibraryTitle">
               <header class="media-library-head">
-                <div><h2 id="mediaLibraryTitle">Your lecture library</h2><p>Record in class or upload audio and video. Files stay separated by signed-in user.</p></div>
+                <div><h2 id="mediaLibraryTitle">Your lecture library</h2><p>Audio and video stay on this device, organized by signed-in account. They do not sync across devices.</p></div>
                 <div class="media-library-scope"><strong id="mediaOwnerLabel">This browser</strong><span id="mediaStorageSummary">Checking saved media</span></div>
               </header>
               <div id="mediaLibraryPlayer" class="media-library-player" hidden>
@@ -4134,7 +4154,7 @@
               <div class="evidence-list">
                 <button data-go="source"><span>Syllabus</span><strong>Objective 03</strong></button>
                 <button data-go="source"><span>Muscle list</span><strong>42 in scope · <b id="homeMuscleCount">192</b> total</strong></button>
-                <button data-go="knowledge"><span>Recall history</span><strong><b id="reviewCount">146</b> answers</strong></button>
+                <button data-go="knowledge"><span>Recall history</span><strong><b id="reviewCount">0</b> answers</strong></button>
               </div>
             </section>
 
@@ -4171,29 +4191,48 @@
           <div>
             <h2>Add a source</h2>
             <p>Bring in a syllabus, slide deck, reading, or authorized assessment. Syllabloom maps its structure before drafting cards.</p>
+            <p class="source-kind-hint">We’ll identify syllabi, class materials, and past assessments from each file. Choose a type to override detection for new files, then adjust each document separately before adding the batch.</p>
           </div>
           <div class="source-import-controls">
             <div id="sourceKindPicker" class="source-kind-picker">
               <select id="sourceKind" class="source-kind source-kind-native" aria-hidden="true" tabindex="-1">
+                <option value="auto" selected>Auto-detect</option>
                 <option value="material">Class material</option>
                 <option value="syllabus">Syllabus</option>
                 <option value="assessment">Past assessment</option>
               </select>
               <button id="sourceKindTrigger" class="source-kind-trigger" type="button" aria-label="Source type" aria-haspopup="listbox" aria-expanded="false" aria-controls="sourceKindMenu">
-                <span id="sourceKindLabel">Class material</span>
+                <span id="sourceKindLabel">Auto-detect</span>
                 <span class="source-kind-trigger-arrow" aria-hidden="true"></span>
               </button>
               <div id="sourceKindMenu" class="source-kind-menu" role="listbox" aria-label="Source type" popover="auto">
-                <button class="source-kind-option" type="button" role="option" data-source-kind-value="material" aria-selected="true">Class material</button>
+                <button class="source-kind-option" type="button" role="option" data-source-kind-value="auto" aria-selected="true">Auto-detect</button>
+                <button class="source-kind-option" type="button" role="option" data-source-kind-value="material" aria-selected="false">Class material</button>
                 <button class="source-kind-option" type="button" role="option" data-source-kind-value="syllabus" aria-selected="false">Syllabus</button>
                 <button class="source-kind-option" type="button" role="option" data-source-kind-value="assessment" aria-selected="false">Past assessment</button>
               </div>
             </div>
-            <label id="sourceUploadLabel" for="sourceUpload" class="button primary" role="button" tabindex="0">Choose document</label>
-            <input id="sourceUpload" type="file" accept=".docx,.pptx,.pdf,.txt" hidden />
+            <label id="sourceUploadLabel" for="sourceUpload" class="button primary" role="button" tabindex="0">Choose documents</label>
+            <input id="sourceUpload" type="file" accept=".docx,.pptx,.pdf,.txt" multiple hidden />
           </div>
         </section>
 
+        <section id="sourceQueue" class="source-batch-queue surface" aria-labelledby="sourceQueueTitle" hidden>
+          <header class="source-batch-heading">
+            <div>
+              <span class="source-batch-kicker">BATCH IMPORT</span>
+              <h2 id="sourceQueueTitle">Documents ready to add</h2>
+              <p>Choose a different type for each file if needed. Syllabi update the calendar; class materials and assessments build study content.</p>
+            </div>
+            <button id="sourceQueueClear" class="button" type="button">Clear list</button>
+          </header>
+          <div id="sourceQueueList" class="source-queue-list"></div>
+          <footer class="source-batch-footer">
+            <p id="sourceQueueProgress" role="status" aria-live="polite">Review the file types, then add them together.</p>
+            <button id="sourceQueueAdd" class="button primary" type="button">Add documents</button>
+          </footer>
+        </section>
+        <p id="sourceBatchFeedback" class="source-batch-feedback" role="status" aria-live="polite" hidden></p>
         <div id="sourceLibrary" class="file-stack" aria-live="polite"></div>
         <section id="sourceStudyOutput" class="source-study-output surface" aria-labelledby="sourceStudyOutputTitle" hidden>
           <header>
@@ -4205,13 +4244,11 @@
             <div><h3>Notes from the source</h3><div id="sourceStudyNotes" class="source-study-notes"></div></div>
           </div>
         </section>
-        <input id="syllabusInput" type="file" accept=".pdf,.docx" hidden />
-
         <div class="surface course-map sample-source-detail">
-          <div><strong>12 days</strong><span>Until the demo assessment</span></div>
-          <div><strong>Upper limb</strong><span>Current syllabus focus</span></div>
-          <div><strong>8 objectives</strong><span>Included in the next assessment</span></div>
-          <div><strong>42 muscles</strong><span>Mapped to those objectives</span></div>
+          <div><strong>0</strong><span>calendar dates in the sample syllabus</span></div>
+          <div><strong>Upper limb</strong><span>Example syllabus focus</span></div>
+          <div><strong>8</strong><span>objective cues in the example</span></div>
+          <div><strong>192</strong><span>muscles in the sample document</span></div>
         </div>
 
         <div class="source-layout sample-source-detail">
@@ -4256,17 +4293,33 @@
         <div class="planner-layout">
           <section class="class-calendar surface" aria-labelledby="calendarHeading">
             <header class="calendar-heading"><div><h2 id="calendarHeading">Class calendar</h2><p id="calendarMonthLabel"></p></div><div class="calendar-controls"><button id="calendarPrev" class="button calendar-arrow-button calendar-arrow-button-left" type="button" aria-label="Previous month"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 5.5c-2.3 2-4.5 4.1-6.7 6.5 2.1 2.3 4.3 4.5 6.7 6.5"/><path d="M9.2 12h8.3"/></svg></button><button id="calendarToday" class="button" type="button">Today</button><button id="calendarNext" class="button calendar-arrow-button calendar-arrow-button-right" type="button" aria-label="Next month"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 5.5c2.3 2 4.5 4.1 6.7 6.5-2.1 2.3-4.3 4.5-6.7 6.5"/><path d="M14.8 12H6.5"/></svg></button></div></header>
+            <div class="calendar-reference-tools">
+              <label><input id="showFederalHolidays" type="checkbox" checked><span>Show U.S. federal holidays</span></label>
+              <small>Reference dates only; your school may follow a different calendar.</small>
+            </div>
             <div class="calendar-weekdays" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
             <div id="calendarGrid" class="calendar-grid" aria-label="Monthly class calendar"></div>
           </section>
 
           <aside class="deadline-editor surface">
             <div><h2>Add a class date</h2><p>Syllabus dates can be corrected here at any time.</p></div>
+            <div class="calendar-photo-import">
+              <button id="importSchedulePhoto" class="button" type="button">Import a schedule photo</button>
+              <input id="calendarSchedulePhotoInput" class="calendar-photo-input" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" aria-label="Choose or take a schedule photo" />
+              <small>Read dated syllabus rows, then review before saving. Recurring weekly timetable photos are not supported yet.</small>
+            </div>
             <form id="calendarEventForm" class="deadline-form">
               <label for="calendarEventTitle">Name<input id="calendarEventTitle" class="text-input" required placeholder="Practical exam" autocomplete="off" /></label>
               <div class="deadline-form-row">
                 <label for="calendarEventDate">Date<input id="calendarEventDate" class="text-input" type="date" required /></label>
-                <label for="calendarEventType">Type<select id="calendarEventType" class="text-input"><option value="lecture">Lecture</option><option value="quiz">Quiz</option><option value="exam">Exam</option><option value="assignment">Assignment</option></select></label>
+                <div class="themed-select-field">
+                  <label id="calendarEventTypeLabel" for="calendarEventTypeTrigger">Type</label>
+                  <div id="calendarEventTypePicker" class="source-kind-picker themed-select-picker" data-themed-select-picker>
+                    <select id="calendarEventType" class="source-kind-native" aria-hidden="true" tabindex="-1"><option value="lecture">Lecture</option><option value="quiz">Quiz</option><option value="exam">Exam</option><option value="assignment">Assignment</option><option value="holiday">School break / closure</option></select>
+                    <button id="calendarEventTypeTrigger" class="source-kind-trigger" type="button" aria-labelledby="calendarEventTypeLabel calendarEventTypeValue" aria-haspopup="listbox" aria-expanded="false" aria-controls="calendarEventTypeMenu"><span id="calendarEventTypeValue" data-select-current>Lecture</span><span class="source-kind-trigger-arrow" aria-hidden="true"></span></button>
+                    <div id="calendarEventTypeMenu" class="source-kind-menu" role="listbox" aria-labelledby="calendarEventTypeLabel" popover="auto"><button class="source-kind-option" type="button" role="option" data-select-value="lecture" aria-selected="true">Lecture</button><button class="source-kind-option" type="button" role="option" data-select-value="quiz" aria-selected="false">Quiz</button><button class="source-kind-option" type="button" role="option" data-select-value="exam" aria-selected="false">Exam</button><button class="source-kind-option" type="button" role="option" data-select-value="assignment" aria-selected="false">Assignment</button><button class="source-kind-option" type="button" role="option" data-select-value="holiday" aria-selected="false">School break / closure</button></div>
+                  </div>
+                </div>
               </div>
               <button class="button primary" type="submit">Add to calendar</button>
             </form>
@@ -4282,22 +4335,18 @@
               <label for="dailyStudyMinutes">Daily minutes<input id="dailyStudyMinutes" type="number" inputmode="numeric" min="10" max="240" value="35" /></label>
             </div>
           </header>
-          <div class="release-plan-labels" aria-hidden="true"><span>Day</span><span>Focus</span><span>New cards</span><span>Reviews</span></div>
+          <div class="release-plan-labels" aria-hidden="true"><span>Day</span><span>Focus</span><span>New cards</span><span>Review schedule</span></div>
           <div id="releasePlanRows" class="release-plan-rows"></div>
         </section>
 
         <div class="knowledge-summary">
-          <article class="surface"><strong id="baselineScore">62%</strong><span>estimated baseline</span></article>
-          <article class="surface"><strong id="knowledgeObjectiveCount">3</strong><span>objectives below target</span></article>
-          <article class="surface"><strong id="knowledgeSessionLength">28 min</strong><span>recommended session</span></article>
+          <article class="surface"><strong id="baselineScore">—</strong><span id="baselineScoreLabel">not assessed yet</span></article>
+          <article class="surface"><strong id="knowledgeObjectiveCount">0</strong><span>course concepts mapped</span></article>
+          <article class="surface"><strong id="knowledgeSessionLength">35 min</strong><span>daily time budget</span></article>
         </div>
 
         <div id="knowledgeRows" class="surface knowledge-list">
-          <div class="knowledge-row"><strong>Upper-limb attachments</strong><div class="mastery-track"><span style="width:42%"></span></div><span class="knowledge-score">42%</span><span>Priority</span></div>
-          <div class="knowledge-row"><strong>Forearm innervation</strong><div class="mastery-track"><span style="width:55%"></span></div><span class="knowledge-score">55%</span><span>Review</span></div>
-          <div class="knowledge-row"><strong>Muscles of mastication</strong><div class="mastery-track"><span style="width:68%"></span></div><span class="knowledge-score">68%</span><span>Developing</span></div>
-          <div class="knowledge-row"><strong>Facial expression actions</strong><div class="mastery-track"><span style="width:84%"></span></div><span class="knowledge-score">84%</span><span>Stable</span></div>
-          <div class="knowledge-row"><strong>Lower-limb actions</strong><div class="mastery-track"><span style="width:91%"></span></div><span class="knowledge-score">91%</span><span>Solid</span></div>
+          <div class="knowledge-empty"><strong>Learning map not assessed</strong><span>Course concepts appear here; mastery status updates after real study responses.</span></div>
         </div>
       </section>
 
@@ -4313,7 +4362,7 @@
 
         <nav class="account-tabs" aria-label="Account pages">
           <button class="active" type="button" data-account-view="profile" aria-current="page">Profile</button>
-          <button type="button" data-account-view="billing">Billing</button>
+          <button type="button" data-account-view="billing">Beta access</button>
         </nav>
 
         <div class="profile-layout">
@@ -4337,7 +4386,7 @@
               <strong id="profileClassUsage">1 of 1</strong>
               <span>class used</span>
             </div>
-            <button class="button primary" type="button" data-open-billing>View billing</button>
+            <button class="button primary" type="button" data-open-billing>Beta access</button>
           </section>
 
           <section class="profile-card profile-classes" aria-labelledby="profileClassesHeading">
@@ -4354,7 +4403,14 @@
             <form id="profileScheduleForm" class="profile-schedule-form">
               <label for="profileEventTitle">Date name<input id="profileEventTitle" class="text-input" required placeholder="Practical exam" autocomplete="off" /></label>
               <label for="profileEventDate">Date<input id="profileEventDate" class="text-input" type="date" required /></label>
-              <label for="profileEventType">Type<select id="profileEventType" class="text-input"><option value="lecture">Lecture</option><option value="quiz">Quiz</option><option value="exam">Exam</option><option value="assignment">Assignment</option></select></label>
+              <div class="themed-select-field">
+                <label id="profileEventTypeLabel" for="profileEventTypeTrigger">Type</label>
+                <div id="profileEventTypePicker" class="source-kind-picker themed-select-picker" data-themed-select-picker>
+                  <select id="profileEventType" class="source-kind-native" aria-hidden="true" tabindex="-1"><option value="lecture">Lecture</option><option value="quiz">Quiz</option><option value="exam">Exam</option><option value="assignment">Assignment</option></select>
+                  <button id="profileEventTypeTrigger" class="source-kind-trigger" type="button" aria-labelledby="profileEventTypeLabel profileEventTypeValue" aria-haspopup="listbox" aria-expanded="false" aria-controls="profileEventTypeMenu"><span id="profileEventTypeValue" data-select-current>Lecture</span><span class="source-kind-trigger-arrow" aria-hidden="true"></span></button>
+                  <div id="profileEventTypeMenu" class="source-kind-menu" role="listbox" aria-labelledby="profileEventTypeLabel" popover="auto"><button class="source-kind-option" type="button" role="option" data-select-value="lecture" aria-selected="true">Lecture</button><button class="source-kind-option" type="button" role="option" data-select-value="quiz" aria-selected="false">Quiz</button><button class="source-kind-option" type="button" role="option" data-select-value="exam" aria-selected="false">Exam</button><button class="source-kind-option" type="button" role="option" data-select-value="assignment" aria-selected="false">Assignment</button></div>
+                </div>
+              </div>
               <button class="button primary" type="submit">Add date</button>
             </form>
           </section>
@@ -4364,57 +4420,52 @@
       <section id="billing" class="page account-page billing-page" aria-labelledby="billingPageTitle">
         <header class="account-page-head billing-page-head">
           <div>
-            <p class="account-page-path">Account / Billing</p>
-            <h1 id="billingPageTitle">One class free. No surprise checkout.</h1>
-            <p>See exactly what is included now. Paid billing stays closed until the beta is ready for live payments.</p>
+            <p class="account-page-path">Account / Beta access</p>
+            <h1 id="billingPageTitle">Your free beta class.</h1>
+            <p>Beta testing is free and limited to one active class per account. There is no subscription or checkout in this beta.</p>
           </div>
           <img class="account-page-companion character-cutout" src="assets/rounds-mascot-anki.webp" width="900" height="900" alt="The Syllabloom companion packing finished study cards" />
         </header>
 
         <nav class="account-tabs" aria-label="Account pages">
           <button type="button" data-account-view="profile">Profile</button>
-          <button class="active" type="button" data-account-view="billing" aria-current="page">Billing</button>
+          <button class="active" type="button" data-account-view="billing" aria-current="page">Beta access</button>
         </nav>
 
         <section class="billing-current-card" aria-labelledby="billingCurrentHeading">
           <div>
             <span id="billingTierBadge" class="tier-badge">Free</span>
-            <h2 id="billingCurrentHeading">Your current plan</h2>
-            <p id="billingCurrentDescription">You have 1 active class and can export ready cards to Anki.</p>
+            <h2 id="billingCurrentHeading">Your beta access</h2>
+            <p id="billingCurrentDescription">One active class, with ready cards you can study here or export to Anki.</p>
           </div>
-          <div class="billing-current-price"><strong id="billingCurrentPrice">$0</strong><span id="billingCurrentCadence">forever</span></div>
-          <button id="billingManageAccount" class="button" type="button">Payment &amp; statements</button>
+          <div class="billing-current-price"><strong id="billingCurrentPrice">$0</strong><span id="billingCurrentCadence">during beta</span></div>
+          <button id="billingManageAccount" class="button" type="button">Account &amp; security</button>
         </section>
 
         <section class="billing-plans-shell" aria-labelledby="billingPlansHeading">
-          <header><div><p class="profile-card-label">Plans</p><h2 id="billingPlansHeading">Choose what fits this semester</h2></div><span id="billingConnectionStatus" class="billing-status">Checking billing status</span></header>
-          <div id="billingPlanFallback" class="billing-plan-fallback">
+          <header><div><p class="profile-card-label">Included</p><h2 id="billingPlansHeading">Everything in the beta</h2></div><span id="billingConnectionStatus" class="billing-status">Free beta</span></header>
+          <div id="billingPlanFallback" class="billing-plan-fallback beta-plan-fallback">
             <article>
-              <span>Free</span><strong>$0</strong><p>Use Syllabloom for the class that needs it most.</p>
-              <ul><li>1 active class</li><li>Slides, documents, audio, and video</li><li>Editable notes and ready cards</li><li>Study in Syllabloom or export to Anki</li></ul>
-              <button class="button" type="button" disabled>Current plan</button>
-            </article>
-            <article class="student-plan-preview">
-              <span>Student</span><strong>$9 <small>/ month billed yearly</small></strong><p>Keep your whole course load moving toward Anki.</p>
-              <ul><li>Unlimited active classes</li><li>Expanded on-device lecture library</li><li>Calendar and weak-topic study plan</li><li>Complete Anki presets and export controls</li></ul>
-              <button id="billingSetupPending" class="button primary" type="button">Sign in to choose Student</button>
+              <span>One class</span><strong>$0</strong><p>Use Syllabloom for the class that needs it most, for free while beta testing.</p>
+              <ul><li>1 active class</li><li>Slide and document processing</li><li>Local audio/video library; no hosted transcription or cross-device media sync</li><li>Editable cards from readable course material; study here or export to Anki</li></ul>
+              <button class="button" type="button" disabled>Included in beta</button>
             </article>
           </div>
-          <p id="billingFinePrint" class="billing-fine-print">The public beta is free. Live payments are not enabled on this build.</p>
+          <p id="billingFinePrint" class="billing-fine-print">No card details, paid plan, or payment provider is needed to join this beta.</p>
         </section>
       </section>
 
       <section id="cards" class="page">
         <div class="page-head">
           <div>
-            <h1>Your cards are ready.</h1>
+            <h1 id="reviewPageTitle">Your cards are ready.</h1>
             <p id="reviewPageDescription" class="page-description">Use the set now, or look through anything you want to change.</p>
           </div>
         </div>
 
         <section id="lectureDraftSection" class="lecture-draft-section" hidden>
           <div class="draft-queue-head">
-            <div><h2>From your latest source</h2><p>These cards are usable now. Edit the wording or leave out anything you do not want.</p></div>
+            <div><h2>Your card set</h2><p>Edit, leave out, or remove cards. Removing a card also removes it from study and the Anki export queue.</p></div>
             <span id="lectureDraftCount" class="status">0 ready</span>
           </div>
           <div id="lectureDraftQueue" class="lecture-draft-queue"></div>
@@ -4433,7 +4484,7 @@
 
         <section class="anki-export-bar" aria-labelledby="ankiExportHeading">
           <img class="anki-export-mascot character-cutout" src="assets/rounds-mascot-anki.webp" width="900" height="900" alt="The Syllabloom companion carrying a ready set toward Anki" />
-          <div class="anki-export-copy"><span id="approvedSetCount">0 ready</span><h2 id="ankiExportHeading">Export ready cards to Anki</h2><p id="ankiExportSummary">Human Anatomy, Syllabloom FSRS, 20 new cards per day</p></div>
+          <div class="anki-export-copy"><span id="approvedSetCount">0 ready</span><h2 id="ankiExportHeading" tabindex="-1">Export ready cards to Anki</h2><p id="ankiExportSummary">Your class, Syllabloom FSRS, 20 new cards per day</p></div>
           <div class="anki-export-actions"><button id="openAnkiSettings" class="button" type="button">Edit Anki settings</button><button id="exportAnki" class="button primary" disabled>Export to Anki</button></div>
         </section>
 
@@ -4593,7 +4644,22 @@
       <button class="nav-button" data-view="knowledge"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h6"/></svg></span><span>Calendar</span></button>
       <button class="nav-button" data-view="study"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><path d="M12 3c.7 4.5 3 6.8 7 7.5-4 .7-6.3 3-7 7.5-.7-4.5-3-6.8-7-7.5 4-.7 6.3-3 7-7.5Z"/><path d="M18.5 16.5c.2 1.4.9 2.1 2.2 2.3-1.3.2-2 1-2.2 2.2-.2-1.2-.9-2-2.2-2.2 1.3-.2 2-1 2.2-2.3Z"/></svg></span><span>Study</span></button>
     </nav>
+    <footer class="app-legal-footer"><span>Free student beta · one class</span><nav aria-label="Legal information"><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></nav></footer>
   </div>
+
+  <dialog id="calendarScheduleImportDialog" class="calendar-import-dialog" aria-labelledby="calendarScheduleImportTitle">
+    <form id="calendarScheduleImportForm">
+      <header class="calendar-import-head">
+        <div><span class="account-kicker">Photo to calendar</span><h1 id="calendarScheduleImportTitle">Review the dates we found.</h1><p>Dates are read on this device. Check the name, date, and event type; nothing is added until you confirm.</p></div>
+        <button id="closeCalendarScheduleImport" class="dialog-close" type="button" aria-label="Close schedule import">Close</button>
+      </header>
+      <div id="calendarScheduleImportStatus" class="calendar-import-status" role="status" aria-live="polite">Choose a photo of a dated schedule or syllabus.</div>
+      <label class="calendar-import-year" for="calendarScheduleImportYear">Year to use when a date has no year<input id="calendarScheduleImportYear" class="text-input" type="number" min="2020" max="2120" inputmode="numeric"></label>
+      <p class="calendar-import-privacy">The image and extracted text are not uploaded or saved. Only the dates you confirm are added to your calendar and, when signed in, synced with your workspace.</p>
+      <div id="calendarScheduleImportCandidates" class="calendar-import-candidates"></div>
+      <footer class="calendar-import-actions"><button id="cancelCalendarScheduleImport" class="button" type="button">Cancel</button><button id="calendarScheduleImportSave" class="button primary" type="submit" disabled>Add checked dates</button></footer>
+    </form>
+  </dialog>
 
   <dialog id="ankiSettingsDialog" class="anki-settings-dialog" aria-labelledby="ankiSettingsTitle">
     <form id="ankiSettingsForm" class="anki-settings-form">
@@ -4765,15 +4831,23 @@
     </div>
   </dialog>
 
-  <dialog id="billingCheckoutDialog" class="account-dialog billing-checkout-dialog" aria-labelledby="billingCheckoutTitle">
-    <div class="billing-checkout-shell">
-      <button class="dialog-close account-dialog-close" type="button" data-close-billing-checkout aria-label="Close secure checkout">Close</button>
-      <header>
-        <span class="account-kicker">Secure checkout</span>
-        <h1 id="billingCheckoutTitle">Choose Student with Clerk.</h1>
-        <p>Clerk handles the subscription and Stripe processes the payment. Syllabloom never stores your card number.</p>
-      </header>
-      <div id="clerkPricingTable" class="clerk-pricing-table" hidden></div>
+  <dialog id="removeCardDialog" class="account-dialog remove-lecture-dialog remove-card-dialog" aria-labelledby="removeCardTitle" aria-describedby="removeCardDescription">
+    <div class="remove-lecture-shell">
+      <button class="dialog-close account-dialog-close" type="button" data-cancel-remove-card aria-label="Close remove card confirmation">Close</button>
+      <div class="remove-lecture-copy">
+        <span class="account-kicker">Your study set</span>
+        <h1 id="removeCardTitle">Remove this card?</h1>
+        <p id="removeCardDescription">This removes only this card from your study set and Anki export queue. The original upload or lecture recording is not deleted. This cannot be undone here.</p>
+        <p class="remove-card-preview" id="removeCardPreview"></p>
+        <div class="remove-lecture-actions">
+          <button id="cancelRemoveCard" class="button" type="button" data-cancel-remove-card>Keep card</button>
+          <button id="confirmRemoveCard" class="button remove-lecture-confirm" type="button">Remove card</button>
+        </div>
+      </div>
+      <div class="remove-lecture-art" aria-hidden="true">
+        <span></span>
+        <img class="character-cutout" src="assets/rounds-mascot-anki.webp" width="900" height="900" alt="" />
+      </div>
     </div>
   </dialog>
 
@@ -4784,13 +4858,13 @@
         <img class="character-cutout" src="assets/rounds-mascot-anki.webp" width="900" height="900" alt="" />
       </div>
       <div class="account-dialog-copy">
-        <span class="account-kicker">Your free class is in use</span>
-        <h1 id="classLimitTitle">Keep this class free, or bring the whole semester.</h1>
-        <p>The Free plan includes one complete class. Student unlocks unlimited classes without changing your Anki workflow.</p>
+        <span class="account-kicker">One class per beta account</span>
+        <h1 id="classLimitTitle">Your one beta class is already in use.</h1>
+        <p>Free beta access includes one active class per account. Your current class stays available, with its materials, study tools, and Anki export.</p>
         <div class="class-limit-meter"><span><b></b></span><strong id="classLimitReadout">1 of 1 free class used</strong></div>
         <div class="account-dialog-actions">
-          <button class="button primary" type="button" data-see-pricing>See Student pricing</button>
-          <button class="button" type="button" data-close-class-limit>Stay with one class</button>
+          <button class="button primary" type="button" data-see-pricing>See beta access</button>
+          <button class="button" type="button" data-close-class-limit>Keep studying this class</button>
         </div>
       </div>
     </div>
@@ -4807,12 +4881,13 @@
       <div class="account-dialog-copy">
         <span class="account-kicker">Pick up where you left off</span>
         <h1 id="authTitle">Sign in with your email.</h1>
-        <p>Use your email and password, or continue with Google. During this beta, class files and study settings stay in this browser.</p>
+        <p>Use your email and password, or continue with Google. Your class, cards, calendar, and Anki settings sync with your account. Lecture recordings stay on this device.</p>
         <div id="clerkAuthMount" class="clerk-auth-mount" hidden></div>
         <div id="authNotConfigured" class="auth-not-configured" role="status">
-          <strong>Email sign-in is staged for the beta.</strong>
-          <span>Connect the Clerk publishable key to send real one-time codes. This build will not pretend an email was sent.</span>
+          <strong id="authUnavailableTitle">Beta sign-in is not connected on this build.</strong>
+          <span id="authUnavailableDescription">Connect the production Clerk configuration before inviting students. This preview will not pretend an account was created.</span>
         </div>
+        <p class="legal-consent-note">By creating an account or continuing to use Syllabloom, you agree to the <a href="/terms.html">Terms</a> and acknowledge the <a href="/privacy.html">Privacy Policy</a>.</p>
         <button class="button account-dialog-secondary" type="button" data-close-auth>Keep exploring</button>
       </div>
     </div>
@@ -4820,8 +4895,12 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="muscle-data.js?v=20260921-loop"></script>
-  <script src="auth.js?v=20260922-release-audit-4"></script>
-  <script src="app.js?v=20260922-resume-calendar-2"></script>
+  <script src="auth.js?v=20260922-beta-release-2"></script>
+  <script src="calendar-features.js?v=20260922-schedule-import-1"></script>
+  <script src="card-set.js?v=20260922-card-management-1"></script>
+  <script src="source-batch.js?v=20260922-source-batch-1"></script>
+  <script src="course-map.js?v=20260923-beta-map-2"></script>
+  <script src="app.js?v=20260923-beta-map-2"></script>
   <script type="module" src="motion-effects.js?v=20260921-motion-smooth-2"></script>
 </body>
 </html>

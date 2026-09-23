@@ -9,6 +9,7 @@ Syllabloom turns lectures, slides, syllabi, and course files into editable, sour
 - Marketing site and per-class onboarding
 - Live lecture recording and uploaded audio/video ingestion
 - Per-user on-device lecture library with audio/video playback and removal
+- Clerk-authenticated Neon Postgres sync for class profile, parsed course sources and cards, calendar, Anki preferences, and study history
 - DOCX, PDF, PowerPoint, and text import with source-linked concepts, notes, and ready-to-review cards
 - Editable card review and approval queue
 - Source-grounded explanations after every missed card, with same-card retry and repeated-miss editing
@@ -51,7 +52,15 @@ $env:CLERK_PUBLISHABLE_KEY = "pk_test_your_key"
 python server.py
 ```
 
-Use the same `CLERK_PUBLISHABLE_KEY` environment variable in Vercel. Until cloud sync is added, Clerk controls beta access and the one-free-class gate. Lecture media is stored in IndexedDB under the current Clerk user ID, so accounts stay separated on the same device, but files do not yet follow a student to another browser or device.
+Use the same `CLERK_PUBLISHABLE_KEY` environment variable in Vercel. Clerk controls beta access and the one-free-class gate. Neon is connected to the Vercel project on its Free plan; the API verifies Clerk session tokens and stores each workspace under the verified Clerk user ID. Class profiles, parsed sources and cards, calendar dates, Anki preferences, card edits, and study history sync across devices. Original lecture audio and video stay in IndexedDB on the current device and are not uploaded to Neon.
+
+For local development, install the requirements and pull the Vercel Development environment to a separate ignored file so an existing `.env.local` is not overwritten:
+
+```powershell
+vercel env pull .env.development.local --environment=development
+```
+
+The Neon integration supplies `DATABASE_URL`. Do not add database credentials to browser code or commit local environment files. On the first signed-in visit, an unclaimed local workspace is saved to the account if it has no existing cloud workspace; if another account owns the browser's workspace, it is not copied into the new account.
 
 ### Billing
 
@@ -128,4 +137,4 @@ The `.vercel` directory is intentionally excluded because it contains machine-sp
 
 ## Status
 
-This is a beta product. It has verified prototype flows and a live deployment, but it is not yet a cloud-synced multi-user system. Calendar events, Anki preferences, and per-user lecture libraries are currently stored in the browser. Real student testing should focus on card quality, source faithfulness, media capture, import behavior, and whether the daily plan feels achievable.
+This is a beta product. Account-owned course and study workspaces sync through Neon; original lecture media remains device-local. Real student testing should focus on cross-device account isolation, source faithfulness, media capture, import behavior, and whether the daily plan feels achievable.

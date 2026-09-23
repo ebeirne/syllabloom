@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#f5f1e4" />
+  <meta name="description" content="Learn what Syllabloom's student beta stores, where it stays, and how to contact the project owner about your data." />
+  <title>Privacy | Syllabloom</title>
+  <link rel="icon" href="assets/syllabloom-mark.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="legal.css?v=20260922-1" />
+</head>
+<body>
+  <header class="legal-topbar">
+    <a class="legal-brand" href="/" aria-label="Syllabloom home"><img src="assets/syllabloom-mark.svg" width="48" height="48" alt="" />Syllabloom</a>
+    <nav aria-label="Legal pages"><a href="/terms.html">Terms</a><a href="/privacy.html" aria-current="page">Privacy</a></nav>
+  </header>
+
+  <main class="legal-shell">
+    <section class="legal-hero" aria-labelledby="privacy-title">
+      <p class="legal-kicker">Student beta · Updated September 22, 2026</p>
+      <h1 id="privacy-title">Your class stays yours.</h1>
+      <p>This notice explains what Syllabloom handles when you set up a class, add course materials, study, or export cards.</p>
+      <img class="legal-mascot" src="assets/rounds-mascot-loop.webp" width="900" height="900" alt="Rounds the study companion holding a book" />
+    </section>
+
+    <aside class="legal-beta-note" aria-label="Beta data summary">
+      <strong>The short version</strong>
+      Class and study workspace data syncs to your account. Audio and video stay in this browser on this device. Hosted lecture transcription is not enabled in this beta.
+    </aside>
+
+    <div class="legal-doc-layout">
+      <nav class="legal-toc" aria-label="On this page">
+        <h2>On this page</h2>
+        <ol>
+          <li><a href="#who">Who runs Syllabloom</a></li>
+          <li><a href="#data">Information handled</a></li>
+          <li><a href="#use">How it is used</a></li>
+          <li><a href="#providers">Service providers</a></li>
+          <li><a href="#retention">Storage and retention</a></li>
+          <li><a href="#choices">Your choices</a></li>
+          <li><a href="#children">Children</a></li>
+          <li><a href="#changes">Updates and contact</a></li>
+        </ol>
+      </nav>
+
+      <article class="legal-article">
+        <section id="who">
+          <h2>Who runs Syllabloom</h2>
+          <p>Syllabloom Beta is currently operated by an individual project owner. No separate company or legal entity has been formed. Send privacy questions and requests to the contact email below.</p>
+        </section>
+
+        <section id="data">
+          <h2>Information handled</h2>
+          <ul>
+            <li><strong>Account information:</strong> Clerk provides sign-in and account identity, such as your account identifier and email address. If you choose Google sign-in, Google also handles that authentication.</li>
+            <li><strong>Class and study workspace:</strong> class names and settings, course dates, calendar entries, source names and derived notes or concepts, draft and approved cards, review history, study progress, and Anki preferences. When signed in, this workspace is stored in Neon Postgres and associated with your account.</li>
+            <li><strong>Supported course documents:</strong> when you submit a DOCX, PPTX, PDF, or TXT source, the beta temporarily processes the file to create a preview and study material. The temporary processing file is removed after the request finishes. The app syncs the resulting workspace data, not a cloud library of the original document.</li>
+            <li><strong>Schedule photos:</strong> if you choose the calendar photo importer, the browser reads the image on your device using English-language OCR. The image and extracted text are not uploaded or saved by Syllabloom. Only dates and event details you confirm are added to your calendar and synced with your signed-in workspace.</li>
+            <li><strong>Audio and video:</strong> recordings and uploaded media are kept in browser storage on the device where you add them. They are not part of the cross-device cloud sync. Clearing browser data or changing devices can make those local files unavailable. Hosted transcription is currently disabled.</li>
+            <li><strong>Anki exports:</strong> when you request an export, approved card content and selected settings are sent to the export service to create an Anki package. Syllabloom does not provide a cloud archive of exported packages.</li>
+            <li><strong>Technical information:</strong> the hosting, authentication, and database services may process ordinary request, device, security, and diagnostic information needed to operate and protect the beta.</li>
+          </ul>
+        </section>
+
+        <section id="use">
+          <h2>How information is used</h2>
+          <p>Information is used to sign you in, save and sync your class workspace, prepare previews and study materials, record your study progress, create requested exports, provide support, and maintain service security.</p>
+          <p>The beta's supported document-to-study-material flow uses a deterministic compiler. It does not send your class files to a generative AI service. Study materials can still be incomplete or wrong, so check them against your original course sources.</p>
+        </section>
+
+        <section id="providers">
+          <h2>Service providers</h2>
+          <p>Syllabloom uses Clerk for authentication, Neon for signed-in workspace storage, and Vercel to host the app and server-side features. When you start photo import, the browser also loads the Tesseract.js OCR library, worker, OCR engine, and English-language model on demand from jsDelivr. That CDN can receive ordinary connection metadata, but the schedule image and recognized text stay in your browser and are not sent to it by the importer. These providers process information as needed to provide their services and under their own terms and privacy notices. Google processes information when you choose its sign-in option.</p>
+          <p>Payments are not enabled in this public beta, and Syllabloom is not currently asking you for payment card details. If that changes, this notice will be updated before paid checkout is offered.</p>
+          <ul>
+            <li><a href="https://clerk.com/legal/privacy" target="_blank" rel="noreferrer">Clerk Privacy Policy</a></li>
+            <li><a href="https://vercel.com/legal/privacy-notice" target="_blank" rel="noreferrer">Vercel Privacy Notice</a></li>
+            <li><a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer">Google Privacy Policy</a></li>
+          </ul>
+        </section>
+
+        <section id="retention">
+          <h2>Storage and retention</h2>
+          <p>Your signed-in workspace remains stored so the app can provide your class and study features. Original supported documents are processed temporarily; audio and video remain in the browser storage on the device where they were added. Hosting providers may retain limited technical logs under their own systems and policies.</p>
+          <p>To request access to or deletion of your account workspace, email the project owner. We may ask for enough information to verify that the request relates to your account. Some limited records may need to remain for security, legal obligations, or backup rotation.</p>
+        </section>
+
+        <section id="choices">
+          <h2>Your choices</h2>
+          <ul>
+            <li>You can choose what class materials to add. Do not upload information you do not have permission to use.</li>
+            <li>You can remove local recordings from the device library in the app. Browser settings can also clear local site storage, but that may permanently remove media saved only on that device.</li>
+            <li>You can contact us to ask about, correct, or request deletion of account information. We will review each request and respond, subject to applicable law and technical limits.</li>
+            <li>Depending on where you live, local privacy laws may give you additional rights. Contact us and identify your region so we can assess your request.</li>
+          </ul>
+        </section>
+
+        <section id="children">
+          <h2>Children</h2>
+          <p>Syllabloom is not designed for children under 13, and we do not knowingly collect personal information from children under 13. If you believe a child has provided account information, contact us so we can review it. People under 18 should use the service only with parent or guardian involvement where required by local law.</p>
+        </section>
+
+        <section id="changes">
+          <h2>Updates and contact</h2>
+          <p>We will update this page if the beta's data practices materially change. The date at the top shows when this version was last revised.</p>
+          <p>The contact email is being used for beta privacy and legal requests while the project owner arranges a permanent business contact.</p>
+          <a class="legal-contact" href="mailto:ethan.g.beirne@gmail.com?subject=Syllabloom%20privacy%20request">ethan.g.beirne@gmail.com</a>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="legal-footer">
+    <span>Student beta · Syllabloom is operated by an individual project owner.</span>
+    <nav aria-label="Legal pages"><a href="/terms.html">Terms</a><a href="/privacy.html" aria-current="page">Privacy</a><a href="mailto:ethan.g.beirne@gmail.com">Contact</a></nav>
+  </footer>
+</body>
+</html>

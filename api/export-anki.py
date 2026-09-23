@@ -18,7 +18,7 @@ class handler(JsonHandler):
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
             return
         except Exception as exc:
-            print(f"Anki export failed: {type(exc).__name__}: {exc}", flush=True)
+            print(f"Anki export failed: {type(exc).__name__}", flush=True)
             self.send_json({"error": "Anki package export failed in the beta."}, HTTPStatus.INTERNAL_SERVER_ERROR)
             return
 
