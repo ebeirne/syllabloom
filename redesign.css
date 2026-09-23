@@ -1584,10 +1584,11 @@
 .calendar-heading p,
 .deadline-editor p,
 .release-plan p,
+
 .anki-export-bar p {
-  margin: 0 !important;
-  color: var(--muted) !important;
-  font-size: 13px !important;
+  color: rgba(44, 46, 42, 0.72) !important;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .calendar-controls {
