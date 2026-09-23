@@ -66,8 +66,8 @@
   }
 
   const defaultAnkiPreferences = {
-    deck: 'Human Anatomy',
-    setName: 'Exam 1, Upper Limb',
+    deck: '',
+    setName: '',
     presetName: 'Syllabloom FSRS',
     format: 'Basic',
     answerStyle: 'Concise',
@@ -493,11 +493,9 @@
     }).join(' ');
   }
 
-  function fullAnkiDeckName() {
-    const deck = state.anki.deck.trim() || 'Syllabloom';
-    const setName = state.anki.setName.trim();
-    return setName ? `${deck}::${setName}` : deck;
-  }
+ function fullAnkiDeckName() {
+  return state.anki.deck.trim() || state.className || 'Syllabloom';
+}
 
   function syncAnkiFormFromState() {
     const values = {
@@ -702,7 +700,11 @@
     const exportSummary = document.querySelector('#ankiExportSummary');
     const settingsCount = document.querySelector('#ankiSettingsCardCount');
     const settingsDestination = document.querySelector('#ankiSettingsDestination');
+    const exportHeading = document.querySelector('#ankiExportHeading');
     if (count) count.textContent = approvedLabel;
+    if (exportHeading) {
+  exportHeading.textContent = `Export ${fullDeck} cards to Anki`;
+}
     if (exportSummary) exportSummary.textContent = summary;
     if (settingsCount) settingsCount.textContent = approvedLabel;
     if (settingsDestination) settingsDestination.textContent = `${fullDeck} · ${state.anki.presetName}`;
@@ -1231,8 +1233,6 @@
     state.sources = [];
     state.lectureCards = [];
     state.studyIndex = 0;
-    state.anki.deck = 'Human Anatomy';
-    state.anki.tags = 'human-anatomy::fall-2023';
     setClassLabels('Human Anatomy', 'Fall 2023');
     renderSource();
     updateGenerationCount();
