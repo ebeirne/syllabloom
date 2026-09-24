@@ -43,6 +43,7 @@ class BetaReadinessContractTests(unittest.TestCase):
         test_key = "pk_test_example"
         blocked = clerk_auth_config(test_key, "production")
         preview = clerk_auth_config(test_key, "preview")
+        beta = clerk_auth_config(test_key, "production", allow_test_key_in_production=True)
         live = clerk_auth_config("pk_live_example", "production")
 
         self.assertFalse(blocked["configured"])
@@ -50,6 +51,9 @@ class BetaReadinessContractTests(unittest.TestCase):
         self.assertEqual(blocked["publishableKey"], "")
         self.assertTrue(preview["configured"])
         self.assertEqual(preview["publishableKey"], test_key)
+        self.assertTrue(beta["configured"])
+        self.assertEqual(beta["publishableKey"], test_key)
+        self.assertEqual(beta["mode"], "test")
         self.assertTrue(live["configured"])
         self.assertEqual(live["mode"], "live")
 
@@ -59,6 +63,50 @@ class BetaReadinessContractTests(unittest.TestCase):
         self.assertIn("if (!response.ok)", auth)
         self.assertIn("markAuthUnavailable('config-error')", auth)
         self.assertIn("test-key-in-production", auth)
+
+    def test_sign_in_opened_during_clerk_load_mounts_when_clerk_becomes_ready(self) -> None:
+        auth = (ROOT / "auth.js").read_text(encoding="utf-8")
+        dialog_open = auth.index("if (opening) dialog.showModal();")
+        open_mount_attempt = auth.index("mountSignInIfReady();", dialog_open)
+        clerk_ready = auth.index("await clerk.load(", auth.index("async function configureClerk()"))
+        ready_mount_attempt = auth.index("if (dialog.open && !clerk.isSignedIn) mountSignInIfReady();", clerk_ready)
+
+        self.assertIn("function mountSignInIfReady()", auth)
+        self.assertIn("let clerkLoaded = false;", auth)
+        self.assertIn("if (!clerk || !clerkLoaded) return false;", auth)
+        self.assertIn("if (signInMounted && mount.childElementCount > 0) return false;", auth)
+        self.assertLess(auth.index("await clerk.load("), auth.index("clerkLoaded = true;"))
+        self.assertLess(dialog_open, open_mount_attempt)
+        self.assertLess(clerk_ready, ready_mount_attempt)
+
+    def test_sign_in_component_resets_when_switching_accounts(self) -> None:
+        auth = (ROOT / "auth.js").read_text(encoding="utf-8")
+
+        self.assertIn("let lastSignedInState = null;", auth)
+        self.assertIn("lastSignedInState !== null && lastSignedInState !== signedIn && signInMounted", auth)
+        self.assertIn("clerk?.unmountSignIn?.(mount);", auth)
+        self.assertIn("resetSignInMount();\n    await clerk.signOut({", auth)
+        self.assertIn("signInMounted = false;", auth)
+
+    def test_profile_can_sign_out_only_the_current_clerk_session(self) -> None:
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        auth = (ROOT / "auth.js").read_text(encoding="utf-8")
+        app = (ROOT / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn('id="signOutAccount"', page)
+        self.assertIn("Signs out on this device only.", page)
+        self.assertIn("recordings remain on this device.", page)
+        self.assertIn("async function signOutCurrentSession()", auth)
+        self.assertIn("const sessionId = clerk?.session?.id;", auth)
+        self.assertIn("await clerk.signOut({ sessionId });", auth)
+        self.assertIn("landingUrl.hash = '#landing';", auth)
+        self.assertIn("window.history.replaceState(null, '', landingUrl);", auth)
+        self.assertIn("window.location.reload();", auth)
+        self.assertNotIn("redirectUrl:", auth)
+        sign_out = auth.split("async function signOutCurrentSession()", 1)[1].split("function updateAuthState()", 1)[0]
+        self.assertLess(sign_out.index("await clerk.signOut({ sessionId });"), sign_out.index("window.location.reload();"))
+        self.assertIn("await window.SyllabloomAuth?.signOutCurrentSession?.();", app)
+        self.assertIn("document.querySelector('#signOutAccount').hidden = !state.account.signedIn;", app)
 
     def test_public_beta_is_free_one_class_and_has_no_checkout_path(self) -> None:
         page = (ROOT / "index.html").read_text(encoding="utf-8")
@@ -131,7 +179,12 @@ class BetaReadinessContractTests(unittest.TestCase):
         self.assertIn("activity: 'quick-check'", app)
         self.assertIn("activity: 'study'", app)
         self.assertIn("window.SyllabloomCourseMap?.buildCourseMap", app)
-        self.assertIn("concept.sourceNames", app)
+        self.assertIn("concept.sourceReferences", app)
+        self.assertIn("recommendNext(courseMap)", app)
+        self.assertIn("mapObjectiveCues", app)
+        self.assertIn("state.studyFocusConcept", app)
+        self.assertIn('id="courseFocusAction"', page)
+        self.assertIn('id="courseObjectivePanel"', page)
         self.assertIn("coveragePercent", course_map)
         self.assertIn('id="reviewCount">0</b>', page)
         self.assertNotIn("baselineScore: 62", app)

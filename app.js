@@ -77,7 +77,7 @@
     dailyLimit: 20,
     newPerDay: 20,
     reviewsPerDay: 9999,
-    tags: 'human-anatomy::fall-2023',
+    tags: '',
     newCardsIgnoreReviewLimit: false,
     limitsStartFromTop: false,
     learningSteps: [1, 10],
@@ -135,6 +135,7 @@
     statuses: savedCourseState.statuses || {},
     edits: savedCourseState.edits || {},
     studyIndex: 0,
+    studyFocusConcept: '',
     reviewCount: savedReviewHistory.length,
     reviewHistory: savedReviewHistory,
     planCorrections: 0,
@@ -557,56 +558,7 @@
   ];
 
   function sourceAssessmentQuestions() {
-    const usable = state.lectureCards.filter(card => {
-      const front = String(card.front || '').trim();
-      const back = String(card.back || '').replace(/\s+/g, ' ').trim();
-      const answerWords = back.match(/\b\w+\b/g) || [];
-      return card.reviewStatus !== 'skipped'
-        && front.endsWith('?')
-        && !/^What (?:is|are) the key ideas? about/i.test(front)
-        && !/[\n\r•]/.test(String(card.back || ''))
-        && front.length <= 150
-        && back.length <= 260
-        && answerWords.length >= 2
-        && answerWords.length <= 36;
-    });
-    const candidates = usable.length ? usable : state.lectureCards.filter(card => card.front && card.back && card.reviewStatus !== 'skipped');
-    const sectionCards = candidates.filter((card, index) => candidates.findIndex(candidate => (candidate.section || candidate.slideNumber) === (card.section || card.slideNumber)) === index);
-    const pool = sectionCards.length >= 3 ? sectionCards : candidates;
-    const positions = pool.length <= 3 ? pool.map((_, index) => index) : [0, Math.floor((pool.length - 1) / 2), pool.length - 1];
-    const cards = [...new Set(positions)].map(index => pool[index]).filter(Boolean);
-    const questionForm = question => {
-      const prompt = String(question || '').trim().toLowerCase();
-      if (prompt.startsWith('when ')) return 'when';
-      if (/^what (?:is|are)\b/.test(prompt)) return 'definition';
-      if (prompt.startsWith('what effect ')) return 'effect';
-      if (prompt.startsWith('what causes ')) return 'cause';
-      if (/^what (?:does|do|did)\b/.test(prompt)) return 'relation';
-      if (prompt.startsWith('how ')) return 'how';
-      if (prompt.startsWith('where ')) return 'where';
-      return 'other';
-    };
-    return cards.map((card, index) => {
-      const correctAnswer = shortCue(card.back, 260);
-      const sameForm = candidates.filter(candidate => candidate !== card && questionForm(candidate.front) === questionForm(card.front));
-      const distractorPool = sameForm.length >= 2 ? sameForm : candidates.filter(candidate => candidate !== card);
-      const distractors = [...new Set(distractorPool
-        .map(candidate => shortCue(candidate.back, 260))
-        .filter(answer => answer && answer !== correctAnswer))].slice(0, 3);
-      const choices = [correctAnswer, ...distractors];
-      const rotation = index % choices.length;
-      const options = [...choices.slice(rotation), ...choices.slice(0, rotation)];
-      const sourceLabel = card.source || (card.slideNumber ? `slide ${card.slideNumber}` : 'your uploaded material');
-      return {
-        question: card.front,
-        options,
-        correct: options.indexOf(correctAnswer),
-        explanation: `${card.back} Source: ${sourceLabel}.`,
-        cardId: `lecture-${card.id}`,
-        concept: card.section || card.concept || '',
-        sourceName: sourceLabel
-      };
-    });
+    return window.SyllabloomSourceStudy.quickCheckItems(state.lectureCards);
   }
 
   function activeAssessmentQuestions() {
@@ -628,13 +580,12 @@
     const start = document.querySelector('#startAssessment');
     if (!title || !copy || !start) return;
     const questions = activeAssessmentQuestions();
-    const latestSource = [...state.sources].reverse().find(item => item.draftCards?.length);
-    if (!state.includeSampleMaterial && latestSource) {
-      title.textContent = `Quick check from ${latestSource.name}`;
-      copy.textContent = `${questions.length} question${questions.length === 1 ? '' : 's'} made from the cards that are already ready to study.`;
+    if (!state.includeSampleMaterial && questions.length) {
+      title.textContent = 'Quick check across your class';
+      copy.textContent = `${questions.length} source-backed recall prompt${questions.length === 1 ? '' : 's'} from your materials. Reveal each answer, then mark whether you knew it.`;
     } else if (!state.includeSampleMaterial) {
       title.textContent = 'Add material to start your check';
-      copy.textContent = 'Upload slides, notes, a syllabus, or an authorized assessment. Your first questions will appear here with the ready cards.';
+      copy.textContent = 'Upload slides, notes, or an authorized assessment with source-backed cards. Your first questions will appear here with their source references.';
     } else {
       title.textContent = 'Quick starting check';
       copy.textContent = 'Three questions from the anatomy example. Add your own material to replace them with questions from your class.';
@@ -941,6 +892,9 @@
     const setName = state.anki.setName.trim();
     return setName ? `${deck}::${setName}` : deck;
   }
+
+  const ankiDesktopSettings = storedJson('syllabloom-anki-desktop-settings', { autoSync: false, ownerId: '' });
+  let ankiDesktopConnected = false;
 
   function syncAnkiFormFromState() {
     const values = {
@@ -1445,46 +1399,146 @@
     renderProfileSchedule();
   }
 
+  function courseTopicActionMarkup(topic, compact = false) {
+    const action = topic.readyCount > 0 ? 'study' : topic.cardCount > 0 ? 'cards' : 'source';
+    const sessionCount = Math.min(topic.readyCount || 0, state.anki.dailyLimit);
+    const label = action === 'study'
+      ? `Study ${sessionCount} ready card${sessionCount === 1 ? '' : 's'}`
+      : action === 'cards'
+        ? 'Review this topic’s cards'
+        : 'Add class material';
+    return `<button class="button${compact ? ' course-objective-topic' : ' course-map-action'}" type="button" data-topic-action="${action}" data-topic-name="${escapeHtml(topic.name)}">${label}</button>`;
+  }
+
   function renderKnowledgeModel() {
     const list = document.querySelector('#knowledgeRows');
     if (!list) return;
     const allConcepts = state.includeSampleMaterial
       ? Object.keys(source.sections || {})
       : sourceConceptNames();
-    const concepts = allConcepts.slice(0, 8);
+    const sourceById = new Map(state.sources.map(item => [String(item.id), item]));
     const mappedCards = state.includeSampleMaterial
-      ? records.flatMap(record => state.selectedTypes.map(field => ({
-        id: keyFor(record, field),
-        concept: record.section,
-        sourceName: source.document
-      })))
-      : state.lectureCards.map(card => ({
-        id: `lecture-${card.id}`,
-        concept: card.section || card.concept || '',
-        sourceName: card.source || state.sources.find(item => item.id === card.sourceId)?.name || ''
-      }));
+      ? records.flatMap(record => state.selectedTypes.map(field => {
+        const id = keyFor(record, field);
+        const skipped = state.statuses[id] === 'Skipped';
+        return {
+          id,
+          concept: record.section,
+          sourceName: source.document,
+          ready: state.statuses[id] === 'Approved',
+          skipped
+        };
+      }))
+      : state.lectureCards.map(card => {
+        const sourceItem = sourceById.get(String(card.sourceId));
+        const location = card.slideNumber
+          ? `Slide ${card.slideNumber}`
+          : card.pageNumber
+            ? `Page ${card.pageNumber}`
+            : '';
+        const sourceName = card.source || sourceItem?.name || 'Class material';
+        return {
+          id: `lecture-${card.id}`,
+          concept: card.section || card.concept || '',
+          sourceName: sourceName.replace(/\s*[·–-]\s*(?:slide|page)\s+\d+$/i, ''),
+          location,
+          ready: card.reviewStatus === 'approved',
+          skipped: card.reviewStatus === 'skipped'
+        };
+      });
     const courseMap = window.SyllabloomCourseMap?.buildCourseMap({
-      concepts,
+      concepts: allConcepts,
       cards: mappedCards,
       reviewHistory: state.reviewHistory,
       className: state.className,
       classTerm: state.classTerm
     }) || [];
+    const focus = window.SyllabloomCourseMap?.recommendNext(courseMap) || null;
+    const milestone = nextExamEvent();
+    const focusAction = document.querySelector('#courseFocusAction');
+    const focusTitle = document.querySelector('#courseFocusTitle');
+    const focusReason = document.querySelector('#courseFocusReason');
+    const milestoneTitle = document.querySelector('#courseMilestoneTitle');
+    const milestoneDetail = document.querySelector('#courseMilestoneDetail');
+    const milestoneAction = document.querySelector('#courseMilestoneAction');
+    if (focus) {
+      const sessionCount = Math.min(focus.readyCount || 0, state.anki.dailyLimit);
+      focusTitle.textContent = focus.cardCount ? `Study ${focus.name} next` : `Build cards for ${focus.name}`;
+      focusReason.textContent = focus.reason;
+      focusAction.outerHTML = `<button id="courseFocusAction" class="button primary" type="button" data-topic-action="${focus.readyCount ? 'study' : focus.cardCount ? 'cards' : 'source'}" data-topic-name="${escapeHtml(focus.name)}">${focus.readyCount ? `Study ${sessionCount} ready card${sessionCount === 1 ? '' : 's'}` : focus.cardCount ? 'Review this topic’s cards' : 'Add class material'}</button>`;
+    } else {
+      focusTitle.textContent = 'Add a course source to start your map';
+      focusReason.textContent = 'A syllabus sets the course dates; slides, notes, and readings add source-linked topics and ready cards.';
+      focusAction.outerHTML = '<button id="courseFocusAction" class="button primary" type="button" data-topic-action="source">Add course material</button>';
+    }
+    if (milestone) {
+      const eventDate = new Date(`${milestone.date}T12:00:00`);
+      const today = new Date(`${localIsoDate(new Date())}T12:00:00`);
+      const daysAway = Math.max(0, Math.ceil((eventDate - today) / 86400000));
+      const dateLabel = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(eventDate);
+      milestoneTitle.textContent = milestone.title;
+      milestoneDetail.textContent = `${dateLabel} · ${daysAway === 0 ? 'today' : `in ${daysAway} day${daysAway === 1 ? '' : 's'}`} · ${labelCase(milestone.type)}`;
+      if (milestone.sourceText) milestoneDetail.textContent += ` · From ${milestone.sourceName || 'your syllabus'}: ${milestone.sourceText}`;
+      milestoneAction.hidden = true;
+    } else {
+      milestoneTitle.textContent = 'No class date added yet';
+      milestoneDetail.textContent = 'Add an exam or class milestone to pace new cards against the real course calendar.';
+      milestoneAction.hidden = false;
+    }
+
     document.querySelector('#baselineScore').textContent = state.baselineAssessed ? `${state.baselineScore}%` : '—';
-    document.querySelector('#baselineScoreLabel').textContent = state.baselineAssessed ? 'first quick-check score' : 'not assessed yet';
-    document.querySelector('#knowledgeObjectiveCount').textContent = String(allConcepts.length);
+    document.querySelector('#baselineScoreLabel').textContent = state.baselineAssessed
+      ? (state.classMode === 'custom' ? 'self-checked quick check' : 'first quick-check score')
+      : 'not assessed yet';
+    document.querySelector('#knowledgeObjectiveCount').textContent = String(courseMap.length);
     document.querySelector('#knowledgeSessionLength').textContent = `${state.dailyStudyMinutes} min`;
     list.innerHTML = courseMap.length
       ? courseMap.map(concept => {
-        const sourceSummary = concept.sourceNames.length
-          ? `Source${concept.sourceNames.length === 1 ? '' : 's'}: ${concept.sourceNames.map(escapeHtml).join(', ')}`
-          : 'No source-linked cards yet';
-        const cardSummary = concept.cardCount
-          ? `${concept.practicedCount} of ${concept.cardCount} cards checked or studied · ${sourceSummary}`
-          : sourceSummary;
-        return `<div class="knowledge-row" data-course-status="${escapeHtml(concept.statusKind)}"><strong>${escapeHtml(concept.name)}</strong><div class="knowledge-evidence"><div class="mastery-track" role="progressbar" aria-label="Cards practiced for ${escapeHtml(concept.name)}" aria-valuemin="0" aria-valuemax="${concept.cardCount}" aria-valuenow="${concept.practicedCount}"><span style="width:${concept.coveragePercent}%"></span></div><small>${escapeHtml(cardSummary)}</small></div><span class="knowledge-score">${concept.cardCount ? `${concept.practicedCount}/${concept.cardCount}` : '—'}</span><span class="knowledge-status knowledge-status--${escapeHtml(concept.statusKind)}">${escapeHtml(concept.status)}</span></div>`;
+        const references = concept.sourceReferences || [];
+        const visibleReferences = references.slice(0, 3).map(reference => `${reference.name}${reference.location ? ` · ${reference.location}` : ''}`);
+        const extraReferences = references.length > visibleReferences.length ? ` +${references.length - visibleReferences.length} more` : '';
+        const evidenceSummary = concept.cardCount
+          ? `${concept.practicedCount} of ${concept.cardCount} cards checked or studied · ${concept.readyCount} ready${visibleReferences.length ? ` · ${visibleReferences.join('; ')}${extraReferences}` : ''}`
+          : (visibleReferences.length ? `No cards linked yet · ${visibleReferences.join('; ')}${extraReferences}` : 'No source-linked cards yet');
+        return `<article class="knowledge-row" data-course-status="${escapeHtml(concept.statusKind)}"><strong>${escapeHtml(concept.name)}</strong><div class="knowledge-evidence">${concept.cardCount ? `<div class="mastery-track" role="progressbar" aria-label="Distinct cards practiced for ${escapeHtml(concept.name)}" aria-valuemin="0" aria-valuemax="${concept.cardCount}" aria-valuenow="${concept.practicedCount}"><span style="width:${concept.coveragePercent}%"></span></div>` : ''}<small>${escapeHtml(evidenceSummary)}</small></div><span class="knowledge-score">${concept.cardCount ? `${concept.practicedCount}/${concept.cardCount}` : '—'}</span><span class="knowledge-status knowledge-status--${escapeHtml(concept.statusKind)}">${escapeHtml(concept.status)}</span>${courseTopicActionMarkup(concept)}</article>`;
       }).join('')
       : '<div class="knowledge-empty"><strong>No learning map yet</strong><span>Add slides, notes, or a syllabus and the concepts will appear here.</span></div>';
+
+    const objectivePanel = document.querySelector('#courseObjectivePanel');
+    const objectiveList = document.querySelector('#courseObjectiveCues');
+    const objectiveSources = state.sources.filter(item => item.kind === 'syllabus' && Array.isArray(item.objectiveCues) && item.objectiveCues.length);
+    const objectiveCues = objectiveSources.flatMap(item => (window.SyllabloomCourseMap?.mapObjectiveCues(item.objectiveCues, courseMap) || [])
+      .map(cue => ({ ...cue, sourceName: item.name })));
+    objectivePanel.hidden = objectiveCues.length === 0;
+    objectiveList.innerHTML = objectiveCues.map(cue => {
+      const topicButtons = cue.topics.map(name => {
+        const topic = courseMap.find(item => window.SyllabloomCourseMap.normalize(item.name) === window.SyllabloomCourseMap.normalize(name));
+        return topic ? courseTopicActionMarkup(topic, true) : '';
+      }).join('');
+      const mapping = topicButtons || '<span class="course-objective-unmatched">No exact topic phrase found in this class’s current cards.</span>';
+      return `<article class="course-objective-cue"><span>From ${escapeHtml(cue.sourceName)}</span><p>${escapeHtml(cue.text)}</p><div>${mapping}</div></article>`;
+    }).join('');
+  }
+
+  function activateCourseTopic(topicName, action) {
+    if (action === 'study') {
+      state.studyFocusConcept = topicName;
+      state.studyIndex = 0;
+      navigate('study');
+      return;
+    }
+    if (action === 'cards') {
+      navigate('cards');
+      window.requestAnimationFrame(() => {
+        const topicKey = window.SyllabloomCourseMap.normalize(topicName);
+        const row = [...document.querySelectorAll('[data-lecture-card]')]
+          .find(item => window.SyllabloomCourseMap.normalize(item.dataset.concept) === topicKey);
+        row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        row?.focus({ preventScroll: true });
+      });
+      return;
+    }
+    navigate('source');
   }
 
   function renderProfileSchedule() {
@@ -1518,6 +1572,8 @@
     document.querySelector('#profileTierDescription').textContent = '1 active class, course-source imports, lecture storage, and Anki export.';
     document.querySelector('#profileClassUsage').textContent = `${used} of ${betaClassLimit}`;
     document.querySelector('#manageClerkProfile').textContent = state.account.signedIn ? 'Account & security' : 'Sign in';
+    document.querySelector('#signOutAccount').hidden = !state.account.signedIn;
+    document.querySelector('#signOutAccountNote').hidden = !state.account.signedIn;
 
     const exam = nextExamEvent();
     const examLabel = exam
@@ -1861,6 +1917,7 @@
     state.anki.setName = '';
     state.anki.tags = '';
     setClassLabels('Human Anatomy', 'Fall 2023');
+    syncStateToOnboardingAnki();
     renderSource();
     updateGenerationCount();
     closeOnboarding(shellRoute()?.surface === 'onboarding' ? 'replace' : 'push');
@@ -2001,6 +2058,7 @@
 
   function navigate(view, historyMode = 'push') {
     const previousView = state.view;
+    if (view !== 'study') state.studyFocusConcept = '';
     state.view = view;
     document.querySelectorAll('.page').forEach(page => page.classList.toggle('active', page.id === view));
     document.querySelectorAll('.nav-button').forEach(button => button.classList.toggle('active', button.dataset.view === view));
@@ -2148,6 +2206,14 @@
     state.lectureCards
       .filter(card => card.reviewStatus === 'approved')
       .forEach(card => approved.push({ directCard: card }));
+    if (state.studyFocusConcept && approved.length) {
+      const normalize = window.SyllabloomCourseMap?.normalize || (value => String(value || '').toLocaleLowerCase().trim());
+      const focused = approved.filter(item => {
+        const concept = item.directCard?.section || item.directCard?.concept || item.record?.section || '';
+        return normalize(concept) === normalize(state.studyFocusConcept);
+      });
+      return focused.slice(0, state.anki.dailyLimit);
+    }
     if (approved.length) return approved.slice(0, state.anki.dailyLimit);
     if (!state.includeSampleMaterial) return [];
     const weakMaterial = records.filter(record => {
@@ -2335,16 +2401,70 @@
     });
   }
 
+  function finishAssessment(questions) {
+    const isSelfChecked = questions.every(item => item.mode === 'recall');
+    state.baselineScore = Math.round((state.assessmentScore / questions.length) * 100);
+    state.baselineAssessed = true;
+    persistCourseState();
+    document.querySelector('#baselineScore').textContent = `${state.baselineScore}%`;
+    document.querySelector('#baselineScoreLabel').textContent = isSelfChecked ? 'self-checked quick check' : 'first quick-check score';
+    const baselinePlan = state.assessmentScore === questions.length
+      ? 'Your next session will begin with new material and use later misses to adjust the plan.'
+      : state.assessmentScore === 0
+        ? 'Your next session will revisit each marked topic before adding more cards.'
+        : 'Your next session will prioritize the topics you marked for review.';
+    document.querySelector('#assessmentBox').innerHTML = isSelfChecked
+      ? `<h2>Quick check complete</h2><p>You marked ${state.assessmentScore} of ${questions.length} as already known. ${baselinePlan}</p>`
+      : `<h2>Baseline complete</h2><p>You answered ${state.assessmentScore} of ${questions.length} question${questions.length === 1 ? '' : 's'} correctly. ${baselinePlan}</p>`;
+    document.querySelector('#baselineContinue').disabled = false;
+  }
+
+  function advanceAssessment(questions) {
+    if (state.assessmentIndex < questions.length - 1) {
+      state.assessmentIndex += 1;
+      renderAssessmentQuestion();
+    } else {
+      finishAssessment(questions);
+    }
+  }
+
   function renderAssessmentQuestion() {
     const questions = activeAssessmentQuestions();
     const item = questions[state.assessmentIndex];
     if (!item) return;
     document.querySelector('#assessmentProgress').textContent = `Question ${state.assessmentIndex + 1} of ${questions.length}`;
     document.querySelector('#assessmentQuestion').textContent = item.question;
-    document.querySelector('#assessmentResult').innerHTML = '';
+    const result = document.querySelector('#assessmentResult');
+    result.innerHTML = '';
     const options = document.querySelector('#assessmentOptions');
+
+    if (item.mode === 'recall') {
+      options.innerHTML = '<button class="button primary answer-option" id="revealSourceAnswer" type="button">Reveal answer</button>';
+      options.querySelector('#revealSourceAnswer').addEventListener('click', () => {
+        const sourceLabel = item.sourceName ? `Source: ${item.sourceName}.` : '';
+        result.innerHTML = `<article class="quick-check-source-answer"><span>Source-backed answer</span><p>${escapeHtml(item.answer)}</p><small>${escapeHtml(sourceLabel)}</small></article>`;
+        options.innerHTML = `
+          <span class="quick-check-rating-label">How well did you know it?</span>
+          <div class="quick-check-rating-actions">
+            <button class="button answer-option" type="button" data-known="true">I knew it</button>
+            <button class="button answer-option" type="button" data-known="false">Need to review</button>
+          </div>`;
+        options.querySelectorAll('[data-known]').forEach(button => button.addEventListener('click', () => {
+          const known = button.dataset.known === 'true';
+          recordQuickCheckResponse(item, known);
+          if (known) state.assessmentScore += 1;
+          options.querySelectorAll('button').forEach(rating => { rating.disabled = true; });
+          result.insertAdjacentHTML('beforeend', `<p class="quick-check-rating-feedback">${known ? 'Marked as known.' : 'Added to your review priorities.'}</p>`);
+          const finalQuestion = state.assessmentIndex === questions.length - 1;
+          result.insertAdjacentHTML('beforeend', `<button id="assessmentNext" class="button primary" type="button">${finalQuestion ? 'Finish check' : 'Next question'}</button>`);
+          document.querySelector('#assessmentNext').addEventListener('click', () => advanceAssessment(questions));
+        }));
+      });
+      return;
+    }
+
     options.innerHTML = item.options.map((option, index) => (
-      `<button class="button answer-option" data-answer="${index}">${escapeHtml(option)}</button>`
+      `<button class="button answer-option" data-answer="${index}" type="button">${escapeHtml(option)}</button>`
     )).join('');
     options.querySelectorAll('.answer-option').forEach(button => button.addEventListener('click', () => {
       const answer = Number(button.dataset.answer);
@@ -2355,30 +2475,10 @@
       if (!correct) button.classList.add('selected-wrong');
       options.querySelectorAll('button').forEach(option => { option.disabled = true; });
       const finalQuestion = state.assessmentIndex === questions.length - 1;
-      document.querySelector('#assessmentResult').innerHTML = `
+      result.innerHTML = `
         <p><strong>${correct ? 'Correct.' : 'Not quite.'}</strong> ${escapeHtml(item.explanation)}</p>
-        <button id="assessmentNext" class="button primary">${finalQuestion ? 'Finish assessment' : 'Next question'}</button>`;
-      document.querySelector('#assessmentNext').addEventListener('click', () => {
-        if (!finalQuestion) {
-          state.assessmentIndex += 1;
-          renderAssessmentQuestion();
-          return;
-        }
-        state.baselineScore = Math.round((state.assessmentScore / questions.length) * 100);
-        state.baselineAssessed = true;
-        persistCourseState();
-        document.querySelector('#baselineScore').textContent = `${state.baselineScore}%`;
-        document.querySelector('#baselineScoreLabel').textContent = 'first quick-check score';
-        const baselinePlan = state.assessmentScore === questions.length
-          ? 'Your first session will begin with new material and use later misses to adjust the plan.'
-          : state.assessmentScore === 0
-            ? 'Your first session will rebuild these foundations before adding more cards.'
-            : 'Your first session will circle back to the missed topics before adding more cards.';
-        document.querySelector('#assessmentBox').innerHTML = `
-          <h2>Baseline complete</h2>
-          <p>You answered ${state.assessmentScore} of ${questions.length} question${questions.length === 1 ? '' : 's'} correctly. ${baselinePlan}</p>`;
-        document.querySelector('#baselineContinue').disabled = false;
-      });
+        <button id="assessmentNext" class="button primary" type="button">${finalQuestion ? 'Finish assessment' : 'Next question'}</button>`;
+      document.querySelector('#assessmentNext').addEventListener('click', () => advanceAssessment(questions));
     }));
   }
 
@@ -2469,6 +2569,9 @@
   function renderStudy({ preserveRatingReceipt = false } = {}) {
     const cards = studyCards();
     const hasCards = cards.length > 0;
+    const focusBanner = document.querySelector('#studyFocusBanner');
+    focusBanner.hidden = !state.studyFocusConcept;
+    if (state.studyFocusConcept) document.querySelector('#studyFocusName').textContent = state.studyFocusConcept;
     document.querySelector('#studyEmpty').hidden = hasCards;
     document.querySelector('#studyMeta').hidden = !hasCards;
     document.querySelector('#studyProgressTrack').hidden = !hasCards;
@@ -2881,7 +2984,8 @@
   }
 
   function lectureCardKey(card) {
-    return window.SyllabloomCardSet.cardKey(card);
+    const key = window.SyllabloomCardSet.cardKey(card);
+    return card.sourceId ? `${card.sourceId}::${key}` : key;
   }
 
   function autoSizeTextArea(field) {
@@ -2918,18 +3022,29 @@
   }
 
   function syncLectureCards(cards = []) {
-    const prior = new Map(state.lectureCards.map(card => [card.sourceKey || lectureCardKey(card), card]));
+    const cardSet = window.SyllabloomCardSet;
+    const prior = new Map();
+    state.lectureCards.forEach(card => {
+      const key = card.sourceKey || lectureCardKey(card);
+      prior.set(key, card);
+      const legacyKey = cardSet.legacyCardKey(card);
+      if (!prior.has(legacyKey)) prior.set(legacyKey, card);
+    });
     const savedReview = savedLectureReview();
     const deletedSessionKeys = new Set(savedReview.filter(card => card.reviewStatus === 'deleted').map(card => card.key));
     savedReview.filter(card => card.reviewStatus !== 'deleted').forEach(card => prior.set(card.key, card));
     state.lectureCards = cards.filter(card => {
       if (card.sourceId) {
         const sourceItem = state.sources.find(item => item.id === card.sourceId);
-        return !(sourceItem?.deletedCardKeys || []).includes(lectureCardKey(card));
+        const deletedSourceKeys = new Set(sourceItem?.deletedCardKeys || []);
+        return !deletedSourceKeys.has(card.sourceDeletionKey || cardSet.cardKey(card))
+          && !deletedSourceKeys.has(cardSet.legacyCardKey(card))
+          && !deletedSessionKeys.has(lectureCardKey(card));
       }
-      return !deletedSessionKeys.has(lectureCardKey(card));
+      return !deletedSessionKeys.has(lectureCardKey(card))
+        && !deletedSessionKeys.has(cardSet.legacyCardKey(card));
     }).map((card, index) => {
-      const existing = prior.get(lectureCardKey(card));
+      const existing = prior.get(lectureCardKey(card)) || prior.get(cardSet.legacyCardKey(card));
       return {
         ...card,
         id: existing?.id || `lecture-${index}-${Math.abs(Array.from(card.front || '').reduce((total, character) => total + character.charCodeAt(0), 0))}`,
@@ -2977,6 +3092,7 @@
         : 'Record or import a lecture. Anki-ready cards will appear here.';
     updateStatusCounts();
     updateAnkiExportSurface();
+    updateAnkiDesktopBridge();
   }
 
   function renderLectureDraftQueue() {
@@ -2993,11 +3109,23 @@
     const approved = state.lectureCards.filter(card => card.reviewStatus === 'approved').length;
     const skipped = state.lectureCards.filter(card => card.reviewStatus === 'skipped').length;
     document.querySelector('#lectureDraftCount').textContent = `${state.lectureCards.length} in set · ${approved} ready${waiting ? ` · ${waiting} to check` : ''}${skipped ? ` · ${skipped} left out` : ''}`;
-    const statusOrder = { waiting: 0, approved: 1, skipped: 2 };
-    const orderedCards = [...state.lectureCards].sort((left, right) => statusOrder[left.reviewStatus] - statusOrder[right.reviewStatus]);
-    queue.innerHTML = orderedCards.map((card, index) => `
-      <article class="lecture-draft-card ${escapeHtml(card.reviewStatus)}" data-lecture-card="${escapeHtml(card.id)}">
-        <div class="lecture-draft-index"><b>${String(index + 1).padStart(2, '0')}</b><span class="lecture-draft-evidence">${card.status === 'provisional' ? 'Review only' : 'Course source'}${card.slideNumber ? ` · Slide ${card.slideNumber}` : ''}</span></div>
+    const grouped = new Map();
+    const addCard = (sourceId, card) => {
+      const key = sourceId || 'recorded-lecture';
+      if (!grouped.has(key)) grouped.set(key, { sourceId, cards: [], duplicates: [] });
+      grouped.get(key).cards.push(card);
+    };
+    state.lectureCards.forEach(card => addCard(card.sourceId, card));
+    state.lectureCards.forEach(card => (card.duplicateSourceRefs || []).forEach(reference => {
+      const key = reference.sourceId || 'recorded-lecture';
+      if (!grouped.has(key)) grouped.set(key, { sourceId: reference.sourceId, cards: [], duplicates: [] });
+      grouped.get(key).duplicates.push(card);
+    }));
+    const sourceById = new Map(state.sources.map(sourceItem => [sourceItem.id, sourceItem]));
+    let index = 0;
+    const renderCard = card => `
+      <article class="lecture-draft-card ${escapeHtml(card.reviewStatus)}" data-lecture-card="${escapeHtml(card.id)}" data-concept="${escapeHtml(card.section || card.concept || '')}">
+        <div class="lecture-draft-index"><b>${String(++index).padStart(2, '0')}</b><span class="lecture-draft-evidence">${card.status === 'provisional' ? 'Review only' : 'Course source'}${card.slideNumber ? ` · Slide ${card.slideNumber}` : ''}</span></div>
         <div class="lecture-draft-body">
           <label>Front<textarea data-lecture-field="front">${escapeHtml(card.front)}</textarea></label>
           <label>Back<textarea data-lecture-field="back">${escapeHtml(card.back)}</textarea></label>
@@ -3008,7 +3136,16 @@
           <button class="button lecture-card-delete" type="button" data-lecture-action="delete" aria-label="Remove card: ${escapeHtml(card.front)}">Delete card</button>
         </div>
       </article>
-    `).join('');
+    `;
+    queue.innerHTML = [...grouped.entries()].map(([key, group]) => {
+      const sourceItem = group.sourceId ? sourceById.get(group.sourceId) : null;
+      const title = sourceItem?.name || group.cards.find(card => card.sourceName)?.sourceName || 'Recorded lecture';
+      const uniqueCards = group.cards.map(renderCard).join('');
+      const duplicateNote = group.duplicates.length
+        ? `<p class="lecture-source-duplicate-note">${group.duplicates.length} identical card${group.duplicates.length === 1 ? '' : 's'} also came from this material; kept once in your study set.</p>`
+        : '';
+      return `<section class="lecture-source-group" data-source-group="${escapeHtml(key)}"><header class="lecture-source-group-heading"><h3>${escapeHtml(title)}</h3><span>${group.cards.length} unique card${group.cards.length === 1 ? '' : 's'}${group.duplicates.length ? ` · ${group.duplicates.length} repeated` : ''}</span></header>${uniqueCards || '<p class="lecture-source-duplicate-note">No new cards from this material; its repeated concepts are kept once in the study set.</p>'}${duplicateNote}</section>`;
+    }).join('');
     window.requestAnimationFrame(() => queue.querySelectorAll('textarea').forEach(autoSizeTextArea));
   }
 
@@ -3352,9 +3489,10 @@
       panel.hidden = true;
       return;
     }
-    const concepts = Array.isArray(sourceItem.concepts) ? sourceItem.concepts : [];
-    const notes = Array.isArray(sourceItem.notes) ? sourceItem.notes : [];
-    const cards = Array.isArray(sourceItem.draftCards) ? sourceItem.draftCards : [];
+    const study = window.SyllabloomSourceStudy;
+    const concepts = study ? study.cleanConcepts(sourceItem.concepts) : (Array.isArray(sourceItem.concepts) ? sourceItem.concepts : []);
+    const notes = study ? study.cleanNotes(sourceItem.notes) : (Array.isArray(sourceItem.notes) ? sourceItem.notes : []);
+    const cards = window.SyllabloomCardSet.sourceCards([sourceItem]).filter(card => !study || study.isUsableCard(card));
     panel.hidden = false;
     document.querySelector('#sourceStudyOutputEyebrow').textContent = sourceItem.name;
     document.querySelector('#sourceStudyOutputTitle').textContent = `${cards.length} ready card${cards.length === 1 ? '' : 's'} from this source`;
@@ -3363,7 +3501,7 @@
       ? concepts.slice(0, 12).map(concept => `<span>${escapeHtml(concept.name || concept)}</span>`).join('')
       : '<p>No named concepts were found.</p>';
     document.querySelector('#sourceStudyNotes').innerHTML = notes.length
-      ? notes.slice(0, 8).map(note => `<article><span>${note.slideNumber ? `Slide ${note.slideNumber}` : 'Source note'}</span><strong>${escapeHtml(note.title)}</strong>${(note.lines || []).slice(0, 4).map(line => `<p>${escapeHtml(line)}</p>`).join('')}</article>`).join('')
+      ? notes.slice(0, 8).map(note => `<article><span>${note.slideNumber ? `Slide ${note.slideNumber}` : note.pageNumber ? `Page ${note.pageNumber}` : 'Source note'}</span><strong>${escapeHtml(note.title)}</strong>${(note.lines || []).slice(0, 4).map(line => `<p>${escapeHtml(line)}</p>`).join('')}</article>`).join('')
       : '<p>No notes were created from this source.</p>';
   }
 
@@ -3398,7 +3536,83 @@
   }
 
   function sourceCardsFromLibrary() {
-    return window.SyllabloomCardSet.sourceCards(state.sources);
+    const cards = window.SyllabloomCardSet.sourceCards(state.sources);
+    return cards.filter(card => !window.SyllabloomSourceStudy || window.SyllabloomSourceStudy.isUsableCard(card));
+  }
+
+  function updateAnkiDesktopBridge() {
+    const connectButton = document.querySelector('#connectAnkiDesktop');
+    const sendButton = document.querySelector('#sendReadyCardsToAnki');
+    const autoSync = document.querySelector('#autoSyncAnkiDesktop');
+    const status = document.querySelector('#ankiDesktopStatus');
+    if (!connectButton || !sendButton || !autoSync || !status) return;
+    if (ankiDesktopSettings.autoSync && state.account.userId && ankiDesktopSettings.ownerId !== state.account.userId) {
+      ankiDesktopSettings.autoSync = false;
+      localStorage.setItem('syllabloom-anki-desktop-settings', JSON.stringify(ankiDesktopSettings));
+    }
+    autoSync.checked = Boolean(ankiDesktopSettings.autoSync);
+    sendButton.disabled = collectApprovedCards().length === 0;
+    connectButton.textContent = ankiDesktopConnected ? 'Anki Desktop connected' : 'Check Anki connection';
+    if (!ankiDesktopConnected && !status.dataset.message) {
+      status.textContent = 'Anki Desktop is not connected on this device. The downloadable deck remains available above.';
+    }
+  }
+
+  async function checkAnkiDesktopConnection() {
+    const status = document.querySelector('#ankiDesktopStatus');
+    status.dataset.message = 'checking';
+    status.textContent = 'Checking for Anki Desktop on this device…';
+    try {
+      const result = await window.SyllabloomAnkiConnect.createClient().connect();
+      ankiDesktopConnected = true;
+      status.textContent = `AnkiConnect ${result.version} found. Ready cards will go to Anki Desktop on this device.`;
+      status.dataset.message = 'connected';
+    } catch (error) {
+      ankiDesktopConnected = false;
+      status.textContent = error.message;
+      status.dataset.message = 'disconnected';
+    }
+    updateAnkiDesktopBridge();
+  }
+
+  async function sendReadyCardsToDesktop({ automatic = false } = {}) {
+    const cards = collectApprovedCards();
+    const sendButton = document.querySelector('#sendReadyCardsToAnki');
+    const status = document.querySelector('#ankiDesktopStatus');
+    if (!cards.length) {
+      status.textContent = 'Approve at least one card before sending it to Anki.';
+      status.dataset.message = 'empty';
+      return;
+    }
+    if (automatic && (!ankiDesktopSettings.autoSync || !state.account.userId || ankiDesktopSettings.ownerId !== state.account.userId)) return;
+    const previousText = sendButton.textContent;
+    sendButton.disabled = true;
+    sendButton.textContent = 'Sending cards…';
+    status.dataset.message = 'sending';
+    status.textContent = `Sending ${cards.length} ready card${cards.length === 1 ? '' : 's'} to Anki Desktop…`;
+    try {
+      const result = await window.SyllabloomAnkiConnect.createClient().pushCards(cards, {
+        deckName: state.anki.deck || state.className,
+        format: state.anki.format,
+        tags: state.anki.tags
+      });
+      ankiDesktopConnected = true;
+      if (result.synced) {
+        status.textContent = `${result.added} card${result.added === 1 ? '' : 's'} added; ${result.duplicates} already in Anki. Anki Desktop synced with AnkiWeb.`;
+        if (!automatic) showToast(`${result.added} new card${result.added === 1 ? '' : 's'} sent to Anki`);
+      } else {
+        status.textContent = `${result.added} card${result.added === 1 ? '' : 's'} added to Anki Desktop, but AnkiWeb sync needs attention: ${result.syncError}`;
+      }
+      status.dataset.message = 'connected';
+    } catch (error) {
+      ankiDesktopConnected = false;
+      status.textContent = error.message;
+      status.dataset.message = 'disconnected';
+      if (!automatic) showToast(error.message);
+    } finally {
+      sendButton.textContent = previousText;
+      updateAnkiDesktopBridge();
+    }
   }
 
   async function loadStoredSources() {
@@ -3602,6 +3816,53 @@
       : result.succeeded + ' document' + (result.succeeded === 1 ? '' : 's') + ' added');
   }
 
+  function uploadLargeSourceFile(url, file, contentType, onProgress = () => {}) {
+    return new Promise((resolve, reject) => {
+      const request = new XMLHttpRequest();
+      request.open('PUT', url);
+      request.setRequestHeader('Content-Type', contentType);
+      request.upload.addEventListener('progress', event => {
+        if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
+      });
+      request.addEventListener('load', () => {
+        if (request.status >= 200 && request.status < 300) resolve();
+        else reject(new Error('The document upload did not finish. Check your connection and retry.'));
+      });
+      request.addEventListener('error', () => reject(new Error('The document upload was interrupted. Check your connection and retry.')));
+      request.addEventListener('abort', () => reject(new Error('The document upload was cancelled.')));
+      request.send(file);
+    });
+  }
+
+  async function uploadLargeSource(file, kind, token, onProgress = () => {}) {
+    const ticketResponse = await fetch('/api/source-upload-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ filename: file.name, size: file.size })
+    });
+    const ticket = await ticketResponse.json();
+    if (!ticketResponse.ok) throw new Error(ticket.error || 'The secure upload could not be prepared.');
+    try {
+      await uploadLargeSourceFile(ticket.uploadUrl, file, ticket.contentType, onProgress);
+      const response = await fetch('/api/source', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          filename: file.name,
+          kind,
+          pathname: ticket.pathname,
+          sourceUrl: ticket.sourceUrl,
+          deleteUrl: ticket.deleteUrl
+        })
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'The document could not be read.');
+      return payload;
+    } finally {
+      fetch(ticket.deleteUrl, { method: 'DELETE', mode: 'cors' }).catch(() => {});
+    }
+  }
+
   async function uploadSource(file, kind = 'auto', options = {}) {
     const label = document.querySelector('#sourceUploadLabel');
     const priorText = label.textContent;
@@ -3614,16 +3875,23 @@
       const token = await window.SyllabloomAuth?.getToken?.();
       const isLocalDevelopment = ['localhost', '127.0.0.1'].includes(window.location.hostname);
       if (!token && !isLocalDevelopment) throw new Error('Sign in before adding course materials.');
-      const body = new FormData();
-      body.append('source', file, file.name);
-      body.append('kind', kind);
-      const response = await fetch('/api/source', {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'The document could not be read');
+      let payload;
+      if (!isLocalDevelopment && file.size > 3 * 1024 * 1024) {
+        payload = await uploadLargeSource(file, kind, token, percent => {
+          if (manageButton) label.textContent = `Uploading securely… ${percent}%`;
+        });
+      } else {
+        const body = new FormData();
+        body.append('source', file, file.name);
+        body.append('kind', kind);
+        const response = await fetch('/api/source', {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body
+        });
+        payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || 'The document could not be read');
+      }
       const detectedKind = payload.source.kind || kind;
       const previousSource = state.sources.find(item => item.id === payload.source.id);
       payload.source = window.SyllabloomCardSet.mergeSource(previousSource, payload.source);
@@ -3654,6 +3922,7 @@
         state.anki.tags = classTag(inferredClassName);
         localStorage.setItem('syllabloom-anki-preferences', JSON.stringify(state.anki));
         syncAnkiFormFromState();
+        syncStateToOnboardingAnki();
       }
       if (detectedKind === 'syllabus') {
         if (payload.source.courseName) setClassLabels(payload.source.courseName, payload.source.term || state.classTerm);
@@ -3680,13 +3949,11 @@
       persistClassSources();
       persistClassProfile();
       syncAccountClassUsage();
-      const sourceCards = (payload.source.draftCards || []).map(card => ({ ...card, sourceId: payload.source.id }));
+      const sourceCards = sourceCardsFromLibrary();
       if (sourceCards.length) {
         state.latestSessionId = `source-${payload.source.id}`;
-        const retainedCards = state.lectureCards.filter(card => card.sourceId !== payload.source.id);
-        const merged = [...retainedCards, ...sourceCards];
-        const unique = [...new Map(merged.map(card => [lectureCardKey(card), card])).values()];
-        syncLectureCards(unique);
+        const retainedLectureCards = state.lectureCards.filter(card => !card.sourceId);
+        syncLectureCards([...retainedLectureCards, ...sourceCards]);
       }
       renderSource();
       updateGenerationCount();
@@ -3694,6 +3961,10 @@
       renderStudy();
       updateAssessmentIntro();
       renderSourceStudyOutput(detectedKind === 'syllabus' ? null : payload.source);
+      if (detectedKind !== 'syllabus' && (payload.source.draftCards || []).length
+        && ankiDesktopSettings.autoSync && ankiDesktopSettings.ownerId === state.account.userId) {
+        sendReadyCardsToDesktop({ automatic: true });
+      }
       if (detectedKind === 'syllabus') {
         const dateCount = payload.source.calendarEvents?.length || 0;
         const hasYearWarning = (payload.source.calendarWarnings || []).length > 0;
@@ -3919,6 +4190,23 @@
   });
 
   document.querySelectorAll('.nav-button').forEach(button => button.addEventListener('click', () => navigate(button.dataset.view)));
+  document.querySelector('#knowledge').addEventListener('click', event => {
+    const topicButton = event.target.closest('[data-topic-action]');
+    if (topicButton) {
+      activateCourseTopic(topicButton.dataset.topicName || '', topicButton.dataset.topicAction);
+      return;
+    }
+    if (event.target.closest('[data-focus-calendar]')) {
+      const form = document.querySelector('#calendarEventForm');
+      form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      window.setTimeout(() => document.querySelector('#calendarEventTitle').focus(), 250);
+    }
+  });
+  document.querySelector('[data-clear-study-focus]').addEventListener('click', () => {
+    state.studyFocusConcept = '';
+    state.studyIndex = 0;
+    renderStudy();
+  });
   document.querySelectorAll('[data-go]').forEach(button => button.addEventListener('click', () => navigate(button.dataset.go)));
   document.querySelectorAll('[data-open-profile]').forEach(button => button.addEventListener('click', () => openAccountPage('profile')));
   document.querySelectorAll('[data-open-billing]').forEach(button => button.addEventListener('click', () => openAccountPage('billing')));
@@ -4091,6 +4379,19 @@
     }
   });
   document.querySelector('#manageClerkProfile').addEventListener('click', () => window.SyllabloomAuth?.openClerkProfile?.());
+  document.querySelector('#signOutAccount').addEventListener('click', async event => {
+    const button = event.currentTarget;
+    if (!state.account.signedIn || button.disabled) return;
+    button.disabled = true;
+    button.textContent = 'Signing out…';
+    try {
+      await window.SyllabloomAuth?.signOutCurrentSession?.();
+    } catch (_) {
+      button.disabled = false;
+      button.textContent = 'Sign out';
+      showToast('Could not sign out. Check your connection and try again.');
+    }
+  });
   document.querySelector('#billingManageAccount').addEventListener('click', () => window.SyllabloomAuth?.openClerkProfile?.());
   document.querySelector('[data-profile-add-class]').addEventListener('click', startClassSetup);
   document.querySelector('#profileClassList').addEventListener('click', event => {
@@ -4368,6 +4669,9 @@
     saveLectureReview();
     renderLectureDraftQueue();
     showToast(action === 'approve' ? 'Card added to the ready set' : 'Card left out');
+    if (action === 'approve' && ankiDesktopSettings.autoSync && ankiDesktopSettings.ownerId === state.account.userId) {
+      sendReadyCardsToDesktop({ automatic: true });
+    }
   });
   document.querySelectorAll('[data-cancel-remove-card]').forEach(button => button.addEventListener('click', closeRemoveCardDialog));
   document.querySelector('#removeCardDialog').addEventListener('close', () => {
@@ -4442,6 +4746,24 @@
   document.querySelector('#saveCard').addEventListener('click', () => saveCurrent(false));
   document.querySelector('#exportAnki').addEventListener('click', exportApprovedCards);
   document.querySelector('#lectureExportAnki').addEventListener('click', exportApprovedCards);
+  document.querySelector('#connectAnkiDesktop').addEventListener('click', checkAnkiDesktopConnection);
+  document.querySelector('#sendReadyCardsToAnki').addEventListener('click', () => sendReadyCardsToDesktop());
+  document.querySelector('#autoSyncAnkiDesktop').addEventListener('change', event => {
+    const status = document.querySelector('#ankiDesktopStatus');
+    if (event.target.checked && !state.account.userId) {
+      event.target.checked = false;
+      status.dataset.message = 'preference';
+      status.textContent = 'Sign in before enabling automatic card sending.';
+      return;
+    }
+    ankiDesktopSettings.autoSync = event.target.checked;
+    ankiDesktopSettings.ownerId = event.target.checked ? state.account.userId : '';
+    localStorage.setItem('syllabloom-anki-desktop-settings', JSON.stringify(ankiDesktopSettings));
+    status.dataset.message = 'preference';
+    status.textContent = event.target.checked
+      ? 'Automatic send is enabled for this signed-in account on this device. New ready cards will be sent after approval.'
+      : 'Automatic send is off. You can still send ready cards manually or download an Anki deck.';
+  });
   document.querySelector('#skipCard').addEventListener('click', () => {
     saveCurrent(true);
     state.statuses[keyFor(currentRecord())] = 'Skipped';
@@ -4457,6 +4779,9 @@
     updateReviewSurface();
     showToast('Card kept in the ready set');
     advanceRecord();
+    if (ankiDesktopSettings.autoSync && ankiDesktopSettings.ownerId === state.account.userId) {
+      sendReadyCardsToDesktop({ automatic: true });
+    }
   });
 
   document.querySelector('#showAnswer').addEventListener('click', () => {

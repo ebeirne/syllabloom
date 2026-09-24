@@ -1,7 +1,7 @@
 (function (root) {
   const allowedKinds = new Set(['auto', 'material', 'syllabus', 'assessment']);
   const allowedExtensions = new Set(['docx', 'pptx', 'pdf', 'txt']);
-  const maxFileBytes = 12 * 1024 * 1024;
+  const maxFileBytes = 100 * 1024 * 1024;
   let nextQueueId = 0;
 
   function createQueueItems(files, defaultKind = 'auto') {
@@ -26,9 +26,9 @@
       } else if (!item.size) {
         item.status = 'failed';
         item.error = 'This document is empty. Choose a file that contains content.';
-      } else if (item.size >= maxFileBytes) {
+      } else if (item.size > maxFileBytes) {
         item.status = 'failed';
-        item.error = 'Each document must be smaller than 12 MB.';
+        item.error = 'Each document can be up to 100 MB in this beta.';
       }
       return item;
     });

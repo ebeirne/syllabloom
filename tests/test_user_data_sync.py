@@ -58,6 +58,12 @@ class UserDataValidationTests(unittest.TestCase):
         }
         self.assertEqual(user_data.normalize_user_data(value), value)
 
+    def test_workspace_has_no_fixed_source_count_cap_and_accepts_more_sync_data(self) -> None:
+        value = {"schemaVersion": 1, "sources": [{"id": f"source-{index}"} for index in range(400)]}
+        self.assertEqual(len(user_data.normalize_user_data(value)["sources"]), 400)
+        larger = user_data.normalize_user_data({"schemaVersion": 1, "sources": [{"notes": "x" * (3 * 1024 * 1024 + 1)}]})
+        self.assertGreater(len(larger["sources"][0]["notes"]), 3 * 1024 * 1024)
+
     def test_browser_media_blobs_are_not_part_of_the_synced_schema(self) -> None:
         self.assertNotIn("media", user_data._ALLOWED_FIELDS)
         self.assertNotIn("recording", user_data._ALLOWED_FIELDS)
@@ -168,6 +174,29 @@ class ClerkAuthenticationTests(unittest.TestCase):
             with patch.object(user_data, "authenticated_user", return_value=None):
                 self.assertFalse(user_data.require_authenticated_beta_request(request, "adding course materials"))
         self.assertEqual(request.status, 401)
+
+    def test_public_beta_flag_accepts_test_clerk_tokens_but_keeps_routes_authenticated(self) -> None:
+        class Request:
+            headers = {}
+
+            def send_json(self, _payload: dict, status) -> None:
+                self.status = status
+
+        environment = {
+            "VERCEL_ENV": "production",
+            "CLERK_PUBLISHABLE_KEY": "pk_test_example",
+            "SYLLABLOOM_PUBLIC_BETA_AUTH": "true",
+        }
+        request = Request()
+        with patch.dict(user_data.os.environ, environment, clear=True):
+            self.assertTrue(user_data._runtime_auth_configured())
+            with patch.object(user_data, "authenticated_user", return_value=None):
+                self.assertFalse(user_data.require_authenticated_beta_request(request, "adding course materials"))
+            self.assertEqual(request.status, 401)
+
+            request = Request()
+            with patch.object(user_data, "authenticated_user", return_value="user_beta_test"):
+                self.assertTrue(user_data.require_authenticated_beta_request(request, "adding course materials"))
 
     def test_local_course_upload_smoke_tests_remain_available_without_clerk(self) -> None:
         class Request:

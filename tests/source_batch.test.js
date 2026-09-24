@@ -26,14 +26,24 @@ test('marks empty, unsupported, and oversized files before submission', () => {
   const items = createQueueItems([
     file('empty.pdf', 0),
     file('photo.png'),
-    file('too-large.pdf', 12 * 1024 * 1024)
+    file('too-large.pdf', 100 * 1024 * 1024 + 1)
   ]);
 
   assert.deepEqual(items.map(item => item.status), ['failed', 'failed', 'failed']);
   assert.match(items[0].error, /empty/i);
   assert.match(items[1].error, /DOCX, PPTX, PDF, or TXT/i);
-  assert.match(items[2].error, /smaller than 12 MB/i);
+  assert.match(items[2].error, /up to 100 MB/i);
   assert.ok(items.every(item => !item.retryable));
+});
+
+test('accepts large course documents above the former Vercel function request limit', () => {
+  const items = createQueueItems([
+    file('lecture-notes.pdf', 4_500_001),
+    file('homework.docx', 99 * 1024 * 1024),
+    file('large-enough.pdf', 100 * 1024 * 1024)
+  ]);
+
+  assert.deepEqual(items.map(item => item.status), ['queued', 'queued', 'queued']);
 });
 
 test('imports sequentially and continues after one document fails', async () => {

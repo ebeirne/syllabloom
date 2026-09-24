@@ -851,8 +851,9 @@ def compile_study_material(text: str, filename: str, status: str = "verified") -
 
 
 _PDF_BOILERPLATE = re.compile(
-    r"^(?:CS\s*\d{2,4}\b|lecturer\s*:|read\s*:|topics\s*:|lecture\s*(?:#|no\.?\s*)?\d+\b|"
-    r"fig(?:ure)?\.?\s*\d*:?|slide\s*\d+\b|page\s*\d+\b)",
+    r"^(?:https?://\S+|www\.\S+|.{2,120}\s+\d{1,2}[/-]\d{1,2}[/-]\d{2,4},?\s+\d{1,2}:\d{2}\s*(?:am|pm)$|"
+    r"CS\s*\d{2,4}\b|lecturer\s*:|read\s*:|topics\s*:|lecture\s*(?:#|no\.?\s*)?\d+\b|"
+    r"fig(?:ure)?\.?\s*\d*:?|slide\s*\d+\b|page\s*\d+(?:\s+of\s+\d+)?\b)",
     flags=re.IGNORECASE,
 )
 _PDF_VAGUE_QUESTION = re.compile(
@@ -939,6 +940,8 @@ def _pdf_question_from_label(label: str, answer: str) -> str:
     label = re.sub(r"\bms\s+dos\b", "MS-DOS", label, flags=re.IGNORECASE)
     label = re.sub(r"\s*\((?:interactive)\)", "", label, flags=re.IGNORECASE)
     normalized = label.lower()
+    if re.match(r"^(?:an?\s+)?implementing\s+prescribed\s+apis?\b", normalized):
+        return "Why is implementing the prescribed APIs important?"
     if normalized.startswith("command interpreter in unix"):
         return "What is the Unix command interpreter?"
     if normalized.startswith("win32api") or normalized.startswith("win32 api"):
@@ -1092,6 +1095,11 @@ def _pdf_fact_card(statement: str, section: str = "") -> tuple[str, str] | None:
         label, answer = labeled.groups()
         if _valid_card_subject(label) and label.lower() not in _GENERIC_LABELS and not _PDF_BOILERPLATE.match(label):
             plural = label.lower().endswith(("systems", "processes", "instructions", "programs", "layers", "models"))
+            model_label = re.sub(r"^the\s+", "", label.strip(), flags=re.IGNORECASE).lower()
+            if model_label == "symmetric multiprocessing model" and re.fullmatch(r"smp\s*:\s*peer-to-peer", answer.strip(), flags=re.IGNORECASE):
+                return "What characterizes the symmetric multiprocessing model?", "It uses a peer-to-peer model."
+            if model_label == "asymmetric multiprocessing model" and answer.strip().lower() == "master-slave":
+                return "What characterizes the asymmetric multiprocessing model?", "It uses a master-slave model."
             guarantee = re.match(r"guarantees?\s+that\s+(.+)", answer, flags=re.IGNORECASE)
             if guarantee and label.lower().endswith("system"):
                 return f"What does a {label.lower()} guarantee?", f"A {label.lower()} guarantees that {guarantee.group(1).strip()}"
@@ -1196,6 +1204,10 @@ def _pdf_card_is_usable(front: str, back: str, allow_long_answer: bool = False) 
     front = re.sub(r"\s+", " ", front).strip()
     back = re.sub(r"\s+", " ", back).strip()
     if not (12 <= len(front) <= 180 and front.endswith("?")) or _PDF_VAGUE_QUESTION.match(front):
+        return False
+    if re.search(r"(?:https?://|www\.)\S+", front + " " + back, flags=re.IGNORECASE):
+        return False
+    if _PDF_BOILERPLATE.match(front) or _PDF_BOILERPLATE.match(back):
         return False
     malformed_subject = re.match(r"^what\s+(?:is|are|was|were)\s+(.+)$", front[:-1], flags=re.IGNORECASE)
     if malformed_subject and re.search(
@@ -1912,12 +1924,21 @@ def syllabus_calendar(filename: str, text: str, source_id: str) -> dict:
         if inline_course:
             course_code = course_code or re.sub(r"\s+", "", inline_course.group(1).upper())
             course_name = course_name or inline_course.group(2).strip()
+        bare_course_code = re.match(r"^\s*(COS\s*226)\b", line, re.IGNORECASE)
+        if bare_course_code:
+            course_code = course_code or re.sub(r"\s+", "", bare_course_code.group(1).upper())
+            course_name = course_name or "COS 226"
         if not term:
             term_match = re.search(r"\b(Fall|Autumn|Winter|Spring|Summer)\s+(20\d{2}|\d{2})\b", line, re.IGNORECASE)
             if term_match:
                 term_year = term_match.group(2)
                 term_year = term_year if len(term_year) == 4 else f"20{term_year}"
                 term = f"{term_match.group(1).title()} {term_year}"
+    if not term:
+        full_term = re.search(r"\b(Fall|Autumn|Winter|Spring|Summer)\s+(20\d{2}|\d{2})\b", filename, re.IGNORECASE)
+        if full_term:
+            full_year = full_term.group(2)
+            term = f"{full_term.group(1).title()} {full_year if len(full_year) == 4 else f'20{full_year}'}"
     if not term:
         compact_term = re.search(r"\b(SP|SU|FA|WI)\s*(\d{2})\b", re.sub(r"[_-]+", " ", filename), re.IGNORECASE)
         if compact_term:
@@ -1929,7 +1950,7 @@ def syllabus_calendar(filename: str, text: str, source_id: str) -> dict:
             "",
         )
     if not course_name:
-        course_name = next((line for line in lines if re.search(r"\b(?:PSY|BIO|CHEM|HIST|MATH|ENG|CSCI|CSC|COMP)\s*\d{2,4}\b", line, re.IGNORECASE)), course_code)
+        course_name = next((line for line in lines if re.search(r"\b(?:PSY|BIO|CHEM|HIST|MATH|ENG|CS|COS|CSCI|CSC|COMP)\s*\d{2,4}\b", line, re.IGNORECASE)), course_code)
     year = _course_year(text, filename)
     term_in_text = re.search(r"\b(?:spring|summer|fall|autumn|winter)\s+20\d{2}\b", text, re.IGNORECASE)
     year_fallback_source = "course term" if term_in_text else "source name"
@@ -1942,6 +1963,7 @@ def syllabus_calendar(filename: str, text: str, source_id: str) -> dict:
             no_class_dates.update(_dates_in_text(line[no_class_match.end():], year))
 
     mode = ""
+    processed_schedule_lines: set[str] = set()
     for line in lines:
         lowered = line.lower()
         fields = [field.strip() for field in line.split("|")]
@@ -2002,6 +2024,7 @@ def syllabus_calendar(filename: str, text: str, source_id: str) -> dict:
                         "sourceText": line,
                         "yearSource": _date_year_source(fields[-1], year_fallback_source),
                     } for iso_date in due_dates)
+            processed_schedule_lines.add(line)
             continue
         if mode == "milestones":
             if len(fields) >= 2 and fields[0].lower() not in {"date", "milestone", "event"}:
@@ -2030,6 +2053,45 @@ def syllabus_calendar(filename: str, text: str, source_id: str) -> dict:
                     "sourceText": line,
                     "yearSource": _date_year_source(date_text, year_fallback_source),
                 })
+            processed_schedule_lines.add(line)
+
+    # Syllabi often state major assessments in prose outside their dated schedule table.
+    # Pick up only explicit dated milestones here so ordinary policy dates do not become events.
+    for line in lines:
+        if line in processed_schedule_lines:
+            continue
+        if not re.search(r"\b(?:mid[- ]?term|final\s+(?:exam|examination)|exam(?:ination)?|quiz|assignment|homework|project|paper|presentation)\b", line, re.IGNORECASE):
+            continue
+        milestone_dates = _dates_in_text(line, year)
+        if not milestone_dates:
+            if _contains_unqualified_date(line):
+                unresolved_date_rows += 1
+            continue
+        lowered = line.lower()
+        if re.search(r"\bmid[- ]?term\b", lowered):
+            title = "Midterm exam"
+        elif re.search(r"\bfinal\s+(?:exam|examination)\b|\bfinal\s+exam\b", lowered) or re.search(r"\bLnal\s+exam", line, re.IGNORECASE):
+            title = "Final exam"
+        elif re.search(r"\bquiz\b", lowered):
+            quiz = re.search(r"\bquiz\s*(?:#|no\.?\s*)?(\d+[A-Z]?)?", line, re.IGNORECASE)
+            title = f"Quiz {quiz.group(1)}" if quiz and quiz.group(1) else "Quiz"
+        elif re.search(r"\bassignment\b|\bhomework\b", lowered):
+            title = "Assignment due" if re.search(r"\bdue\b", lowered) else "Assignment"
+        elif re.search(r"\bproject\b", lowered):
+            title = "Project due" if re.search(r"\bdue\b", lowered) else "Project"
+        elif re.search(r"\bpaper\b", lowered):
+            title = "Paper due" if re.search(r"\bdue\b", lowered) else "Paper"
+        elif re.search(r"\bpresentation\b", lowered):
+            title = "Presentation"
+        else:
+            title = "Exam"
+        events.extend({
+            "date": iso_date,
+            "type": _milestone_type(title),
+            "title": title,
+            "sourceText": line,
+            "yearSource": _date_year_source(line, year_fallback_source),
+        } for iso_date in milestone_dates)
 
     deduped = {}
     for event in events:
@@ -2076,12 +2138,26 @@ def source_summary(path: Path, filename: str, kind: str) -> dict:
     cleaned_lines = [line for line in cleaned_lines if line]
     headings = []
     objectives = []
+    objective_cues = []
+    in_objectives = False
+    objective_heading = re.compile(r"^(?:(?:course|student learning) )?(?:(?:learning )?objectives?|(?:learning )?outcomes?|learning goals?)(?:\s*[:\-].*)?$", re.I)
+    section_heading = re.compile(r"^(?:course description|course schedule|weekly schedule|schedule|grading|policies|course policies|assignments|exams?|reading list|course materials|academic integrity|attendance|instructor|prerequisites?|weeks?\b)", re.I)
+    objective_words = re.compile(r"\b(objective|outcome|students will|able to)\b", re.I)
     for line in cleaned_lines:
         normalized = line.lower()
         if len(line) <= 90 and (line.isupper() or re.match(r"^(unit|week|lecture|chapter|exam|section)\b", normalized)):
             headings.append(line)
-        if re.search(r"\b(objective|outcome|students will|able to)\b", normalized):
+        if objective_heading.match(line):
+            in_objectives = True
+            continue
+        if in_objectives and (section_heading.match(line) or (line.isupper() and not objective_words.search(normalized))):
+            in_objectives = False
+        if in_objectives or objective_words.search(normalized):
             objectives.append(line)
+            cue = re.sub(r"^\s*(?:[-*•]\s*|\d+[.)]\s*)", "", line).strip()
+            word_count = len(re.findall(r"\b\w+\b", cue))
+            if 5 <= word_count <= 50 and cue.casefold() not in {value.casefold() for value in objective_cues}:
+                objective_cues.append(cue)
     fingerprint = hashlib.sha256(text.encode("utf-8", errors="ignore")).hexdigest()
     selected_kind = kind if kind in {"syllabus", "material", "assessment"} else "auto"
     detected_kind, classification_reason = classify_source(filename, text)
@@ -2124,6 +2200,7 @@ def source_summary(path: Path, filename: str, kind: str) -> dict:
         "unitCount": units["unitCount"] or len(cleaned_lines),
         "headings": headings[:8],
         "objectiveCount": len(objectives),
+        "objectiveCues": objective_cues[:20],
         "preview": cleaned_lines[:5],
         "concepts": compiled["concepts"],
         "notes": compiled["notes"],

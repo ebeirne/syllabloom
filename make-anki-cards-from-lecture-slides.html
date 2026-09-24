@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <title>Make Anki Cards from Lecture Slides | Syllabloom</title>
+  <meta name="description" content="Turn lecture slides into editable, source-linked Anki cards. Review each prompt, check its source, then export a deck with your chosen format and tags." />
+  <link rel="canonical" href="https://syllabloom-beta.vercel.app/make-anki-cards-from-lecture-slides.html" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Syllabloom" />
+  <meta property="og:title" content="Make Anki Cards from Lecture Slides" />
+  <meta property="og:description" content="A practical workflow for making, checking, editing, and exporting cards from course slides." />
+  <meta property="og:url" content="https://syllabloom-beta.vercel.app/make-anki-cards-from-lecture-slides.html" />
+  <meta property="og:image" content="https://syllabloom-beta.vercel.app/assets/rounds-study-scene-general.png" />
+  <meta property="og:image:alt" content="A student organizing course material and study cards with Syllabloom." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Make Anki Cards from Lecture Slides" />
+  <meta name="twitter:description" content="Turn slides into editable cards with source pointers, then export a set for Anki." />
+  <meta name="twitter:image" content="https://syllabloom-beta.vercel.app/assets/rounds-study-scene-general.png" />
+  <meta name="theme-color" content="#f8f1df" />
+  <link rel="icon" href="/assets/syllabloom-mark.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/redesign.css?v=20260923-beta-map-2" />
+  <link rel="stylesheet" href="/memphis.css?v=20260922-schedule-import-1" />
+  <link rel="stylesheet" href="/seo-pages.css?v=20260923-seo-guides-1" />
+</head>
+<body>
+  <div class="marketing-home seo-site">
+    <header class="marketing-nav">
+      <a class="marketing-logo" href="/" aria-label="Syllabloom home"><span class="brand-mark"><img src="/assets/syllabloom-mark.svg" width="48" height="48" alt="" /></span><span>Syllabloom</span></a>
+      <nav aria-label="Study guides">
+        <a href="/make-anki-cards-from-lecture-slides.html" aria-current="page">Slides to Anki</a>
+        <a href="/turn-syllabus-into-study-calendar.html">Syllabus calendar</a>
+        <a href="/syllabloom-vs-ai-flashcard-tools.html">AI tools</a>
+      </nav>
+      <div class="marketing-nav-actions"><a class="button primary" href="/">Free beta</a></div>
+    </header>
+
+    <main class="seo-main" id="main">
+      <nav class="seo-breadcrumb" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><span aria-current="page">Lecture slides to Anki</span></nav>
+      <header class="seo-hero">
+        <div class="seo-hero-copy">
+          <p class="seo-eyebrow">Study guide · Slides to Anki</p>
+          <h1>Make lecture-slide Anki cards you can check before export.</h1>
+          <p>Slide bullets are a starting point, not a finished deck. Syllabloom puts each class source beside its editable cards, so you can check the question, fix it, and decide what belongs in Anki.</p>
+          <a class="seo-outline-cta" href="/">Explore the free one-class beta <span aria-hidden="true">→</span></a>
+        </div>
+        <figure class="seo-hero-art">
+          <img src="/assets/rounds-study-scene-general.webp" width="1536" height="1024" fetchpriority="high" alt="A student gathering class notes and flashcards into a study session." />
+          <figcaption>One class workspace. Cards remain editable before you export.</figcaption>
+        </figure>
+      </header>
+
+      <div class="seo-body-grid">
+        <article class="seo-article">
+          <section>
+            <h2>Why copying a whole slide makes a weak card</h2>
+            <p>A slide may mix a definition, an example, a diagram, and a heading. Pasting all of that onto one card tests recognition of a paragraph instead of recall of a useful idea. A stronger card gives one prompt enough context to stand on its own and one answer that explains the point without adding facts the course source never gave.</p>
+            <p>For a comparison, ask about the distinction. For a process, ask for the steps or the key cause-and-effect link. If a term is easy to confuse, include the unit or topic in the question. The goal is not to make the largest deck; it is to make the smallest set of questions that lets you retrieve the course’s important ideas.</p>
+          </section>
+
+          <section>
+            <h2>Example: from one course sentence to one recall prompt</h2>
+            <p>The excerpt below is an illustrative economics example, not material from a student’s class upload. Notice how the question stays close to the sentence instead of asking for a broad definition of an entire topic.</p>
+            <div class="seo-example">
+              <p class="seo-example-label">Illustrative source excerpt</p>
+              <blockquote class="seo-source-quote">“A negative externality imposes costs on third parties that are not reflected in the market price.”</blockquote>
+              <div class="seo-card-example">
+                <dl>
+                  <dt>Front</dt><dd>What makes an externality negative?</dd>
+                  <dt>Back</dt><dd>It imposes costs on third parties that are not reflected in the market price.</dd>
+                </dl>
+              </div>
+            </div>
+            <p>In the app, source labels help you return to the uploaded document or slide. A source pointer helps with checking; it is not a guarantee that every generated question is accurate or useful. Read each card before you rely on it.</p>
+          </section>
+
+          <section>
+            <h2>A practical slide-to-Anki workflow</h2>
+            <ol>
+              <li><strong>Add the class context.</strong> Start with one course, then add the syllabus and relevant slides, notes, readings, or past assessments.</li>
+              <li><strong>Check what the source produced.</strong> Review the prepared cards and their source labels. Keep a prompt only if the question is clear and its answer is supported by the material.</li>
+              <li><strong>Edit or remove cards.</strong> Make wording more specific, correct a detail from the source, or delete a card that is redundant or not useful.</li>
+              <li><strong>Export the set you chose.</strong> Configure the Anki format, deck name, tags, and limits. The beta creates an Anki package after your review.</li>
+            </ol>
+            <p>Starting from course files can save the blank-page work, while the review step keeps the student responsible for what they actually study. If the slide deck has no useful explanation for a topic, add the lecture notes or reading that fills the gap instead of asking a card generator to guess.</p>
+          </section>
+
+          <section>
+            <h2>Questions students ask</h2>
+            <h3>Can I use the cards without Anki?</h3>
+            <p>Yes. The beta includes an in-app study flow, and Anki export is optional. Your card set remains reviewable and editable before you choose an export.</p>
+            <h3>Can I choose Basic or cloze cards?</h3>
+            <p>The Anki setup includes card format preferences, deck and tag settings, and export limits. Check the resulting set before importing it into Anki.</p>
+            <h3>Does a recording become cards automatically?</h3>
+            <p>Not in the public beta. Audio and video recordings stay on the current device; hosted transcription and recording-based card generation are not enabled yet.</p>
+          </section>
+        </article>
+
+        <aside class="seo-rail" aria-label="Key points">
+          <section>
+            <h2>The useful difference</h2>
+            <p>Card generation is only the first step. Keep source checking, editing, in-app study, and Anki export together around one class.</p>
+          </section>
+          <section>
+            <h2>Keep the review honest</h2>
+            <ul>
+              <li>Check that each prompt stands alone.</li>
+              <li>Confirm the answer against the source.</li>
+              <li>Remove duplicates and low-value facts.</li>
+            </ul>
+          </section>
+          <section>
+            <h2>Keep going</h2>
+            <p><a href="/turn-syllabus-into-study-calendar.html">Turn syllabus dates into a study calendar →</a></p>
+            <p><a href="/syllabloom-vs-ai-flashcard-tools.html">Where Syllabloom fits with AI tools →</a></p>
+          </section>
+        </aside>
+      </div>
+
+      <nav class="seo-related" aria-label="Related study guides">
+        <strong>Next: put the dates and material on the same map.</strong>
+        <a href="/turn-syllabus-into-study-calendar.html">Read the syllabus calendar guide →</a>
+        <a href="/">Visit Syllabloom</a>
+      </nav>
+    </main>
+
+    <footer class="marketing-footer">
+      <a class="marketing-logo" href="/" aria-label="Syllabloom home"><span class="brand-mark"><img src="/assets/syllabloom-mark.svg" width="48" height="48" alt="" /></span><span>Syllabloom</span></a>
+      <p>Class in. Anki out. The next session gets better.</p>
+      <a class="seo-home-link" href="/">Open the beta</a>
+      <nav class="marketing-legal-links" aria-label="Legal information"><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></nav>
+    </footer>
+  </div>
+</body>
+</html>

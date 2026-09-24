@@ -13,4 +13,15 @@ class handler(JsonHandler):
             or os.environ.get("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY")
             or ""
         ).strip()
-        self.send_json(clerk_auth_config(publishable_key, os.environ.get("VERCEL_ENV", "")))
+        allow_public_beta_auth = (os.environ.get("SYLLABLOOM_PUBLIC_BETA_AUTH") or "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+        }
+        self.send_json(
+            clerk_auth_config(
+                publishable_key,
+                os.environ.get("VERCEL_ENV", ""),
+                allow_test_key_in_production=allow_public_beta_auth,
+            )
+        )

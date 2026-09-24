@@ -6,7 +6,39 @@
   <meta name="color-scheme" content="light" />
   <title>Syllabloom: Class in. Anki out.</title>
   <meta name="description" content="Try Syllabloom free with one class. Map a syllabus, prepare editable cards from course files, study here, or export your set to Anki." />
-  <meta name="theme-color" content="#f5f1e4" />
+  <meta name="theme-color" content="#f8f1df" />
+  <link rel="canonical" href="https://syllabloom-beta.vercel.app/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Syllabloom" />
+  <meta property="og:title" content="Syllabloom: Class in. Anki out." />
+  <meta property="og:description" content="Map one class, trace study cards to your course sources, and export a set you can inspect and edit." />
+  <meta property="og:url" content="https://syllabloom-beta.vercel.app/" />
+  <meta property="og:image" content="https://syllabloom-beta.vercel.app/assets/rounds-study-scene-general.png" />
+  <meta property="og:image:width" content="1536" />
+  <meta property="og:image:height" content="1024" />
+  <meta property="og:image:alt" content="A college student organizing course material and study cards with Syllabloom." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Syllabloom: Class in. Anki out." />
+  <meta name="twitter:description" content="Map one class, trace study cards to your course sources, and export a set you can inspect and edit." />
+  <meta name="twitter:image" content="https://syllabloom-beta.vercel.app/assets/rounds-study-scene-general.png" />
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Syllabloom",
+      "url": "https://syllabloom-beta.vercel.app/",
+      "description": "A one-class study workspace that maps course materials to editable, source-linked study cards and Anki export.",
+      "applicationCategory": "EducationalApplication",
+      "operatingSystem": "Web",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "description": "Free student beta for one active class. No paid plan or checkout during beta."
+      }
+    }
+  </script>
   <link rel="icon" href="assets/syllabloom-mark.svg" type="image/svg+xml" />
   <style>
     :root {
@@ -3366,6 +3398,7 @@
     .knowledge-empty { display: grid; gap: 6px; padding: 24px; }
     .knowledge-empty strong { font-size: 18px; }
     .knowledge-empty span { color: var(--muted); line-height: 1.5; }
+
     #home .study-workspace.is-custom .study-plan-pane { max-width: 1040px; }
 
     @media (max-width: 800px) {
@@ -3505,8 +3538,9 @@
       .source-reference dd { margin: 4px 0 0; font-size: 15px; line-height: 1.5; }
     }
   </style>
-  <link rel="stylesheet" href="redesign.css?v=20260923-beta-map-2">
-  <link rel="stylesheet" href="memphis.css?v=20260922-schedule-import-1">
+  <link rel="stylesheet" href="redesign.css?v=20260924-source-summary-layout-2">
+  <link rel="stylesheet" href="memphis.css?v=20260923-large-source-card-groups">
+  <link rel="stylesheet" href="seo-pages.css?v=20260923-seo-guides-1">
 </head>
 <body>
   <section id="landing" class="marketing-home" aria-label="Syllabloom home page">
@@ -3608,7 +3642,7 @@
             <span><small>New / day</small><strong>20</strong></span>
             <span><small>Tags</small><strong>ochem::exam-1</strong></span>
           </div>
-          <button type="button">Export 32 ready cards <span aria-hidden="true">→</span></button>
+          <button type="button" data-open-sample>Preview the sample card set <span aria-hidden="true">→</span></button>
         </div>
       </section>
 
@@ -3717,6 +3751,12 @@
       <p>Class in. Anki out. The next session gets better.</p>
       <button class="marketing-text-button" data-open-sample>Open the working prototype</button>
       <nav class="marketing-legal-links" aria-label="Legal information"><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></nav>
+      <nav class="marketing-footer-guide-list" aria-label="Study guides">
+        <span>Study guides</span>
+        <a href="/make-anki-cards-from-lecture-slides.html">Lecture slides to Anki</a>
+        <a href="/turn-syllabus-into-study-calendar.html">Syllabus to study calendar</a>
+        <a href="/syllabloom-vs-ai-flashcard-tools.html">Syllabloom vs. AI card tools</a>
+      </nav>
     </footer>
   </section>
 
@@ -4192,6 +4232,7 @@
             <h2>Add a source</h2>
             <p>Bring in a syllabus, slide deck, reading, or authorized assessment. Syllabloom maps its structure before drafting cards.</p>
             <p class="source-kind-hint">We’ll identify syllabi, class materials, and past assessments from each file. Choose a type to override detection for new files, then adjust each document separately before adding the batch.</p>
+            <p class="source-kind-hint">There is no per-account file-count cap. Each individual source can be up to 100 MB.</p>
           </div>
           <div class="source-import-controls">
             <div id="sourceKindPicker" class="source-kind-picker">
@@ -4341,9 +4382,29 @@
 
         <div class="knowledge-summary">
           <article class="surface"><strong id="baselineScore">—</strong><span id="baselineScoreLabel">not assessed yet</span></article>
-          <article class="surface"><strong id="knowledgeObjectiveCount">0</strong><span>course concepts mapped</span></article>
+          <article class="surface"><strong id="knowledgeObjectiveCount">0</strong><span>source-backed course topics</span></article>
           <article class="surface"><strong id="knowledgeSessionLength">35 min</strong><span>daily time budget</span></article>
         </div>
+
+        <section class="surface course-focus" aria-labelledby="courseFocusHeading">
+          <div class="course-focus-main">
+            <span class="course-focus-kicker" id="courseFocusHeading">NEXT STUDY MOVE</span>
+            <h2 id="courseFocusTitle">Add a course source to start your map</h2>
+            <p id="courseFocusReason">A syllabus sets the course dates; slides, notes, and readings add source-linked topics and ready cards.</p>
+            <button id="courseFocusAction" class="button primary" type="button" data-topic-action="source">Add course material</button>
+          </div>
+          <aside class="course-milestone" aria-label="Next course milestone">
+            <span>NEXT COURSE DATE</span>
+            <strong id="courseMilestoneTitle">No class date added yet</strong>
+            <p id="courseMilestoneDetail">Add an exam or class milestone to pace new cards against the real course calendar.</p>
+            <button id="courseMilestoneAction" class="text-button" type="button" data-focus-calendar>＋ Add a course date</button>
+          </aside>
+        </section>
+
+        <section id="courseObjectivePanel" class="course-objectives surface" aria-labelledby="courseObjectivesHeading" hidden>
+          <header><div><span>FROM YOUR SYLLABUS</span><h2 id="courseObjectivesHeading">Course goals, connected to your material</h2></div><p>Only exact wording from the uploaded syllabus is shown. Topic matches use words shared with the card set.</p></header>
+          <div id="courseObjectiveCues" class="course-objective-list"></div>
+        </section>
 
         <div id="knowledgeRows" class="surface knowledge-list">
           <div class="knowledge-empty"><strong>Learning map not assessed</strong><span>Course concepts appear here; mastery status updates after real study responses.</span></div>
@@ -4373,7 +4434,11 @@
               <h2 id="profileIdentityHeading">Your Syllabloom account</h2>
               <p id="profileEmail">Sign in to manage your account. Class files and study settings stay in this browser during beta.</p>
             </div>
-            <button id="manageClerkProfile" class="button" type="button">Account &amp; security</button>
+            <div class="profile-account-actions">
+              <button id="manageClerkProfile" class="button" type="button">Account &amp; security</button>
+              <button id="signOutAccount" class="button profile-sign-out" type="button" aria-describedby="signOutAccountNote" hidden>Sign out</button>
+              <p id="signOutAccountNote" class="profile-account-actions-note" hidden>Signs out on this device only. Course and study data stays with your account; recordings remain on this device.</p>
+            </div>
           </section>
 
           <section class="profile-card tier-card" aria-labelledby="profileTierHeading">
@@ -4487,6 +4552,28 @@
           <div class="anki-export-copy"><span id="approvedSetCount">0 ready</span><h2 id="ankiExportHeading" tabindex="-1">Export ready cards to Anki</h2><p id="ankiExportSummary">Your class, Syllabloom FSRS, 20 new cards per day</p></div>
           <div class="anki-export-actions"><button id="openAnkiSettings" class="button" type="button">Edit Anki settings</button><button id="exportAnki" class="button primary" disabled>Export to Anki</button></div>
         </section>
+        <section class="anki-desktop-bridge surface" aria-labelledby="ankiDesktopHeading">
+          <div class="anki-desktop-copy">
+            <span class="account-kicker">ON THIS DEVICE</span>
+            <h2 id="ankiDesktopHeading">Send cards straight to Anki Desktop</h2>
+            <p>Keep Anki Desktop open to add ready cards to your collection, then sync them through AnkiWeb. Your Anki password never goes through Syllabloom.</p>
+          </div>
+          <div class="anki-desktop-actions">
+            <button id="connectAnkiDesktop" class="button" type="button">Check Anki connection</button>
+            <button id="sendReadyCardsToAnki" class="button primary" type="button" disabled>Send ready cards</button>
+          </div>
+          <label class="anki-desktop-auto"><input id="autoSyncAnkiDesktop" type="checkbox"><span>Automatically send newly ready cards on this device</span></label>
+          <p id="ankiDesktopStatus" class="anki-desktop-status" role="status" aria-live="polite">Anki Desktop is not connected on this device. The downloadable deck remains available above.</p>
+          <details class="anki-desktop-setup">
+            <summary>Set up Anki Desktop sync</summary>
+            <ol>
+              <li>Install the AnkiConnect add-on in Anki Desktop, then restart Anki.</li>
+              <li>In AnkiConnect settings, allow this exact site origin: <code>https://syllabloom-beta.vercel.app</code>. Add <code>http://localhost:4174</code> only if you use the local test site. Do not use a wildcard origin.</li>
+              <li>Open Anki Desktop and sign into AnkiWeb there. Syllabloom sends cards to this computer; Anki handles cloud sync.</li>
+              <li>Return here and check the connection. Sending works only while this computer has Anki Desktop open.</li>
+            </ol>
+          </details>
+        </section>
 
         <div id="classCardWorkspace" class="surface card-workspace" hidden>
           <aside class="card-browser">
@@ -4544,6 +4631,11 @@
               <p class="page-description">Recall it, check it, move on. No streaks. No busywork.</p>
             </div>
             <button class="button" data-go="cards" aria-label="Edit cards">Edit</button>
+          </div>
+
+          <div id="studyFocusBanner" class="study-focus-banner" hidden>
+            <span>COURSE MAP FOCUS</span><strong id="studyFocusName"></strong>
+            <button class="text-button" type="button" data-clear-study-focus>Study all ready cards</button>
           </div>
 
           <section id="studyEmpty" class="study-empty" hidden>
@@ -4895,12 +4987,14 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="muscle-data.js?v=20260921-loop"></script>
-  <script src="auth.js?v=20260922-beta-release-2"></script>
+  <script src="auth.js?v=20260923-sign-out-restart-1"></script>
   <script src="calendar-features.js?v=20260922-schedule-import-1"></script>
   <script src="card-set.js?v=20260922-card-management-1"></script>
+  <script src="source-study.js?v=20260924-source-summary-cleanup-6"></script>
+  <script src="anki-connect.js?v=20260924-anki-desktop-bridge-1"></script>
   <script src="source-batch.js?v=20260922-source-batch-1"></script>
-  <script src="course-map.js?v=20260923-beta-map-2"></script>
-  <script src="app.js?v=20260923-beta-map-2"></script>
+  <script src="course-map.js?v=20260923-course-map-1"></script>
+  <script src="app.js?v=20260924-source-check-anki-bridge-2"></script>
   <script type="module" src="motion-effects.js?v=20260921-motion-smooth-2"></script>
 </body>
 </html>

@@ -16,7 +16,7 @@ from psycopg.types.json import Jsonb
 from api._common import clerk_auth_config
 
 
-MAX_USER_DATA_BYTES = 3 * 1024 * 1024
+MAX_USER_DATA_BYTES = 4 * 1024 * 1024
 MAX_REQUEST_BYTES = MAX_USER_DATA_BYTES + 16 * 1024
 _ALLOWED_FIELDS = {
     "schemaVersion",
@@ -96,7 +96,18 @@ def _runtime_auth_configured() -> bool:
     vercel_env = os.environ.get("VERCEL_ENV", "").strip()
     if not vercel_env:
         return True
-    return bool(clerk_auth_config(_publishable_key(), vercel_env)["configured"])
+    allow_public_beta_auth = (os.environ.get("SYLLABLOOM_PUBLIC_BETA_AUTH") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    return bool(
+        clerk_auth_config(
+            _publishable_key(),
+            vercel_env,
+            allow_test_key_in_production=allow_public_beta_auth,
+        )["configured"]
+    )
 
 
 def require_authenticated_beta_request(request: Any, action: str) -> bool:
@@ -137,7 +148,7 @@ def normalize_user_data(value: Any) -> dict[str, Any]:
     }
     if not isinstance(shaped["classProfile"], dict):
         raise ValueError("The class profile is invalid.")
-    if not isinstance(shaped["sources"], list) or len(shaped["sources"]) > 300:
+    if not isinstance(shaped["sources"], list):
         raise ValueError("The saved source list is invalid.")
     if any(not isinstance(item, dict) for item in shaped["sources"]):
         raise ValueError("A saved source is invalid.")

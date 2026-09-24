@@ -13,8 +13,8 @@ class UploadedSourceActivationContractTests(unittest.TestCase):
         self.assertIn("state.includeSampleMaterial = false;", self.app)
         self.assertIn("state.classMode = 'custom';", self.app)
         self.assertIn("persistClassProfile();", self.app)
-        self.assertIn("const retainedCards = state.lectureCards.filter(card => card.sourceId !== payload.source.id);", self.app)
-        self.assertIn("syncLectureCards(unique);", self.app)
+        self.assertIn("const sourceCards = sourceCardsFromLibrary();", self.app)
+        self.assertIn("syncLectureCards([...retainedLectureCards, ...sourceCards]);", self.app)
         self.assertIn("const wasSampleClass = state.classMode === 'sample';", self.app)
         self.assertIn("setClassLabels(inferredClassName, 'Term not set');", self.app)
         self.assertIn("state.calendarEvents = [];", self.app)
@@ -29,6 +29,14 @@ class UploadedSourceActivationContractTests(unittest.TestCase):
         sample_loader = self.app.split("function loadSampleClass()", 1)[1].split("function showClassLimit()", 1)[0]
         self.assertIn("state.latestSessionId = null;", sample_loader)
         self.assertIn("syncLectureCards([]);", sample_loader)
+        self.assertIn("syncStateToOnboardingAnki();", sample_loader)
+
+    def test_anki_defaults_and_imported_class_setup_do_not_leak_sample_tags(self):
+        defaults = self.app.split("const defaultAnkiPreferences = {", 1)[1].split("};", 1)[0]
+        self.assertIn("tags: '',", defaults)
+        upload = self.app.split("async function uploadSource(file, kind = 'auto', options = {})", 1)[1].split("function", 1)[0]
+        self.assertIn("state.anki.tags = classTag(inferredClassName);", upload)
+        self.assertIn("syncStateToOnboardingAnki();", upload)
 
     def test_empty_review_state_does_not_claim_cards_are_ready(self):
         self.assertIn("id=\"reviewPageTitle\"", (ROOT / "index.html").read_text(encoding="utf-8"))
@@ -39,13 +47,14 @@ class UploadedSourceActivationContractTests(unittest.TestCase):
         self.assertIn("function sourceAssessmentQuestions()", self.app)
         self.assertIn("function activeAssessmentQuestions()", self.app)
         self.assertIn("const questions = activeAssessmentQuestions();", self.app)
-        self.assertIn("Quick check from ${latestSource.name}", self.app)
-        self.assertIn("card.reviewStatus !== 'skipped'", self.app)
-        self.assertIn("sectionCards.length >= 3", self.app)
-        self.assertIn("if (prompt.startsWith('when ')) return 'when';", self.app)
-        self.assertIn("return 'definition';", self.app)
-        self.assertIn("return 'relation';", self.app)
-        self.assertIn("questionForm(candidate.front) === questionForm(card.front)", self.app)
+        self.assertIn("Quick check across your class", self.app)
+        self.assertIn("source-backed recall prompt", self.app)
+        self.assertNotIn("Quick check from ${latestSource.name}", self.app)
+        self.assertIn("if (!state.includeSampleMaterial && questions.length)", self.app)
+        self.assertIn("return window.SyllabloomSourceStudy.quickCheckItems(state.lectureCards);", self.app)
+        self.assertIn("Reveal answer", self.app)
+        self.assertIn("Need to review", self.app)
+        self.assertNotIn("const distractors =", self.app)
         self.assertNotIn("distractors.push('I need to review this topic')", self.app)
 
     def test_custom_plan_uses_uploaded_concepts_instead_of_anatomy_fixture(self):

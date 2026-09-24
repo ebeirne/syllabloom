@@ -3,9 +3,16 @@
   "framework": null,
   "functions": {
     "api/**/*.py": {
+      "maxDuration": 60,
       "excludeFiles": "{.venv/**,.models/**,.git/**,tests/**,.env,.env.*,**/*.log,**/__pycache__/**,**/*.pyc}"
+    },
+    "api/source-upload-cleanup.js": {
+      "maxDuration": 60
     }
   },
+  "crons": [
+    { "path": "/api/source-upload-cleanup", "schedule": "0 3 * * *" }
+  ],
   "rewrites": [
     { "source": "/api/sessions/latest", "destination": "/api/session-latest" }
   ],

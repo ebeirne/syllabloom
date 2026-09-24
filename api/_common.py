@@ -5,7 +5,11 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler
 
 
-def clerk_auth_config(publishable_key: str, vercel_env: str = "") -> dict[str, object]:
+def clerk_auth_config(
+    publishable_key: str,
+    vercel_env: str = "",
+    allow_test_key_in_production: bool = False,
+) -> dict[str, object]:
     key = str(publishable_key or "").strip()
     if key.startswith("pk_live_"):
         mode = "live"
@@ -14,7 +18,11 @@ def clerk_auth_config(publishable_key: str, vercel_env: str = "") -> dict[str, o
     else:
         mode = "unconfigured"
 
-    test_key_in_production = mode == "test" and str(vercel_env or "").strip().lower() == "production"
+    test_key_in_production = (
+        mode == "test"
+        and str(vercel_env or "").strip().lower() == "production"
+        and not allow_test_key_in_production
+    )
     return {
         "configured": mode == "live" or (mode == "test" and not test_key_in_production),
         "publishableKey": "" if test_key_in_production else key,

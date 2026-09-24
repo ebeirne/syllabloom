@@ -1,18 +1,52 @@
 (function attachCardSet(root) {
   function cardKey(card) {
+    return contentKey(card) || legacyCardKey(card);
+  }
+
+  function legacyCardKey(card) {
     return `${card.front || ''}::${card.section || ''}`;
+  }
+
+  function normalizedContent(value) {
+    return String(value || '')
+      .normalize('NFKC')
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .trim();
+  }
+
+  function contentKey(card) {
+    const front = normalizedContent(card.front);
+    const back = normalizedContent(card.back);
+    return front && back ? `${front}::${back}` : '';
+  }
+
+  function cardIsDeleted(card, deletedCardKeys) {
+    return deletedCardKeys.has(cardKey(card)) || deletedCardKeys.has(legacyCardKey(card));
   }
 
   function removeSourceCard(sources, card) {
     if (!card?.sourceId) return sources;
-    const key = card.sourceKey || cardKey(card);
+    const references = [
+      { sourceId: card.sourceId, key: card.sourceDeletionKey || cardKey(card) },
+      ...(Array.isArray(card.duplicateSourceRefs) ? card.duplicateSourceRefs : [])
+    ];
+    const keysBySource = new Map();
+    references.forEach(reference => {
+      if (!reference?.sourceId || !reference?.key) return;
+      const keys = keysBySource.get(reference.sourceId) || new Set();
+      keys.add(reference.key);
+      keysBySource.set(reference.sourceId, keys);
+    });
     return sources.map(source => {
-      if (source.id !== card.sourceId) return source;
-      const deletedCardKeys = [...new Set([...(source.deletedCardKeys || []), key])];
+      const keys = keysBySource.get(source.id);
+      if (!keys) return source;
+      const deletedCardKeys = [...new Set([...(source.deletedCardKeys || []), ...keys])];
+      const deleted = new Set(deletedCardKeys);
       return {
         ...source,
         deletedCardKeys,
-        draftCards: (source.draftCards || []).filter(item => cardKey(item) !== key)
+        draftCards: (source.draftCards || []).filter(item => !cardIsDeleted(item, deleted))
       };
     });
   }
@@ -24,17 +58,38 @@
     return {
       ...next,
       deletedCardKeys,
-      draftCards: (next.draftCards || []).filter(card => !deleted.has(cardKey(card)))
+      draftCards: (next.draftCards || []).filter(card => !cardIsDeleted(card, deleted))
     };
   }
 
   function sourceCards(sources) {
-    return sources.flatMap(source => {
+    const cards = [];
+    const cardsByContent = new Map();
+    sources.forEach(source => {
       const deleted = new Set(source.deletedCardKeys || []);
-      return (source.draftCards || [])
-        .filter(card => !deleted.has(cardKey(card)))
-        .map(card => ({ ...card, sourceId: source.id }));
+      (source.draftCards || []).forEach(card => {
+        const sourceRef = { sourceId: source.id, key: cardKey(card), sourceName: source.name || '' };
+        if (cardIsDeleted(card, deleted)) return;
+        const key = contentKey(card);
+        const existing = key ? cardsByContent.get(key) : null;
+        if (existing) {
+          if (!existing.duplicateSourceRefs.some(reference => reference.sourceId === source.id && reference.key === sourceRef.key)) {
+            existing.duplicateSourceRefs.push(sourceRef);
+          }
+          return;
+        }
+        const sourcedCard = {
+          ...card,
+          sourceId: source.id,
+          sourceName: source.name || '',
+          sourceDeletionKey: sourceRef.key,
+          duplicateSourceRefs: []
+        };
+        cards.push(sourcedCard);
+        if (key) cardsByContent.set(key, sourcedCard);
+      });
     });
+    return cards;
   }
 
   function removeCardFromSet(cards, sources, card) {
@@ -44,7 +99,7 @@
     };
   }
 
-  const api = { cardKey, mergeSource, removeCardFromSet, removeSourceCard, sourceCards };
+  const api = { cardKey, contentKey, legacyCardKey, mergeSource, normalizedContent, removeCardFromSet, removeSourceCard, sourceCards };
   root.SyllabloomCardSet = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window === 'undefined' ? globalThis : window);

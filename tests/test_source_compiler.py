@@ -195,6 +195,25 @@ Week | Dates | Topics
         self.assertEqual([event["date"] for event in summary["calendarEvents"]], ["2026-08-25"])
         self.assertEqual(summary["calendarEvents"][0]["yearSource"], "schedule row")
 
+    def test_syllabus_summary_preserves_verbatim_learning_objective_cues(self) -> None:
+        content = """Course Syllabus
+Course Learning Objectives:
+- Explain how memory encoding and retrieval change with attention.
+- Compare working memory and long-term memory using the assigned experiments.
+Course Description: A survey of cognitive psychology.
+Course Schedule
+Week | Date | Topic
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "cognitive-psychology-syllabus.txt"
+            path.write_text(content, encoding="utf-8")
+            summary = source_summary(path, path.name, "syllabus")
+
+        self.assertEqual(summary["objectiveCues"], [
+            "Explain how memory encoding and retrieval change with attention.",
+            "Compare working memory and long-term memory using the assigned experiments."
+        ])
+
     def test_same_day_milestones_are_preserved_and_no_class_does_not_hide_deadlines(self) -> None:
         content = """PSY 241 Fall 2026 Course Syllabus
 Weekly Schedule
@@ -573,6 +592,22 @@ The CPU issues a command requesting I/O. Then the CPU continues to execute other
         io_answer = cards["How does interrupt-driven I/O let the CPU keep working?"]
         self.assertIn("continues executing other instructions", io_answer)
         self.assertIn("interrupts the CPU when it finishes", io_answer)
+        self.assertTrue(all(card["source"].endswith("Page 1") for card in summary["draftCards"]))
+
+    def test_pdf_multiprocessing_model_cards_expand_fragmentary_source_labels(self) -> None:
+        content = """Operating systems
+There are two popular multiprocessing models:
+The Symmetric multiprocessing model: SMP:peer-to-peer
+The Asymmetric multiprocessing model: master-slave
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "multiprocessing-models.pdf"
+            write_text_pdf(path, [content])
+            summary = source_summary(path, path.name, "material")
+
+        cards = {card["front"]: card["back"] for card in summary["draftCards"]}
+        self.assertEqual(cards["What characterizes the symmetric multiprocessing model?"], "It uses a peer-to-peer model.")
+        self.assertEqual(cards["What characterizes the asymmetric multiprocessing model?"], "It uses a master-slave model.")
         self.assertTrue(all(card["source"].endswith("Page 1") for card in summary["draftCards"]))
 
     def test_plain_text_import_creates_notes_and_cards(self) -> None:
@@ -1043,6 +1078,43 @@ December 9, 2026 - Final examination
             summary = source_summary(path, path.name, "material")
 
         self.assertEqual(summary["draftCards"], [])
+
+    def test_percolation_pdf_drops_repeated_headers_and_urls_from_study_content(self) -> None:
+        repeated_header = "Percolation Assignment 9/23/26, 11:46 PM"
+        repeated_url = "https://www.cs.princeton.edu/courses/archive/spring26/cos226/assignments/percolation/specification.php"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "cosA1.pdf"
+            write_text_pdf(path, [
+                f"{repeated_header}\n{repeated_url}\nPage 1 of 18\nPercolation is a model of fluid flow through a porous medium.",
+                f"{repeated_header}\n{repeated_url}\nPage 2 of 18\nImplementing prescribed APIs is an essential component of modular programming."
+            ])
+            summary = source_summary(path, path.name, "material")
+
+        rendered_study_text = " ".join(
+            [note.get("title", "") for note in summary["notes"]]
+            + [line for note in summary["notes"] for line in note.get("lines", [])]
+            + [card["front"] + " " + card["back"] for card in summary["draftCards"]]
+        ).casefold()
+        self.assertNotIn("https://", rendered_study_text)
+        self.assertNotIn("page 1 of 18", rendered_study_text)
+        self.assertNotIn("9/23/26, 11:46 pm", rendered_study_text)
+        self.assertIn("Why is implementing the prescribed APIs important?", {card["front"] for card in summary["draftCards"]})
+
+    def test_cos226_syllabus_in_prose_adds_midterm_and_final_dates(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "COS 226 Syllabus (Spring 2026).pdf"
+            write_text_pdf(path, [
+                "COS 226 Syllabus\nSpring 2026\nThe midterm exam is in-class on March 3.\nThe final exam is in-person on Saturday, May 9 at 8:30am."
+            ])
+            summary = source_summary(path, path.name, "syllabus")
+
+        self.assertEqual(summary["courseCode"], "COS226")
+        self.assertEqual(summary["courseName"], "COS 226")
+        self.assertEqual(summary["term"], "Spring 2026")
+        self.assertEqual([(event["date"], event["type"], event["title"]) for event in summary["calendarEvents"]], [
+            ("2026-03-03", "exam", "Midterm exam"),
+            ("2026-05-09", "exam", "Final exam")
+        ])
 
 
 if __name__ == "__main__":
