@@ -90,21 +90,21 @@ module.exports = async function sourceUploadUrl(request, response) {
     const pathname = `source-uploads/${userId}/${crypto.randomUUID()}.${extension}`;
     const { issueSignedToken, presignUrl } = await import('@vercel/blob');
     const now = Date.now();
-    const sign = async (operation, validUntil, extras = {}) => {
+    const sign = async (operation, validUntil, extras = {}, presignExtras = {}) => {
       const token = await issueSignedToken({
         pathname,
         operations: [operation],
         validUntil,
         ...extras
       });
-      const result = await presignUrl(token, { pathname, operation, validUntil });
+      const result = await presignUrl(token, { pathname, operation, validUntil, ...presignExtras });
       return result.presignedUrl;
     };
     const uploadUrl = await sign('put', now + PUT_WINDOW_MS, {
       allowedContentTypes: [contentType],
       maximumSizeInBytes: size
     });
-    const sourceUrl = await sign('get', now + READ_WINDOW_MS);
+    const sourceUrl = await sign('get', now + READ_WINDOW_MS, {}, {access: 'private'});
     const deleteUrl = await sign('delete', now + DELETE_WINDOW_MS);
     return sendJson(response, 200, { uploadUrl, sourceUrl, deleteUrl, pathname, contentType, maxBytes: MAX_SOURCE_BYTES });
   } catch (error) {
