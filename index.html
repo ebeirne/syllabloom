@@ -2296,6 +2296,9 @@
     .lecture-draft-body { display: grid; gap: 8px; }
     .lecture-draft-body label { display: grid; gap: 4px; color: #706d66; font: 9px ui-monospace, SFMono-Regular, Consolas, monospace; text-transform: uppercase; }
     .lecture-draft-body textarea { width: 100%; min-height: 58px; resize: vertical; padding: 9px 10px; border: 1px solid var(--line); border-radius: 1px; background: #fffefa; color: var(--ink); font: 13px/1.45 ui-sans-serif, sans-serif; text-transform: none; }
+    .lecture-draft-source-evidence { color: var(--ink); font-size: 12px; }
+    .lecture-draft-source-evidence summary { width: fit-content; color: #176a46; cursor: pointer; font-weight: 700; }
+    .lecture-draft-source-evidence blockquote { margin: 9px 0 0; padding: 10px 13px; border-left: 3px solid var(--green); background: #f0f3ed; color: #393b36; font: 13px/1.5 ui-sans-serif, sans-serif; }
     .lecture-draft-actions { display: grid; align-content: center; gap: 8px; }
     .lecture-draft-actions .button { width: 100%; }
     .lecture-draft-card.approved { border-left: 4px solid #2f6c47; padding-left: 16px; background: #f0f3ed; }
@@ -4230,9 +4233,10 @@
           <img class="materials-mascot character-cutout" src="assets/syllabloom-mascot-materials.webp" width="1200" height="1200" alt="The Syllabloom companion checking a course source with a magnifying glass" />
           <div>
             <h2>Add a source</h2>
-            <p>Bring in a syllabus, slide deck, reading, or authorized assessment. Syllabloom maps its structure before drafting cards.</p>
+            <p>Bring in a syllabus, slide deck, reading, or authorized assessment. Syllabloom turns class concepts into source-linked cards ready to review, study here, or export to Anki.</p>
             <p class="source-kind-hint">We’ll identify syllabi, class materials, and past assessments from each file. Choose a type to override detection for new files, then adjust each document separately before adding the batch.</p>
-            <p class="source-kind-hint">There is no per-account file-count cap. Each individual source can be up to 100 MB.</p>
+            <p class="source-kind-hint">There is no per-account file-count cap. Each individual file can be up to 100 MB; AI card generation reads up to 48,000 extracted characters per source and is limited by daily quotas and a shared monthly beta budget. Split longer text sources; if a limit is reached, try again later.</p>
+            <p class="source-kind-hint">For card generation, extracted course text—not the uploaded file—is sent to OpenAI. Each AI draft includes its matching source passage for review. Avoid uploading sensitive personal details.</p>
           </div>
           <div class="source-import-controls">
             <div id="sourceKindPicker" class="source-kind-picker">

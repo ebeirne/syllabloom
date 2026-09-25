@@ -11,5 +11,7 @@ test-audio/full-length-lecture-audio.m4a
 .env
 .env.*
 !.env.example
+open ai api.txt
 .DS_Store
 Thumbs.db
+.vercel

@@ -10,7 +10,7 @@ Syllabloom turns lectures, slides, syllabi, and course files into editable, sour
 - Live lecture recording and uploaded audio/video ingestion
 - Per-user on-device lecture library with audio/video playback and removal
 - Clerk-authenticated Neon Postgres sync for class profile, parsed course sources and cards, calendar, Anki preferences, and study history
-- DOCX, PDF, PowerPoint, and text import with source-linked concepts, notes, and ready-to-review cards
+- DOCX, PDF, PowerPoint, and text import with AI-generated, source-quoted cards ready to review
 - Editable card review and approval queue
 - Source-grounded explanations after every missed card, with same-card retry and repeated-miss editing
 - Basic and Cloze Anki card generation
@@ -41,7 +41,7 @@ python server.py
 
 Open [http://127.0.0.1:4174](http://127.0.0.1:4174).
 
-The core interface, generic source parsing, PowerPoint import, source-linked notes, card editing, and Anki export work with the base requirements. PowerPoint decks do not need a special template or anatomy-specific labels.
+The interface, generic source parsing, PowerPoint import, source-linked notes, card editing, and Anki export work with the base requirements. Production card generation uses OpenAI's Responses API with strict JSON-schema output on the low-cost GPT-5.4 nano model and low reasoning effort; it does not silently fall back to the older heuristic card compiler when AI is unavailable. PowerPoint decks do not need a special template or anatomy-specific labels.
 
 ### Email sign-in
 
@@ -60,7 +60,9 @@ For local development, install the requirements and pull the Vercel Development 
 vercel env pull .env.development.local --environment=development
 ```
 
-The Neon integration supplies `DATABASE_URL`. Do not add database credentials to browser code or commit local environment files. On the first signed-in visit, an unclaimed local workspace is saved to the account if it has no existing cloud workspace; if another account owns the browser's workspace, it is not copied into the new account.
+The Neon integration supplies `DATABASE_URL`. Do not add database credentials to browser code or commit local environment files. Set the server-only `OPENAI_API_KEY` in Vercel's encrypted environment settings (and in a local ignored environment file for local testing); never use a browser-exposed `VITE_` or `NEXT_PUBLIC_` variable. AI usage is guarded by atomic Neon counters: at most 192,000 source characters per account per UTC day and 1,000,000 across the beta per day, plus a shared $18 estimated monthly provider-cost reservation cap, leaving $2 below the user's $20 test balance. Each request reserves an upper bound before calling the provider, including its maximum output tokens; failed attempts keep their reservation. Counter rows for daily source volume are deleted after 90 days. Each material is limited to 48,000 extracted characters for card generation, split into page/slide-aware chunks, and capped at 8 accepted cards per chunk. GPT-5.4 nano is pinned for the beta to keep reasoning costs low; source-quote and location checks still reject unsupported output. If the provider or usage guard is unavailable, the upload is rejected rather than returning heuristic cards as if they were AI-generated. Syllabi are excluded from AI generation and continue through the calendar parser. The API request sets `store: false`; see the Privacy Policy for OpenAI's default abuse-monitoring retention. Tests use mocked Responses API replies and do not make billed provider calls.
+
+On the first signed-in visit, an unclaimed local workspace is saved to the account if it has no existing cloud workspace; if another account owns the browser's workspace, it is not copied into the new account.
 
 ### Billing
 
@@ -118,11 +120,14 @@ The current beta has been exercised against:
 
 Detailed receipts are in the included test reports.
 
-Run the repeatable Anki package checks with:
+Install the development test tools and run the full Python suite with:
 
 ```powershell
-python -m unittest discover -s tests -v
+python -m pip install -r requirements-dev.txt
+python -m pytest
 ```
+
+Run the browser-side checks with `node --test tests\*.test.js`.
 
 ## Deployment
 

@@ -4,6 +4,7 @@ __pycache__
 .models
 tests
 .env*
+open ai api.txt
 .pptx-build
 tmp/
 data/sessions

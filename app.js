@@ -3123,12 +3123,21 @@
     }));
     const sourceById = new Map(state.sources.map(sourceItem => [sourceItem.id, sourceItem]));
     let index = 0;
-    const renderCard = card => `
+    const renderCard = card => {
+      const location = card.sourceLocation || (card.pageNumber ? `Page ${card.pageNumber}` : card.slideNumber ? `Slide ${card.slideNumber}` : '');
+      const evidenceLabel = card.generatedBy === 'openai'
+        ? `AI draft · quote matched${location ? ` · ${location}` : ''}`
+        : `${card.status === 'provisional' ? 'Review only' : 'Course source'}${location ? ` · ${location}` : ''}`;
+      const sourceEvidence = card.sourceQuote
+        ? `<details class="lecture-draft-source-evidence"><summary>Source passage${location ? ` · ${escapeHtml(location)}` : ''}</summary><blockquote>${escapeHtml(card.sourceQuote)}</blockquote></details>`
+        : '';
+      return `
       <article class="lecture-draft-card ${escapeHtml(card.reviewStatus)}" data-lecture-card="${escapeHtml(card.id)}" data-concept="${escapeHtml(card.section || card.concept || '')}">
-        <div class="lecture-draft-index"><b>${String(++index).padStart(2, '0')}</b><span class="lecture-draft-evidence">${card.status === 'provisional' ? 'Review only' : 'Course source'}${card.slideNumber ? ` · Slide ${card.slideNumber}` : ''}</span></div>
+        <div class="lecture-draft-index"><b>${String(++index).padStart(2, '0')}</b><span class="lecture-draft-evidence">${escapeHtml(evidenceLabel)}</span></div>
         <div class="lecture-draft-body">
           <label>Front<textarea data-lecture-field="front">${escapeHtml(card.front)}</textarea></label>
           <label>Back<textarea data-lecture-field="back">${escapeHtml(card.back)}</textarea></label>
+          ${sourceEvidence}
         </div>
         <div class="lecture-draft-actions">
           <button class="button primary" data-lecture-action="approve">${card.reviewStatus === 'approved' ? 'Ready' : 'Add to ready set'}</button>
@@ -3136,7 +3145,8 @@
           <button class="button lecture-card-delete" type="button" data-lecture-action="delete" aria-label="Remove card: ${escapeHtml(card.front)}">Delete card</button>
         </div>
       </article>
-    `;
+      `;
+    };
     queue.innerHTML = [...grouped.entries()].map(([key, group]) => {
       const sourceItem = group.sourceId ? sourceById.get(group.sourceId) : null;
       const title = sourceItem?.name || group.cards.find(card => card.sourceName)?.sourceName || 'Recorded lecture';
