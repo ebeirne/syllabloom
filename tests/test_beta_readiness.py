@@ -114,7 +114,7 @@ class BetaReadinessContractTests(unittest.TestCase):
         app = (ROOT / "app.js").read_text(encoding="utf-8")
         styles = (ROOT / "redesign.css").read_text(encoding="utf-8")
 
-        self.assertIn("Free beta. One class. The full study loop.", page)
+        self.assertIn("Free student beta", page)
         self.assertIn("There is no subscription or checkout in this beta.", page)
         self.assertIn("const betaClassLimit = 1;", app)
         self.assertIn("if (accountClassUsage() >= betaClassLimit)", app)
@@ -135,8 +135,8 @@ class BetaReadinessContractTests(unittest.TestCase):
         self.assertIn("one class", hero)
         self.assertIn("$0", hero)
         self.assertIn("No payment details", hero)
-        self.assertIn("Your course files in. Anki cards out.", hero)
-        self.assertIn("prepares source-linked cards", hero)
+        self.assertIn("Turn your course files into editable study cards.", hero)
+        self.assertIn("creates source-linked cards you can check, edit, study here, or export to Anki", hero)
         self.assertIn("Start my free class", hero)
         self.assertNotIn("Cards arrive ready to use", hero)
 
@@ -314,7 +314,7 @@ class BetaReadinessContractTests(unittest.TestCase):
         self.assertNotIn("Verified cards", page)
         self.assertIn("Source linked</span><b>Ready to review", page)
         self.assertNotIn("62%", page)
-        self.assertIn("Start unassessed.", page)
+        self.assertIn('id="baselineScoreLabel">not assessed yet</span>', page)
         self.assertIn("recording-based cards are not included in this beta", page)
         self.assertIn("September 2026", page)
         self.assertIn("SAMPLE · SYLLABUS-DERIVED DATES", page)
