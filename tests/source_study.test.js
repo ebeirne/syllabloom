@@ -65,3 +65,24 @@ test('custom quick checks use exact source answers and never manufacture cross-c
   ]);
   assert.ok(items.every(item => !Object.hasOwn(item, 'options')));
 });
+
+test('AI-generated quick-check prompts reuse the reviewed card and preserve its page source', () => {
+  const sourceQuote = 'During systems consolidation, new episodic memories initially depend on the hippocampus, then become more distributed across neocortical networks over time.';
+  const card = {
+    id: 'ai-systems-consolidation',
+    front: 'How does systems consolidation change where episodic memories depend on over time?',
+    back: 'They first depend on the hippocampus, then become more distributed across neocortical networks as time passes.',
+    section: 'Systems consolidation',
+    source: 'Cognition lecture.pdf · Page 1',
+    sourceLocation: 'Page 1',
+    sourceQuote,
+    generatedBy: 'openai'
+  };
+  const items = quickCheckItems([card]);
+
+  assert.equal(items.length, 1);
+  assert.equal(items[0].question, card.front);
+  assert.equal(items[0].answer, card.back);
+  assert.equal(items[0].sourceName, card.source);
+  assert.ok(card.sourceQuote.includes('systems consolidation'));
+});

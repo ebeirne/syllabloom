@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light" />
   <meta name="theme-color" content="#f5f1e4" />
-  <meta name="description" content="Learn what Syllabloom's student beta stores, where it stays, and how to contact the project owner about your data." />
+  <meta name="description" content="See what data the Syllabloom beta handles, where it is stored, and how to contact the project owner about it." />
   <title>Privacy | Syllabloom</title>
   <link rel="icon" href="assets/syllabloom-mark.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="legal.css?v=20260922-1" />
@@ -18,15 +18,15 @@
 
   <main class="legal-shell">
     <section class="legal-hero" aria-labelledby="privacy-title">
-      <p class="legal-kicker">Student beta · Updated September 23, 2026</p>
-      <h1 id="privacy-title">Your class stays yours.</h1>
-      <p>This notice explains what Syllabloom handles when you set up a class, add course materials, study, or export cards.</p>
+      <p class="legal-kicker">Student beta · Updated September 24, 2026</p>
+      <h1 id="privacy-title">How Syllabloom handles your data</h1>
+      <p>This notice explains what happens to your data when you set up a class, add course materials, study, or export cards.</p>
       <img class="legal-mascot" src="assets/rounds-mascot-loop.webp" width="900" height="900" alt="Rounds the study companion holding a book" />
     </section>
 
     <aside class="legal-beta-note" aria-label="Beta data summary">
       <strong>The short version</strong>
-      Class and study workspace data syncs to your account. Audio and video stay in this browser on this device. Hosted lecture transcription is not enabled in this beta.
+      Your class and study workspace syncs to your account. Audio and video stay in this browser on this device. Hosted lecture transcription isn't enabled in this beta.
     </aside>
 
     <div class="legal-doc-layout">
@@ -47,7 +47,7 @@
       <article class="legal-article">
         <section id="who">
           <h2>Who runs Syllabloom</h2>
-          <p>Syllabloom Beta is currently operated by an individual project owner. No separate company or legal entity has been formed. Send privacy questions and requests to the contact email below.</p>
+          <p>An individual project owner currently operates Syllabloom Beta. No separate company or legal entity has been formed. Send privacy questions or requests to the email below.</p>
         </section>
 
         <section id="data">
@@ -55,9 +55,10 @@
           <ul>
             <li><strong>Account information:</strong> Clerk provides sign-in and account identity, such as your account identifier and email address. If you choose Google sign-in, Google also handles that authentication.</li>
             <li><strong>Class and study workspace:</strong> class names and settings, course dates, calendar entries, source names and derived notes or concepts, draft and approved cards, review history, study progress, and Anki preferences. When signed in, this workspace is stored in Neon Postgres and associated with your account.</li>
-            <li><strong>Supported course documents:</strong> when you submit a DOCX, PPTX, PDF, or TXT source, the beta temporarily processes the file to create a preview and study material. Large uploads pass through private, short-lived Vercel Blob storage so the app can receive them without exposing the document publicly. The app deletes the temporary copy after processing; the browser also attempts cleanup if processing is interrupted, and a daily cleanup removes abandoned uploads after 24 hours. The app syncs the resulting workspace data, not a cloud library of the original document.</li>
-            <li><strong>Schedule photos:</strong> if you choose the calendar photo importer, the browser reads the image on your device using English-language OCR. The image and extracted text are not uploaded or saved by Syllabloom. Only dates and event details you confirm are added to your calendar and synced with your signed-in workspace.</li>
-            <li><strong>Audio and video:</strong> recordings and uploaded media are kept in browser storage on the device where you add them. They are not part of the cross-device cloud sync. Clearing browser data or changing devices can make those local files unavailable. Hosted transcription is currently disabled.</li>
+            <li><strong>Supported course documents:</strong> when you submit a DOCX, PPTX, PDF, or TXT source, the beta processes it temporarily to create a preview and study material. Large uploads pass through private, short-lived Vercel Blob storage so the app can receive them without making the document public. The app deletes the temporary copy after processing. The browser also attempts cleanup if processing is interrupted, and a daily cleanup removes abandoned uploads after 24 hours. For non-syllabus sources, extracted text is sent to OpenAI's API to draft source-grounded cards; the original file is not sent to OpenAI. Syllabloom syncs the resulting workspace data, including cards and supporting source excerpts, not a cloud library of the original document.</li>
+            <li><strong>AI card-generation data:</strong> Syllabloom sends extracted text from class materials and past assessments to OpenAI's Responses API and receives draft cards with source excerpts. Syllabloom requests non-persisted response state with <code>store: false</code>. OpenAI's standard API data controls currently say Responses API content is not used to train models and that abuse-monitoring logs may retain prompts and responses for up to 30 days; <code>store: false</code> does not turn off that separate abuse-monitoring retention. Daily character totals and a hashed account identifier are retained in the app database for up to 90 days to enforce usage limits. Aggregate monthly budget reservations contain no account identifier. Documents categorized as syllabi are parsed locally for calendar dates and are not sent through this card-generation flow; if you manually override a document's type, the selected type controls processing.</li>
+            <li><strong>Schedule photos:</strong> if you use the calendar photo importer, your browser reads the image on your device with English-language OCR. Syllabloom doesn't upload or save the image or extracted text. Only dates and event details you confirm are added to your calendar and synced with your signed-in workspace.</li>
+            <li><strong>Audio and video:</strong> recordings and uploaded media stay in browser storage on the device where you add them. They aren't included in cross-device cloud sync. Clearing browser data or changing devices can make those local files unavailable. Hosted transcription is currently disabled.</li>
             <li><strong>Anki exports:</strong> when you request an export, approved card content and selected settings are sent to the export service to create an Anki package. Syllabloom does not provide a cloud archive of exported packages.</li>
             <li><strong>Technical information:</strong> the hosting, authentication, and database services may process ordinary request, device, security, and diagnostic information needed to operate and protect the beta.</li>
           </ul>
@@ -65,24 +66,26 @@
 
         <section id="use">
           <h2>How information is used</h2>
-          <p>Information is used to sign you in, save and sync your class workspace, prepare previews and study materials, record your study progress, create requested exports, provide support, and maintain service security.</p>
-          <p>The beta's supported document-to-study-material flow uses a deterministic compiler. It does not send your class files to a generative AI service. Study materials can still be incomplete or wrong, so check them against your original course sources.</p>
+          <p>Syllabloom uses this information to sign you in, save and sync your class workspace, prepare previews and study materials, record your progress, create requested exports, provide support, and keep the service secure.</p>
+          <p>The beta uses an AI service to draft cards from extracted course text. Only text from documents categorized as class materials or past assessments is sent to OpenAI, not the original uploaded file. Syllabi are parsed locally for calendar dates unless you change the document type. Syllabloom checks each accepted draft for a matching source passage, but that does not guarantee it is complete or correct. Check cards and passages against your course materials before studying or exporting.</p>
         </section>
 
         <section id="providers">
           <h2>Service providers</h2>
-          <p>Syllabloom uses Clerk for authentication, Neon for signed-in workspace storage, and Vercel to host the app and server-side features. When you start photo import, the browser also loads the Tesseract.js OCR library, worker, OCR engine, and English-language model on demand from jsDelivr. That CDN can receive ordinary connection metadata, but the schedule image and recognized text stay in your browser and are not sent to it by the importer. These providers process information as needed to provide their services and under their own terms and privacy notices. Google processes information when you choose its sign-in option.</p>
-          <p>Payments are not enabled in this public beta, and Syllabloom is not currently asking you for payment card details. If that changes, this notice will be updated before paid checkout is offered.</p>
+          <p>Syllabloom uses Clerk for authentication, Neon for signed-in workspace storage and AI usage limits, Vercel to host the app and temporarily process uploads, and OpenAI to generate cards from extracted course text. These providers process information as needed to provide their services and under their own terms and privacy notices. When you start photo import, the browser also loads the Tesseract.js OCR library, worker, OCR engine, and English-language model on demand from jsDelivr. That CDN can receive ordinary connection metadata, but the schedule image and recognized text stay in your browser and are not sent to it by the importer. Google processes information when you choose its sign-in option.</p>
+          <p>Payments aren't enabled in this public beta, and Syllabloom won't ask for payment card details. If that changes, this notice will be updated before paid checkout is offered.</p>
           <ul>
             <li><a href="https://clerk.com/legal/privacy" target="_blank" rel="noreferrer">Clerk Privacy Policy</a></li>
             <li><a href="https://vercel.com/legal/privacy-notice" target="_blank" rel="noreferrer">Vercel Privacy Notice</a></li>
+            <li><a href="https://openai.com/policies/privacy-policy/" target="_blank" rel="noreferrer">OpenAI Privacy Policy</a></li>
+            <li><a href="https://developers.openai.com/api/docs/guides/your-data" target="_blank" rel="noreferrer">OpenAI API data controls and retention</a></li>
             <li><a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer">Google Privacy Policy</a></li>
           </ul>
         </section>
 
         <section id="retention">
           <h2>Storage and retention</h2>
-          <p>Your signed-in workspace remains stored so the app can provide your class and study features. Original supported documents are processed temporarily and deleted after processing; if processing is interrupted, the scheduled cleanup removes abandoned temporary copies after 24 hours. Audio and video remain in the browser storage on the device where they were added. Hosting providers may retain limited technical logs under their own systems and policies.</p>
+          <p>Your signed-in workspace remains stored so the app can provide class and study features. Original supported documents are processed temporarily and deleted afterward. If processing is interrupted, a scheduled cleanup removes abandoned temporary copies after 24 hours. Extracted text sent to OpenAI is subject to the API retention described above. Daily AI usage totals associated with a hashed account identifier are deleted after 90 days; aggregate monthly budget reservations do not include account identifiers. Audio and video remain in browser storage on the device where you added them. Hosting providers may retain limited technical logs under their own systems and policies.</p>
           <p>To request access to or deletion of your account workspace, email the project owner. We may ask for enough information to verify that the request relates to your account. Some limited records may need to remain for security, legal obligations, or backup rotation.</p>
         </section>
 
@@ -103,8 +106,8 @@
 
         <section id="changes">
           <h2>Updates and contact</h2>
-          <p>We will update this page if the beta's data practices materially change. The date at the top shows when this version was last revised.</p>
-          <p>The contact email is being used for beta privacy and legal requests while the project owner arranges a permanent business contact.</p>
+          <p>We'll update this page if the beta's data practices change in a meaningful way. The date at the top shows when this version was last revised.</p>
+          <p>Use the email below for beta privacy and legal requests while the project owner arranges a permanent business contact.</p>
           <a class="legal-contact" href="mailto:ethan.g.beirne@gmail.com?subject=Syllabloom%20privacy%20request">ethan.g.beirne@gmail.com</a>
         </section>
       </article>

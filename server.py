@@ -13,6 +13,7 @@ import tempfile
 import threading
 import time
 import zipfile
+from collections.abc import Callable
 from datetime import date, datetime, timezone
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -2127,7 +2128,12 @@ def _milestone_type(title: str) -> str:
     return "assignment"
 
 
-def source_summary(path: Path, filename: str, kind: str) -> dict:
+def source_summary(
+    path: Path,
+    filename: str,
+    kind: str,
+    card_generator: Callable[[str, str, str, dict], dict] | None = None,
+) -> dict:
     suffix = path.suffix.lower()
     text, units = extract_source_text(path, suffix)
     if suffix == ".pdf" and not text.strip():
@@ -2180,8 +2186,10 @@ def source_summary(path: Path, filename: str, kind: str) -> dict:
         )
     else:
         compiled = compile_study_material(text, filename)
+    generated = card_generator(text, filename, resolved_kind, units) if card_generator and not is_syllabus and not is_admin_form else None
     structured_cards = draft_cards_from_structured_slides(text, filename) if suffix == ".pptx" and not is_syllabus else []
-    draft_cards = structured_cards or compiled["cards"]
+    draft_cards = generated["cards"] if generated is not None else (structured_cards or compiled["cards"])
+    concepts = generated["concepts"] if generated is not None else compiled["concepts"]
     calendar = syllabus_calendar(filename, text, hashlib.sha256(text.encode("utf-8", errors="ignore")).hexdigest()[:12]) if is_syllabus else {"events": [], "courseName": "", "term": "", "termRange": "", "warnings": []}
     return {
         "id": fingerprint[:12],
@@ -2202,9 +2210,10 @@ def source_summary(path: Path, filename: str, kind: str) -> dict:
         "objectiveCount": len(objectives),
         "objectiveCues": objective_cues[:20],
         "preview": cleaned_lines[:5],
-        "concepts": compiled["concepts"],
+        "concepts": concepts,
         "notes": compiled["notes"],
         "draftCards": draft_cards,
+        **({"generation": generated["generation"]} if generated is not None else {}),
         "fingerprint": fingerprint,
         "addedAt": datetime.now(timezone.utc).isoformat(),
         "localOnly": True,
@@ -3299,7 +3308,19 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
                     if not chunk:
                         break
                     temporary.write(chunk)
-            summary = source_summary(temporary_path, filename, kind_value)
+            from api.ai_card_generation import CardGenerationError
+            from api.ai_source_cards import generate_source_cards
+            from api.user_data import authenticated_user
+
+            user_id = authenticated_user(self.headers) or "local-development"
+            summary = source_summary(
+                temporary_path,
+                filename,
+                kind_value,
+                card_generator=lambda text, source_name, source_kind, units: generate_source_cards(
+                    text, source_name, source_kind, units, user_id
+                ),
+            )
             with _data_lock:
                 library = [item for item in read_source_library() if item.get("id") != summary["id"]]
                 library.append(summary)
@@ -3307,6 +3328,8 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
             self.send_json({"source": summary})
         except NoSelectableTextError as exc:
             self.send_json({"error": str(exc)}, HTTPStatus.UNPROCESSABLE_ENTITY)
+        except CardGenerationError as exc:
+            self.send_json({"error": exc.public_message}, exc.status)
         except Exception as exc:
             print(f"Source import failed: {type(exc).__name__}", flush=True)
             self.send_json({"error": "The source could not be read locally."}, HTTPStatus.UNPROCESSABLE_ENTITY)
