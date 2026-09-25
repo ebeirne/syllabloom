@@ -74,7 +74,98 @@ def read_source_library() -> list[dict]:
         return payload if isinstance(payload, list) else []
     except (OSError, json.JSONDecodeError):
         return []
+    
+def _detect_pdf_content_width(page) -> float:
+    #if ther is a sidebar on the pdf
+    words = page.extract_words()
 
+    if not words:
+        return page.width
+
+    # Ignore headers and footers.
+    # contain dates, page numbers, URLs
+    body_top = page.height * 0.08
+    body_bottom = page.height * 0.92
+
+    body_words = [
+        word
+        for word in words
+        if body_top <= word["top"] <= body_bottom
+    ]
+
+    if len(body_words) < 10:
+        return page.width
+
+    body_words.sort(key=lambda word: (word["top"], word["x0"]))
+
+    lines = []
+
+    LINE_TOLERANCE = 3
+
+    for word in body_words:
+        if (
+            not lines
+            or abs(word["top"] - lines[-1]["top"]) > LINE_TOLERANCE
+        ):
+            lines.append({
+                "top": word["top"],
+                "words": [word],
+            })
+        else:
+            lines[-1]["words"].append(word)
+
+    right_side_lines = []
+
+    SIDEBAR_START_RATIO = 0.75
+    MAX_SIDEBAR_WIDTH_RATIO = 0.22
+
+    for line in lines:
+        line_words = line["words"]
+
+        line_x0 = min(word["x0"] for word in line_words)
+        line_x1 = max(word["x1"] for word in line_words)
+
+        line_width = line_x1 - line_x0
+
+        starts_far_right = (
+            line_x0 >= page.width * SIDEBAR_START_RATIO
+        )
+
+        is_narrow = (
+            line_width <= page.width * MAX_SIDEBAR_WIDTH_RATIO
+        )
+
+        if starts_far_right and is_narrow:
+            right_side_lines.append({
+                "top": line["top"],
+                "x0": line_x0,
+                "x1": line_x1,
+            })
+
+    MIN_SIDEBAR_LINES = 6
+
+    if len(right_side_lines) < MIN_SIDEBAR_LINES:
+        return page.width
+
+    # Sidebar should also span a meaningful amount of the page vertically.
+    sidebar_tops = [line["top"] for line in right_side_lines]
+
+    vertical_span = max(sidebar_tops) - min(sidebar_tops)
+
+    if vertical_span < page.height * 0.15:
+        return page.width
+
+    sidebar_start = min(
+        line["x0"]
+        for line in right_side_lines
+    )
+
+    crop_width = sidebar_start - 8
+
+    if crop_width < page.width * 0.65:
+        return page.width
+
+    return crop_width
 
 def extract_source_text(path: Path, suffix: str) -> tuple[str, dict]:
     if suffix == ".docx":
@@ -202,7 +293,9 @@ def extract_source_text(path: Path, suffix: str) -> tuple[str, dict]:
         with pdfplumber.open(path) as document:
             pages = []
             for page in document.pages:
-                normalized_page = page.dedupe_chars(tolerance=1)
+                content_width = _detect_pdf_content_width(page)
+                region = page.crop((0, 0, content_width, page.height)) if content_width < page.width else page
+                normalized_page = region.dedupe_chars(tolerance=1)
                 pages.append((normalized_page.extract_text(x_tolerance=2, y_tolerance=3) or "").strip())
         return "\n".join(page for page in pages if page), {
             "unitLabel": "pages",
