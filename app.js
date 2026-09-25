@@ -4303,10 +4303,11 @@
             reportProgress(`Preparing card batch ${batchIndex + 1} of ${batchCount}…`);
             let response;
             try {
-              response = await fetch('/api/source-batch', {
+              response = await fetch('/api/source', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
                 body: JSON.stringify({
+                  operation: 'generate-batch',
                   filename: file.name,
                   kind: detectedKind,
                   extractedText: text,

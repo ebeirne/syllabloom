@@ -303,6 +303,29 @@ class handler(JsonHandler):
                     result["source"]["storage"] = "session"
                     self.send_json(result)
                     return
+                if operation == "generate-batch":
+                    try:
+                        result = _generate_source_batch(body, user_id or "local-development")
+                    except CardGenerationError as exc:
+                        self.send_json(
+                            {"error": exc.public_message, "retryable": exc.retryable}, exc.status
+                        )
+                        return
+                    except ValueError as exc:
+                        self.send_json(
+                            {"error": str(exc) or "The card-generation request is invalid."},
+                            HTTPStatus.BAD_REQUEST,
+                        )
+                        return
+                    except Exception as exc:
+                        print(f"Source card batch failed: {type(exc).__name__}", flush=True)
+                        self.send_json({
+                            "error": "The card batch result could not be confirmed. It was not automatically retried to avoid duplicate generation.",
+                            "retryable": False,
+                        }, HTTPStatus.BAD_GATEWAY)
+                        return
+                    self.send_json({"result": result})
+                    return
                 pathname = _source_path(body.get("pathname"), user_id or "")
                 source_url = _private_blob_url(body.get("sourceUrl"), pathname)
                 delete_url = _blob_api_delete_url(body.get("deleteUrl"), pathname)

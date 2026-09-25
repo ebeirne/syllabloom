@@ -1,4 +1,5 @@
 import io
+import json
 from urllib.parse import quote
 import pytest
 
@@ -50,6 +51,30 @@ def test_delete_links_use_the_blob_control_api_shape():
     ):
         with pytest.raises(ValueError):
             source_api._blob_api_delete_url(unsafe, path)
+
+
+def test_source_endpoint_routes_bounded_card_batches_without_a_new_function(monkeypatch):
+    body = {"operation": "generate-batch", "batchIndex": 0}
+    encoded = json.dumps(body).encode("utf-8")
+    response = []
+    request = object.__new__(source_api.handler)
+    request.headers = {
+        "Content-Type": "application/json",
+        "Content-Length": str(len(encoded)),
+    }
+    request.rfile = io.BytesIO(encoded)
+    request.send_json = lambda payload, status=200: response.append((payload, status))
+    monkeypatch.setattr(source_api, "require_authenticated_beta_request", lambda *_args: True)
+    monkeypatch.setattr(source_api, "authenticated_user", lambda _headers: "user_test")
+    monkeypatch.setattr(
+        source_api,
+        "_generate_source_batch",
+        lambda received, user_id: {"cards": [], "received": received, "userId": user_id},
+    )
+
+    request.do_POST()
+
+    assert response == [({"result": {"cards": [], "received": body, "userId": "user_test"}}, 200)]
 
 class FakeBlobResponse:
     status = 200
