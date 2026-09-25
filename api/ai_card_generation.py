@@ -18,10 +18,17 @@ DEFAULT_MODEL = "gpt-5.4-nano"
 MAX_SOURCE_TEXT_CHARS = 48_000
 MAX_CHUNK_CHARS = 12_000
 MAX_CHUNKS = 4
-MAX_CARDS_PER_CHUNK = 8
-MAX_OUTPUT_TOKENS_PER_CHUNK = 1_400
+MAX_CARDS_PER_CHUNK = 12
+MAX_OUTPUT_TOKENS_PER_CHUNK = 1_900
 REQUEST_TIMEOUT_SECONDS = 38
 _URL_RE = re.compile(r"\b(?:https?://|www\.)\S+", re.IGNORECASE)
+_ADMIN_INSTRUCTION_RE = re.compile(
+    r"\b(?:due date|deadline|late penalty|grading rubric|rubric|deliverable|"
+    r"assignment requirements|project requirements|one[- ]on[- ]one code review|"
+    r"submit\b.{0,60}\b(?:code|program|assignment|solution|project)|"
+    r"demonstrate your understanding\b.{0,80}\bcode review)\b",
+    re.IGNORECASE,
+)
 _SLIDE_RE = re.compile(r"(?m)^Slide\s+(\d+)\s*$")
 _STOP_WORDS = {
     "a", "about", "after", "again", "all", "also", "an", "and", "any", "are", "as", "at", "be", "because",
@@ -118,7 +125,7 @@ def _terms(value: str) -> set[str]:
             continue
         term = irregular.get(term, term)
         if len(term) > 6 and term.endswith("ically"):
-            term = term[:-5] + "ic"
+            term = term[:-4]
         elif len(term) > 4 and term.endswith("ies"):
             term = term[:-3] + "y"
         elif len(term) > 5 and term.endswith("ing"):
@@ -232,15 +239,19 @@ def _request_payload(chunk: dict, kind: str, model: str) -> dict:
         "one important concept per card, wording that names the concept rather than vague 'what is this' prompts, and concise "
         "answers that preserve the source's meaning. Ask closed, answerable recall questions rather than broad discussion prompts. "
         "Prefer definitions, mechanisms, cause/effect, meaningful contrasts, and examples that the source itself explains. "
-        "Do not invent applications, extra background, or missing answers. For assessment documents, "
-        "only make study cards from concepts and answer explanations that are explicitly present; never solve unanswered questions. "
+        "Scan the entire supplied chunk first, identify its distinct examinable concepts, then cover those concepts broadly before "
+        "making a second card about the same concept. Prefer the key idea, its mechanism or contrast, and a source-supported example "
+        "over several cards that test the same wording. Do not invent applications, extra background, or missing answers. For assessment documents, "
+        "only make study cards from answered questions and answer explanations that are explicitly present; never solve unanswered questions. "
+        "Ignore links, navigation, deadlines, grading rules, submission directions, software setup, and code-review logistics; those are not course concepts. "
         "Each card must include a verbatim source_quote copied from the same labeled source section; that passage must support every "
         "important claim in the answer. Keep answers focused, usually one or two sentences. "
         "Use fewer strong cards rather than padding. Skip navigation, boilerplate, repeated headers, links, and administrative content."
     )
     user_prompt = (
-        f"Create at most {MAX_CARDS_PER_CHUNK} high-value cards from this {source_type}. "
-        "Use source_locator exactly as one of the bracketed labels. If a section does not support a complete, useful card, skip it.\n\n"
+        f"Create up to {MAX_CARDS_PER_CHUNK} high-value cards from this {source_type}. For a past assessment, cover as many distinct answered concept questions as the limit allows. "
+        "Do not turn assignment instructions or URLs into questions or answers. Use source_locator exactly as one of the bracketed labels. "
+        "If a section does not support a complete, useful card, skip it.\n\n"
         f"Source sections:\n{chunk['text']}"
     )
     return {
@@ -336,12 +347,14 @@ def _validated_card(raw: dict, chunk: dict, filename: str) -> dict | None:
     normalized_quote = _normalize(quote)
     if not normalized_quote or normalized_quote not in _normalize(matching_source):
         return None
+    if _ADMIN_INSTRUCTION_RE.search(quote):
+        return None
     source_terms = _terms(matching_source)
     if len(_terms(concept + " " + question) & source_terms) < 2:
         return None
     answer_terms = _terms(answer)
     quote_terms = _terms(quote)
-    if len(answer_terms) >= 3 and len(answer_terms & quote_terms) < max(2, round(len(answer_terms) * 0.3)):
+    if len(answer_terms) >= 3 and len(answer_terms & quote_terms) < max(2, math.ceil(len(answer_terms) * 0.45)):
         return None
     stable_id = hashlib.sha256(f"{filename}\0{locator}\0{question}\0{answer}".encode("utf-8")).hexdigest()[:16]
     citation = f"{filename} · {locator}" if locator.startswith(("Page ", "Slide ")) else filename
@@ -424,6 +437,6 @@ def generate_ai_cards(
             "inputCharacters": len(text or ""),
             "generatedAt": datetime.now(timezone.utc).isoformat(),
             "cardsAccepted": len(cards),
-            "qualityGate": "exact source quote and source-location checked",
+            "qualityGate": "exact source quote, source-location, and answer-term overlap checked",
         },
     }

@@ -3541,7 +3541,7 @@
       .source-reference dd { margin: 4px 0 0; font-size: 15px; line-height: 1.5; }
     }
   </style>
-  <link rel="stylesheet" href="redesign.css?v=20260924-source-summary-layout-2">
+  <link rel="stylesheet" href="redesign.css?v=20260924-competition-quick-check-1">
   <link rel="stylesheet" href="memphis.css?v=20260923-large-source-card-groups">
   <link rel="stylesheet" href="seo-pages.css?v=20260923-seo-guides-1">
 </head>
@@ -4100,7 +4100,7 @@
               <div class="today-hero-copy">
                 <h1>Here's today's study plan.</h1>
                 <p id="todayHeroCopy">Focus on upper-limb attachments, especially the questions you've missed.</p>
-                <button class="button primary hero-start-button" data-go="study">Start today’s session</button>
+                <button class="button primary hero-start-button" data-go="quick-check">Start today’s session</button>
               </div>
               <figure id="todayHeroArt" class="today-hero-art" aria-label="A medical student sorting anatomy flashcards with the Syllabloom study companion">
                 <img id="todayHeroImage" src="assets/rounds-study-scene.png" width="1420" height="1065" alt="A medical student and a small green study companion sorting anatomy flashcards" fetchpriority="high">
@@ -4151,7 +4151,7 @@
               </div>
 
               <footer class="active-plan-footer">
-                <button class="button primary" data-go="study">Start session</button>
+                <button class="button primary" data-go="quick-check">Start quick check</button>
                 <span id="planPassRule">Pass when 5 of 6 are correct twice</span>
                 <strong id="planDurationValue">28 minutes</strong>
               </footer>
@@ -4218,6 +4218,45 @@
             </section>
           </aside>
         </div>
+      </section>
+
+      <section id="quick-check" class="page" aria-labelledby="quickCheckPageTitle">
+        <header class="quick-check-page-heading">
+          <p class="quick-check-eyebrow">Short, source-linked recall</p>
+          <h1 id="quickCheckPageTitle">Quick check</h1>
+          <p>Answer from memory first. Then compare with the exact material and decide what needs another pass.</p>
+        </header>
+
+        <section class="quick-check-panel" aria-label="Quick check session">
+          <div id="quickCheckIntro" class="quick-check-intro">
+            <span class="quick-check-step">A few focused prompts</span>
+            <h2 id="quickCheckIntroTitle">Ready when you are</h2>
+            <p id="quickCheckIntroCopy">Questions are taken from your class cards, not generated from unrelated facts.</p>
+            <div class="quick-check-intro-actions">
+              <button id="quickCheckStart" class="button primary" type="button">Start quick check</button>
+              <button id="quickCheckAddMaterial" class="button" type="button" data-go="source" hidden>Add class material</button>
+              <button class="text-button" type="button" data-go="study">Study cards instead</button>
+            </div>
+          </div>
+
+          <div id="quickCheckSession" class="quick-check-session" hidden>
+            <p id="quickCheckProgress" class="quick-check-progress" aria-live="polite"></p>
+            <h2 id="quickCheckQuestion" tabindex="-1"></h2>
+            <div id="quickCheckOptions" class="answer-options"></div>
+            <div id="quickCheckResult" class="assessment-result" aria-live="polite"></div>
+          </div>
+
+          <div id="quickCheckComplete" class="quick-check-complete" role="status" hidden>
+            <span class="quick-check-step">Your check is saved</span>
+            <h2 id="quickCheckCompleteTitle">Quick check complete</h2>
+            <p id="quickCheckCompleteCopy"></p>
+            <div class="quick-check-intro-actions">
+              <button id="quickCheckAgain" class="button primary" type="button">Try another quick check</button>
+              <button class="button" type="button" data-go="cards">Review the ready set</button>
+              <button class="text-button" type="button" data-go="home">Back to Today</button>
+            </div>
+          </div>
+        </section>
       </section>
 
       <section id="source" class="page">

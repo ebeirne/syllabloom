@@ -148,6 +148,10 @@
     includeSampleMaterial: savedClassProfile.includeSampleMaterial !== false,
     assessmentIndex: 0,
     assessmentScore: 0,
+    quickCheckQuestions: [],
+    quickCheckIndex: 0,
+    quickCheckScore: 0,
+    quickCheckRound: 0,
     baselineScore: savedCourseState.baselineAssessed === true
       ? Math.min(100, Math.max(0, Number(savedCourseState.baselineScore) || 0))
       : 0,
@@ -180,7 +184,7 @@
     }
   };
 
-  const appViews = new Set(['home', 'capture', 'source', 'knowledge', 'profile', 'billing', 'cards', 'study']);
+  const appViews = new Set(['home', 'capture', 'source', 'knowledge', 'profile', 'billing', 'cards', 'study', 'quick-check']);
   const marketingHashes = new Set(['landing', 'how-it-works', 'anki-first', 'made-for-class', 'pricing']);
   let restoringShellHistory = false;
 
@@ -559,6 +563,13 @@
 
   function sourceAssessmentQuestions() {
     return window.SyllabloomSourceStudy.quickCheckItems(state.lectureCards);
+  }
+
+  function rotatingQuickCheckQuestions() {
+    return window.SyllabloomSourceStudy.quickCheckItems(state.lectureCards, 3, {
+      missCounts: state.missCounts,
+      offset: state.quickCheckRound * 3
+    });
   }
 
   function activeAssessmentQuestions() {
@@ -1794,6 +1805,7 @@
     const concepts = sourceConceptNames();
     const latestSource = [...state.sources].reverse().find(item => item.draftCards?.length || item.notes?.length);
     const cardCount = state.lectureCards.length;
+    const quickCheckCount = custom ? rotatingQuickCheckQuestions().length : assessmentQuestions.length;
     const approved = state.lectureCards.filter(card => card.reviewStatus === 'approved').length;
     const firstConcept = concepts[0] || 'your new material';
     const sourceTotal = state.includeSampleMaterial ? 3 : state.sources.length;
@@ -1822,7 +1834,7 @@
       : 'A medical student and a small green study companion sorting anatomy flashcards';
     document.querySelector('#todayHeroCopy').textContent = custom
       ? latestSource
-        ? `${cardCount} ready card${cardCount === 1 ? '' : 's'} from ${latestSource.name}. Start with a quick check, then study here or export to Anki.`
+        ? `${cardCount} ready card${cardCount === 1 ? '' : 's'} across your class. Latest source: ${latestSource.name} (${latestSource.draftCards?.length || 0} cards). Start with a quick check, then study here or export to Anki.`
         : 'Add your first slides, notes, syllabus, or authorized assessment to build a ready study set.'
       : 'One focused pass through upper-limb attachments, built around the questions you still miss.';
     if (!custom) {
@@ -1848,7 +1860,7 @@
       ? 'Start with a quick recall check made from your source, then use the ready set here or send it to Anki.'
       : 'Your next session will take shape as soon as Syllabloom can read the first source.';
     const steps = [
-      ['Quick check', 'Answer a few source-linked questions before reviewing.', `${Math.min(3, cardCount)} question${Math.min(3, cardCount) === 1 ? '' : 's'}`],
+      ['Quick check', 'Answer a few source-linked questions before reviewing.', `${quickCheckCount} question${quickCheckCount === 1 ? '' : 's'}`],
       ['Study the set', 'Use the cards as-is or change anything you want.', `${approved} ready card${approved === 1 ? '' : 's'}`],
       ['Send to Anki', 'Export with your saved deck, tags, limits, and card format.', state.anki.format]
     ];
@@ -2060,10 +2072,11 @@
     const previousView = state.view;
     if (view !== 'study') state.studyFocusConcept = '';
     state.view = view;
+    const selectedNavView = view === 'quick-check' ? 'home' : view;
     document.querySelectorAll('.page').forEach(page => page.classList.toggle('active', page.id === view));
-    document.querySelectorAll('.nav-button').forEach(button => button.classList.toggle('active', button.dataset.view === view));
+    document.querySelectorAll('.nav-button').forEach(button => button.classList.toggle('active', button.dataset.view === selectedNavView));
     document.querySelectorAll('.sidebar-action[data-view]').forEach(button => {
-      const active = button.dataset.view === view;
+      const active = button.dataset.view === selectedNavView;
       button.classList.toggle('active', active);
       if (active) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
@@ -2076,12 +2089,13 @@
     document.querySelector('.mobile-account-button').classList.toggle('active-context', inAccountContext);
     document.querySelector('#classSwitcher').toggleAttribute('aria-current', inClassContext);
     document.querySelector('.mobile-class-button').toggleAttribute('aria-current', inClassContext);
-    document.querySelector('#mobileNav').value = view;
+    document.querySelector('#mobileNav').value = selectedNavView;
     if (view === 'cards') {
       renderEditor();
       window.requestAnimationFrame(() => document.querySelectorAll('#lectureDraftQueue textarea').forEach(autoSizeTextArea));
     }
     if (view === 'study') renderStudy();
+    if (view === 'quick-check') renderQuickCheck();
     if (view === 'knowledge') renderClassPlanner();
     if (view === 'profile') renderProfile();
     if (view === 'billing') renderBillingPage();
@@ -2250,10 +2264,10 @@
     }
   }
 
-  function assessmentCardReference(item) {
+  function assessmentCardReference(item, index = state.assessmentIndex) {
     if (item.cardId) return { cardId: item.cardId, concept: item.concept || '', sourceName: item.sourceName || '' };
     const record = records.find(candidate => candidate.muscle === item.sampleMuscle);
-    if (!record) return { cardId: `quick-check-${state.assessmentIndex}`, concept: '', sourceName: source.document };
+    if (!record) return { cardId: `quick-check-${index}`, concept: '', sourceName: source.document };
     return {
       cardId: keyFor(record, item.sampleField || 'attachment'),
       concept: record.section,
@@ -2267,8 +2281,8 @@
     localStorage.setItem('syllabloom-miss-counts', JSON.stringify(state.missCounts));
   }
 
-  function recordQuickCheckResponse(item, correct) {
-    const reference = assessmentCardReference(item);
+  function recordQuickCheckResponse(item, correct, index = state.assessmentIndex) {
+    const reference = assessmentCardReference(item, index);
     state.reviewHistory.push({
       id: `quick-check-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       cardId: reference.cardId,
@@ -2480,6 +2494,141 @@
         <button id="assessmentNext" class="button primary" type="button">${finalQuestion ? 'Finish assessment' : 'Next question'}</button>`;
       document.querySelector('#assessmentNext').addEventListener('click', () => advanceAssessment(questions));
     }));
+  }
+
+  function renderQuickCheck() {
+    const custom = !state.includeSampleMaterial;
+    const intro = document.querySelector('#quickCheckIntro');
+    const session = document.querySelector('#quickCheckSession');
+    const complete = document.querySelector('#quickCheckComplete');
+    const start = document.querySelector('#quickCheckStart');
+    const addMaterial = document.querySelector('#quickCheckAddMaterial');
+    const available = custom
+      ? rotatingQuickCheckQuestions()
+      : assessmentQuestions;
+
+    document.querySelector('#quickCheckIntroTitle').textContent = custom
+      ? available.length ? 'Check what stuck from your materials' : 'Add a source to start a check'
+      : 'A quick check across the example class';
+    document.querySelector('#quickCheckIntroCopy').textContent = custom
+      ? available.length
+        ? `${state.lectureCards.length} ready cards in your class. This check uses up to ${available.length} distinct, source-linked prompts${Object.keys(state.missCounts).length ? ', prioritizing topics marked for review' : ''}. Answers stay tied to the uploaded material.`
+        : 'Add lecture slides, notes, or a past assessment to create a short recall check from your own class content.'
+      : 'Try three anatomy recall questions. Add your own class material whenever you are ready.';
+    start.hidden = available.length === 0;
+    start.disabled = available.length === 0;
+    addMaterial.hidden = available.length !== 0;
+
+    if (state.quickCheckQuestions.length) {
+      intro.hidden = true;
+      if (state.quickCheckIndex >= state.quickCheckQuestions.length) {
+        session.hidden = true;
+        complete.hidden = false;
+        const recalled = state.quickCheckQuestions.every(item => item.mode === 'recall');
+        document.querySelector('#quickCheckCompleteTitle').textContent = 'Quick check complete';
+        document.querySelector('#quickCheckCompleteCopy').textContent = recalled
+          ? `You marked ${state.quickCheckScore} of ${state.quickCheckQuestions.length} as already known. Missed topics were added to your review priorities.`
+          : `You answered ${state.quickCheckScore} of ${state.quickCheckQuestions.length} correctly. Missed topics were added to your review priorities.`;
+      } else {
+        session.hidden = false;
+        complete.hidden = true;
+        renderQuickCheckQuestion();
+      }
+    } else {
+      intro.hidden = false;
+      session.hidden = true;
+      complete.hidden = true;
+    }
+  }
+
+  function startQuickCheck() {
+    state.quickCheckRound += 1;
+    state.quickCheckQuestions = state.includeSampleMaterial
+      ? assessmentQuestions
+      : rotatingQuickCheckQuestions();
+    state.quickCheckIndex = 0;
+    state.quickCheckScore = 0;
+    renderQuickCheck();
+  }
+
+  function finishQuickCheckQuestion() {
+    state.quickCheckIndex += 1;
+    renderQuickCheck();
+  }
+
+  function renderQuickCheckQuestion() {
+    const questions = state.quickCheckQuestions;
+    const item = questions[state.quickCheckIndex];
+    if (!item) return;
+    const options = document.querySelector('#quickCheckOptions');
+    const result = document.querySelector('#quickCheckResult');
+    document.querySelector('#quickCheckProgress').textContent = `Question ${state.quickCheckIndex + 1} of ${questions.length}`;
+    const questionHeading = document.querySelector('#quickCheckQuestion');
+    questionHeading.textContent = item.question;
+    questionHeading.focus({ preventScroll: true });
+    result.replaceChildren();
+
+    if (item.mode === 'recall') {
+      options.innerHTML = '<button class="button primary answer-option" id="quickCheckReveal" type="button">Reveal answer</button>';
+      options.querySelector('#quickCheckReveal').addEventListener('click', () => {
+        const answer = document.createElement('article');
+        answer.className = 'quick-check-source-answer';
+        const label = document.createElement('span');
+        label.textContent = 'Answer from your source';
+        const text = document.createElement('p');
+        text.textContent = item.answer;
+        const sourceLabel = document.createElement('small');
+        sourceLabel.textContent = item.sourceName ? `Source: ${item.sourceName}` : '';
+        answer.append(label, text, sourceLabel);
+        result.append(answer);
+        options.innerHTML = `
+          <span class="quick-check-rating-label">How well did you know it?</span>
+          <div class="quick-check-rating-actions">
+            <button class="button answer-option" type="button" data-known="true">I knew it</button>
+            <button class="button answer-option" type="button" data-known="false">Need to review</button>
+          </div>`;
+        options.querySelectorAll('[data-known]').forEach(button => button.addEventListener('click', () => {
+          const known = button.dataset.known === 'true';
+          recordQuickCheckResponse(item, known, state.quickCheckIndex);
+          if (known) state.quickCheckScore += 1;
+          options.querySelectorAll('button').forEach(rating => { rating.disabled = true; });
+          const feedback = document.createElement('p');
+          feedback.className = 'quick-check-rating-feedback';
+          feedback.textContent = known ? 'Marked as known.' : 'Added to your review priorities.';
+          result.append(feedback);
+          appendQuickCheckNext(result);
+        }));
+      });
+      return;
+    }
+
+    options.innerHTML = item.options.map((option, index) => (
+      `<button class="button answer-option" data-answer="${index}" type="button">${escapeHtml(option)}</button>`
+    )).join('');
+    options.querySelectorAll('.answer-option').forEach(button => button.addEventListener('click', () => {
+      const correct = Number(button.dataset.answer) === item.correct;
+      recordQuickCheckResponse(item, correct, state.quickCheckIndex);
+      if (correct) state.quickCheckScore += 1;
+      options.querySelector(`[data-answer="${item.correct}"]`)?.classList.add('correct-answer');
+      if (!correct) button.classList.add('selected-wrong');
+      options.querySelectorAll('button').forEach(option => { option.disabled = true; });
+      const explanation = document.createElement('p');
+      const label = document.createElement('strong');
+      label.textContent = correct ? 'Correct. ' : 'Not quite. ';
+      explanation.append(label, document.createTextNode(item.explanation));
+      result.append(explanation);
+      appendQuickCheckNext(result);
+    }));
+  }
+
+  function appendQuickCheckNext(result) {
+    const next = document.createElement('button');
+    next.id = 'quickCheckNext';
+    next.className = 'button primary';
+    next.type = 'button';
+    next.textContent = state.quickCheckIndex === state.quickCheckQuestions.length - 1 ? 'Finish check' : 'Next question';
+    next.addEventListener('click', finishQuickCheckQuestion);
+    result.append(next);
   }
 
   function csvCell(value) {
@@ -4587,6 +4736,8 @@
       <div id="assessmentResult" class="assessment-result"></div>`;
     renderAssessmentQuestion();
   });
+  document.querySelector('#quickCheckStart').addEventListener('click', startQuickCheck);
+  document.querySelector('#quickCheckAgain').addEventListener('click', startQuickCheck);
   document.querySelector('#baselineContinue').addEventListener('click', () => showSetupStep(5));
   document.querySelector('#focusedAssessment').addEventListener('click', () => openOnboarding(4));
   document.querySelector('#finishSetup').addEventListener('click', () => {

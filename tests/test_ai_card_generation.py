@@ -13,6 +13,8 @@ from unittest.mock import patch
 from api.ai_card_generation import (
     AIConfigurationError,
     AIUsageLimitError,
+    MAX_CARDS_PER_CHUNK,
+    MAX_OUTPUT_TOKENS_PER_CHUNK,
     NoStudyCardsError,
     SourceTextLimitError,
     estimate_max_cost_microdollars,
@@ -240,6 +242,73 @@ class AICardGenerationTests(unittest.TestCase):
             opener=opener,
         )
         self.assertEqual(len(result["cards"]), 1)
+
+    def test_assessment_generation_can_cover_more_answered_items_per_chunk(self) -> None:
+        drafts = [card(
+            concept=f"Systems consolidation fact {index}",
+            question=f"What does systems consolidation establish about fact {index}?",
+        ) for index in range(15)]
+        result = generate_ai_cards(
+            SOURCE,
+            "quiz.pdf",
+            "assessment",
+            {"pageTexts": [SOURCE]},
+            api_key="test-key-not-real",
+            opener=FakeOpener(drafts),
+        )
+
+        self.assertEqual(MAX_CARDS_PER_CHUNK, 12)
+        self.assertEqual(MAX_OUTPUT_TOKENS_PER_CHUNK, 1_900)
+        self.assertEqual(len(result["cards"]), 12)
+
+    def test_generation_prompt_prioritizes_concept_coverage_and_ignores_course_logistics(self) -> None:
+        from api.ai_card_generation import _request_payload
+
+        payload = _request_payload({"locators": ["Page 1"], "text": "[Page 1]\n" + SOURCE}, "assessment", "gpt-5.4-nano")
+        system_prompt = payload["input"][0]["content"]
+        user_prompt = payload["input"][1]["content"]
+
+        self.assertIn("cover those concepts broadly", system_prompt)
+        self.assertIn("deadlines, grading rules, submission directions", system_prompt)
+        self.assertIn("answered concept questions", user_prompt)
+
+    def test_course_submission_instructions_are_not_made_into_study_cards(self) -> None:
+        instruction = (
+            "Submit the code that compiles by the simulation completion deadline. "
+            "Demonstrate your understanding of the assignment during a one-on-one code review."
+        )
+        draft = card(
+            concept="Percolation assignment",
+            question="What must the student submit before the deadline?",
+            answer="The code must compile before the simulation completion deadline.",
+            source_quote=instruction,
+        )
+        result = generate_ai_cards(
+            instruction,
+            "assignment.pdf",
+            "assessment",
+            {"pageTexts": [instruction]},
+            api_key="test-key-not-real",
+            opener=FakeOpener([draft]),
+        )
+
+        self.assertEqual(result["cards"], [])
+
+    def test_answer_with_most_claims_outside_the_source_is_rejected(self) -> None:
+        draft = card(answer=(
+            "Episodic memories rely on the hippocampus before changing, and extensive REM sleep "
+            "permanently stores them after twenty years through a separate cortical process."
+        ))
+        result = generate_ai_cards(
+            SOURCE,
+            "cognition.txt",
+            "material",
+            {"pageTexts": [SOURCE]},
+            api_key="test-key-not-real",
+            opener=FakeOpener([draft]),
+        )
+
+        self.assertEqual(result["cards"], [])
 
     def test_source_alignment_gate_handles_multiple_course_subjects(self) -> None:
         examples = [
