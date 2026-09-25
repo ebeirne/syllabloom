@@ -78,6 +78,31 @@ class FakeOpener:
 
 
 class AICardGenerationTests(unittest.TestCase):
+    def test_later_generation_batch_only_sends_its_four_source_chunks(self) -> None:
+        page_texts = [f"Page concept {index}. " + ("distinct concept evidence " * 300) for index in range(1, 9)]
+        text = "\n".join(page_texts)
+        opener = FakeOpener([])
+
+        result = generate_ai_cards(
+            text,
+            "large-lecture.pdf",
+            "material",
+            {"pageTexts": page_texts},
+            batch_index=1,
+            api_key="test-key-not-real",
+            opener=opener,
+        )
+
+        self.assertEqual(result["generation"]["batchIndex"], 1)
+        self.assertEqual(result["generation"]["batchCount"], 2)
+        self.assertEqual(len(opener.requests), 4)
+        locators = {
+            locator
+            for request, _timeout in opener.requests
+            for locator in json.loads(request.data)["text"]["format"]["schema"]["properties"]["cards"]["items"]["properties"]["source_locator"]["enum"]
+        }
+        self.assertEqual(locators, {"Page 5", "Page 6", "Page 7", "Page 8"})
+
     def test_material_upload_endpoint_returns_ai_cards_and_usage_metadata(self) -> None:
         ai_cards = [{
             "id": "ai-source-card",
@@ -271,6 +296,57 @@ class AICardGenerationTests(unittest.TestCase):
         self.assertIn("cover those concepts broadly", system_prompt)
         self.assertIn("deadlines, grading rules, submission directions", system_prompt)
         self.assertIn("answered concept questions", user_prompt)
+
+    def test_each_question_style_changes_only_the_source_grounded_front_guidance(self) -> None:
+        from api.ai_card_generation import QUESTION_STYLES, _request_payload
+
+        expected_phrases = {
+            "balanced": "source-supported mix",
+            "direct": "direct, short-answer retrieval questions",
+            "explain": "how/why questions",
+            "compare": "compare/contrast questions",
+            "apply": "application question using a concrete example",
+        }
+        for style in QUESTION_STYLES:
+            with self.subTest(style=style):
+                payload = _request_payload(
+                    {"locators": ["Page 1"], "text": "[Page 1]\n" + SOURCE},
+                    "material",
+                    "gpt-5.4-nano",
+                    style,
+                )
+                self.assertIn(expected_phrases[style], payload["input"][0]["content"])
+                self.assertIn("Use ONLY claims directly supported", payload["input"][0]["content"])
+
+    def test_selected_question_style_is_sent_and_recorded_in_generation_metadata(self) -> None:
+        opener = FakeOpener([card()])
+        result = generate_ai_cards(
+            SOURCE,
+            "cognition.txt",
+            "material",
+            {"pageTexts": [SOURCE]},
+            question_style="explain",
+            api_key="test-key-not-real",
+            opener=opener,
+        )
+
+        request_body = json.loads(opener.requests[0][0].data)
+        self.assertIn("how/why questions", request_body["input"][0]["content"])
+        self.assertEqual(result["generation"]["questionStyle"], "explain")
+
+    def test_unknown_question_style_is_rejected_before_provider_call(self) -> None:
+        opener = FakeOpener([card()])
+        with self.assertRaises(ValueError):
+            generate_ai_cards(
+                SOURCE,
+                "cognition.txt",
+                "material",
+                {"pageTexts": [SOURCE]},
+                question_style="invented-style",
+                api_key="test-key-not-real",
+                opener=opener,
+            )
+        self.assertEqual(opener.requests, [])
 
     def test_course_submission_instructions_are_not_made_into_study_cards(self) -> None:
         instruction = (

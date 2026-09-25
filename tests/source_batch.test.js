@@ -93,3 +93,16 @@ test('retry processes only retryable failures and keeps completed results', asyn
   assert.equal(items[0].result.name, 'good.pdf');
   assert.equal(items[1].result.name, 'retry.pdf');
 });
+
+test('an uncertain generation request is not automatically offered as a retry', async () => {
+  const items = createQueueItems([file('uncertain.pdf')]);
+  const result = await processQueue(items, async () => {
+    const error = new Error('The provider response could not be verified.');
+    error.retryable = false;
+    throw error;
+  });
+
+  assert.deepEqual(result, { attempted: 1, succeeded: 0, failed: 1 });
+  assert.equal(items[0].status, 'failed');
+  assert.equal(items[0].retryable, false);
+});

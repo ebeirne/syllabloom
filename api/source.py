@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import cgi
+import hashlib
 import json
 import os
 import re
@@ -10,26 +11,186 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 from urllib.request import Request, urlopen
 
-from api.ai_card_generation import CardGenerationError
-from api.ai_source_cards import generate_source_cards
+from api.ai_card_generation import (
+    CHUNKS_PER_BATCH,
+    MAX_SOURCE_TEXT_CHARS,
+    QUESTION_STYLES,
+    CardGenerationError,
+    SourceTextLimitError,
+    _source_chunks,
+)
+from api.ai_source_cards import generate_source_cards, generate_source_cards_batch
 from api._common import JsonHandler
 from api.user_data import authenticated_user, require_authenticated_beta_request
-from server import NoSelectableTextError, SOURCE_SUFFIXES, source_summary
+from server import NoSelectableTextError, SOURCE_SUFFIXES, extract_source_text, source_summary
 
 
 MAX_INLINE_REQUEST_BYTES = 4 * 1024 * 1024
 MAX_SOURCE_BYTES = 100 * 1024 * 1024
 
 
-def _source_summary(path: Path, filename: str, kind: str, user_id: str) -> dict:
+def _source_summary(
+    path: Path, filename: str, kind: str, user_id: str, question_style: str = "balanced"
+) -> dict:
     return source_summary(
         path,
         filename,
         kind,
         card_generator=lambda text, source_name, source_kind, units: generate_source_cards(
-            text, source_name, source_kind, units, user_id
+            text, source_name, source_kind, units, user_id, question_style
         ),
     )
+
+
+def _source_preflight(path: Path, filename: str, kind: str) -> dict:
+    """Read and classify a source without spending AI budget; return text only for generation."""
+    suffix = Path(filename).suffix.lower()
+    text, units = extract_source_text(path, suffix)
+    if suffix == ".pdf" and not text.strip():
+        error = NoSelectableTextError(
+            "This PDF has no selectable text. Syllabloom can try on-device OCR before generating cards."
+        )
+        error.file_fingerprint = _file_fingerprint(path)
+        raise error
+    if not text.strip():
+        error = NoSelectableTextError(
+            "No readable text was found. Add speaker notes or image descriptions to the slides, then try again."
+        )
+        error.file_fingerprint = _file_fingerprint(path)
+        raise error
+    summary = source_summary(path, filename, kind, extracted=(text, units))
+    _apply_file_identity(summary, _file_fingerprint(path))
+    summary["draftCards"] = []
+    needs_cards = (
+        summary["kind"] != "syllabus"
+        and len(text.strip()) > 0
+        and "Administrative form detected" not in summary.get("classificationReason", "")
+    )
+    if not needs_cards:
+        summary["preflight"] = {
+            "inputCharacters": len(text),
+            "chunkCount": 0,
+            "batchCount": 0,
+            "requiresCards": False,
+            "unitLabel": units.get("unitLabel", "sections"),
+            "unitCount": units.get("unitCount", 0),
+        }
+        return {"source": summary}
+
+    if len(text) > MAX_SOURCE_TEXT_CHARS:
+        raise SourceTextLimitError()
+
+    chunks = _source_chunks(text, filename, units)
+    low_text_pages = []
+    if suffix == ".pdf":
+        low_text_pages = [
+            index + 1 for index, page in enumerate(units.get("pageTexts") or [])
+            if len(re.findall(r"\b\w+\b", str(page))) < 15
+        ]
+    slide_numbers = {int(value) for value in re.findall(r"(?m)^Slide\s+(\d+)\s*$", text)}
+    page_count = len(units.get("pageTexts") or [])
+    visual_gaps = units.get("slidesWithUnlabeledImages") or []
+    summary["preflight"] = {
+        "inputCharacters": len(text),
+        "chunkCount": len(chunks),
+        "batchCount": (len(chunks) + CHUNKS_PER_BATCH - 1) // CHUNKS_PER_BATCH,
+        "requiresCards": True,
+        "unitLabel": units.get("unitLabel", "sections"),
+        "unitCount": units.get("unitCount", 0),
+        "unitsWithText": len(slide_numbers) if suffix == ".pptx" else sum(
+            1 for page in (units.get("pageTexts") or []) if str(page).strip()
+        ) if suffix == ".pdf" else units.get("unitCount", 0),
+        "lowTextPages": low_text_pages,
+        "imageCount": units.get("imageCount", 0),
+        "imageAltTextCount": units.get("imageAltTextCount", 0),
+        "slidesWithUnlabeledImages": visual_gaps,
+        "speakerNotesCount": units.get("speakerNotesCount", 0),
+    }
+    return {"source": summary, "extractedText": text, "extractedUnits": units}
+
+
+def _source_summary_from_ocr(
+    filename: str, kind: str, text: str, page_texts: list[str], file_fingerprint: str = ""
+) -> dict:
+    if Path(filename).suffix.lower() != ".pdf":
+        raise ValueError("On-device OCR is only supported for PDF documents.")
+    if not isinstance(text, str) or not text.strip() or len(text) > MAX_SOURCE_TEXT_CHARS:
+        raise SourceTextLimitError()
+    if not isinstance(page_texts, list) or len(page_texts) > 500 or any(not isinstance(page, str) for page in page_texts):
+        raise ValueError("The OCR text could not be prepared safely. Try a smaller PDF.")
+    if sum(len(page) for page in page_texts) > MAX_SOURCE_TEXT_CHARS:
+        raise SourceTextLimitError()
+    units = {"unitLabel": "pages", "unitCount": len(page_texts), "pageTexts": page_texts, "ocrUsed": True}
+    summary = source_summary(Path(filename), filename, kind, extracted=(text, units))
+    if not re.fullmatch(r"[a-f0-9]{64}", str(file_fingerprint)):
+        raise ValueError("The original PDF could not be verified for this OCR import. Upload it again.")
+    _apply_file_identity(summary, file_fingerprint)
+    summary["draftCards"] = []
+    requires_cards = (
+        summary["kind"] != "syllabus"
+        and "Administrative form detected" not in summary.get("classificationReason", "")
+    )
+    chunks = _source_chunks(text, filename, units) if requires_cards else []
+    summary["preflight"] = {
+        "inputCharacters": len(text),
+        "chunkCount": len(chunks),
+        "batchCount": (len(chunks) + CHUNKS_PER_BATCH - 1) // CHUNKS_PER_BATCH,
+        "requiresCards": requires_cards,
+        "unitLabel": "pages",
+        "unitCount": len(page_texts),
+        "unitsWithText": sum(1 for page in page_texts if page.strip()),
+        "ocrUsed": True,
+    }
+    return {"source": summary, "extractedText": text, "extractedUnits": units}
+
+
+def _generate_source_batch(body: object, user_id: str) -> dict:
+    if not isinstance(body, dict):
+        raise ValueError("The card-generation request is invalid.")
+    text = body.get("extractedText")
+    units = body.get("extractedUnits")
+    filename = Path(str(body.get("filename") or "")).name
+    kind = str(body.get("kind") or "auto")
+    batch_index = body.get("batchIndex")
+    question_style = body.get("questionStyle", "balanced")
+    if not isinstance(text, str) or not text.strip() or len(text) > MAX_SOURCE_TEXT_CHARS:
+        raise SourceTextLimitError()
+    if Path(filename).suffix.lower() not in SOURCE_SUFFIXES or kind not in {"material", "assessment"}:
+        raise ValueError("Choose a class material or past assessment with readable text.")
+    if not isinstance(units, dict):
+        raise ValueError("The extracted source could not be verified. Re-import the file.")
+    if not isinstance(question_style, str) or question_style not in QUESTION_STYLES:
+        raise ValueError("Choose a supported front question style.")
+    fingerprint = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    if body.get("textFingerprint") != fingerprint:
+        raise ValueError("The source changed during import. Please upload it again.")
+    if not isinstance(batch_index, int) or isinstance(batch_index, bool):
+        raise ValueError("The card-generation batch is invalid.")
+    return generate_source_cards_batch(text, filename, kind, units, user_id, batch_index, question_style)
+
+
+def _file_fingerprint(path: Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as source_file:
+        while True:
+            chunk = source_file.read(1024 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _apply_file_identity(summary: dict, file_fingerprint: str) -> None:
+    summary["fileFingerprint"] = file_fingerprint
+    if summary.get("kind") == "syllabus":
+        return
+    previous_id = str(summary.get("id") or "")
+    file_id = file_fingerprint[:12]
+    summary["id"] = file_id
+    for event in summary.get("calendarEvents") or []:
+        event_id = str(event.get("id") or "")
+        event["id"] = f"{file_id}{event_id[len(previous_id):]}" if previous_id and event_id.startswith(previous_id) else event_id
+        event["sourceId"] = file_id
 
 
 def _private_blob_url(value: object, pathname: str) -> str:
@@ -120,7 +281,7 @@ class handler(JsonHandler):
             return
 
         if content_type.startswith("application/json"):
-            if content_length > 32 * 1024:
+            if content_length > 3_000_000:
                 self.send_json({"error": "The temporary upload request is invalid."}, HTTPStatus.BAD_REQUEST)
                 return
             user_id = authenticated_user(self.headers)
@@ -129,6 +290,19 @@ class handler(JsonHandler):
                 return
             try:
                 body = json.loads(self.rfile.read(content_length).decode("utf-8"))
+                operation = body.get("operation") if isinstance(body, dict) else None
+                if operation == "inspect-text":
+                    result = _source_summary_from_ocr(
+                        Path(str(body.get("filename") or "source.pdf")).name,
+                        str(body.get("kind") or "auto"),
+                        body.get("extractedText"),
+                        body.get("pageTexts"),
+                        str(body.get("fileFingerprint") or ""),
+                    )
+                    result["source"]["localOnly"] = False
+                    result["source"]["storage"] = "session"
+                    self.send_json(result)
+                    return
                 pathname = _source_path(body.get("pathname"), user_id or "")
                 source_url = _private_blob_url(body.get("sourceUrl"), pathname)
                 delete_url = _blob_api_delete_url(body.get("deleteUrl"), pathname)
@@ -142,12 +316,23 @@ class handler(JsonHandler):
                 with tempfile.NamedTemporaryFile(prefix="syllabloom-source-", suffix=suffix, delete=False) as temporary:
                     temporary_path = Path(temporary.name)
                 _download_temporary_source(source_url, temporary_path)
-                summary = _source_summary(temporary_path, filename, kind, user_id or "local-development")
-                summary["localOnly"] = False
-                summary["storage"] = "session"
-                self.send_json({"source": summary})
+                result = (
+                    _source_preflight(temporary_path, filename, kind)
+                    if operation == "inspect"
+                    else {"source": _source_summary(
+                        temporary_path, filename, kind, user_id or "local-development",
+                        str(body.get("questionStyle") or "balanced"),
+                    )}
+                )
+                result["source"]["localOnly"] = False
+                result["source"]["storage"] = "session"
+                self.send_json(result)
             except NoSelectableTextError as exc:
-                self.send_json({"error": str(exc)}, HTTPStatus.UNPROCESSABLE_ENTITY)
+                self.send_json({
+                    "error": str(exc),
+                    "errorCode": "NO_SELECTABLE_TEXT",
+                    "fileFingerprint": getattr(exc, "file_fingerprint", ""),
+                }, HTTPStatus.UNPROCESSABLE_ENTITY)
             except CardGenerationError as exc:
                 self.send_json({"error": exc.public_message}, exc.status)
             except (ValueError, json.JSONDecodeError, UnicodeDecodeError) as exc:
@@ -198,17 +383,28 @@ class handler(JsonHandler):
                     if not chunk:
                         break
                     temporary.write(chunk)
-            summary = _source_summary(
-                temporary_path,
-                filename,
-                form.getfirst("kind", "auto"),
-                authenticated_user(self.headers) or "local-development",
+            kind = form.getfirst("kind", "auto")
+            question_style = form.getfirst("questionStyle", "balanced")
+            result = (
+                _source_preflight(temporary_path, filename, kind)
+                if form.getfirst("inspect", "") == "1"
+                else {"source": _source_summary(
+                    temporary_path,
+                    filename,
+                    kind,
+                    authenticated_user(self.headers) or "local-development",
+                    question_style,
+                )}
             )
-            summary["localOnly"] = False
-            summary["storage"] = "session"
-            self.send_json({"source": summary})
+            result["source"]["localOnly"] = False
+            result["source"]["storage"] = "session"
+            self.send_json(result)
         except NoSelectableTextError as exc:
-            self.send_json({"error": str(exc)}, HTTPStatus.UNPROCESSABLE_ENTITY)
+            self.send_json({
+                "error": str(exc),
+                "errorCode": "NO_SELECTABLE_TEXT",
+                "fileFingerprint": getattr(exc, "file_fingerprint", ""),
+            }, HTTPStatus.UNPROCESSABLE_ENTITY)
         except CardGenerationError as exc:
             self.send_json({"error": exc.public_message}, exc.status)
         except Exception as exc:

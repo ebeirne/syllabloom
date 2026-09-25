@@ -74,6 +74,7 @@
     presetName: 'Syllabloom FSRS',
     format: 'Basic',
     answerStyle: 'Concise',
+    questionStyle: 'balanced',
     dailyLimit: 20,
     newPerDay: 20,
     reviewsPerDay: 9999,
@@ -121,6 +122,25 @@
     hardInterval: 1.2,
     newInterval: 0
   };
+  const questionStyleDescriptions = {
+    balanced: 'Focused retrieval questions with a source-supported mix of definitions, mechanisms, and cause/effect.',
+    direct: 'One clear short-answer recall prompt per card; avoids multi-part or broad summary questions.',
+    explain: 'Focused how/why questions about mechanisms or causes the source explicitly explains.',
+    compare: 'Compare/contrast prompts only when the source clearly covers both concepts; otherwise it falls back to recall.',
+    apply: 'Application prompts use examples already in your material—never an invented case or outside facts.'
+  };
+  const questionStyleLabels = {
+    balanced: 'Balanced recall',
+    direct: 'Direct recall',
+    explain: 'Explain why/how',
+    compare: 'Compare concepts',
+    apply: 'Apply a course example'
+  };
+  const allowedQuestionStyles = new Set(Object.keys(questionStyleDescriptions));
+
+  function normalizedQuestionStyle(value) {
+    return allowedQuestionStyles.has(value) ? value : 'balanced';
+  }
 
   const initialCalendarEvents = [
     { id: 'lecture-upper-limb', date: dateAfter(1), type: 'lecture', title: 'Upper limb lecture' },
@@ -183,6 +203,7 @@
       imageUrl: ''
     }
   };
+  state.anki.questionStyle = normalizedQuestionStyle(state.anki.questionStyle);
 
   const appViews = new Set(['home', 'capture', 'source', 'knowledge', 'profile', 'billing', 'cards', 'study', 'quick-check']);
   const marketingHashes = new Set(['landing', 'how-it-works', 'anki-first', 'made-for-class', 'pricing']);
@@ -208,6 +229,7 @@
   let cloudSyncPollTimer = 0;
   let cloudSyncErrorShown = false;
   let calendarOcrLibraryPromise = null;
+  let sourcePdfLibraryPromise = null;
   let calendarImportOcrText = '';
   let sourceQueueItems = [];
   let sourceBatchRunning = false;
@@ -282,6 +304,7 @@
     state.lectureCards = [];
     state.latestSessionId = null;
     state.anki = { ...defaultAnkiPreferences, ...(data.ankiPreferences || {}) };
+    state.anki.questionStyle = normalizedQuestionStyle(state.anki.questionStyle);
     state.calendarEvents = Array.isArray(data.calendarEvents) ? data.calendarEvents : [];
     state.reviewHistory = Array.isArray(data.reviewHistory) ? data.reviewHistory.slice(-2000) : [];
     state.reviewCount = state.reviewHistory.length;
@@ -915,6 +938,7 @@
       '#ankiTagsFull': state.anki.tags,
       '#ankiFormatFull': state.anki.format,
       '#ankiAnswerStyleFull': state.anki.answerStyle,
+      '#questionStyleFull': normalizedQuestionStyle(state.anki.questionStyle),
       '#ankiNewPerDay': state.anki.newPerDay,
       '#ankiReviewsPerDay': state.anki.reviewsPerDay,
       '#ankiLearningSteps': formatSteps(state.anki.learningSteps),
@@ -952,6 +976,7 @@
       const input = document.querySelector(selector);
       if (input) input.value = value ?? '';
     });
+    syncQuestionStyleControls(state.anki.questionStyle);
     const checks = {
       '#ankiNewIgnoreReviewLimit': state.anki.newCardsIgnoreReviewLimit,
       '#ankiLimitsStartTop': state.anki.limitsStartFromTop,
@@ -978,6 +1003,28 @@
     refreshAnkiLearningPreview();
   }
 
+  function syncQuestionStyleControls(value = state.anki.questionStyle) {
+    const style = normalizedQuestionStyle(value);
+    state.anki.questionStyle = style;
+    document.querySelectorAll('.question-style-select').forEach(select => {
+      select.value = style;
+    });
+    renderQuestionStyleDescriptions(style);
+  }
+
+  function renderQuestionStyleDescriptions(value) {
+    const style = normalizedQuestionStyle(value);
+    document.querySelectorAll('[data-question-style-description]').forEach(description => {
+      description.textContent = questionStyleDescriptions[style];
+    });
+  }
+
+  function setQuestionStyle(value) {
+    state.anki.questionStyle = normalizedQuestionStyle(value);
+    syncQuestionStyleControls(state.anki.questionStyle);
+    localStorage.setItem('syllabloom-anki-preferences', JSON.stringify(state.anki));
+  }
+
   function syncAnkiStateFromForm() {
     const text = selector => document.querySelector(selector).value.trim();
     const checked = selector => document.querySelector(selector).checked;
@@ -989,6 +1036,7 @@
       tags: text('#ankiTagsFull'),
       format: document.querySelector('#ankiFormatFull').value,
       answerStyle: document.querySelector('#ankiAnswerStyleFull').value,
+      questionStyle: normalizedQuestionStyle(document.querySelector('#questionStyleFull')?.value),
       dailyLimit: Math.max(0, numberValue('#ankiNewPerDay', 20)),
       newPerDay: Math.max(0, numberValue('#ankiNewPerDay', 20)),
       reviewsPerDay: Math.max(0, numberValue('#ankiReviewsPerDay', 9999)),
@@ -1036,6 +1084,7 @@
       newInterval: Math.min(1, Math.max(0, numberValue('#ankiNewInterval', 0)))
     };
     localStorage.setItem('syllabloom-anki-preferences', JSON.stringify(state.anki));
+    syncQuestionStyleControls(state.anki.questionStyle);
     updateAnkiExportSurface();
     renderClassPlanner();
   }
@@ -1048,12 +1097,14 @@
     state.anki.newPerDay = Number(document.querySelector('#ankiDailyLimit').value) || 20;
     state.anki.dailyLimit = state.anki.newPerDay;
     state.anki.tags = document.querySelector('#ankiTags').value.trim();
+    state.anki.questionStyle = normalizedQuestionStyle(document.querySelector('#questionStyleOnboarding')?.value || state.anki.questionStyle);
   }
 
   function syncStateToOnboardingAnki() {
     document.querySelector('#ankiDeckName').value = state.anki.deck;
     document.querySelector('#ankiDailyLimit').value = state.anki.newPerDay;
     document.querySelector('#ankiTags').value = state.anki.tags;
+    syncQuestionStyleControls(state.anki.questionStyle);
     const format = document.querySelector(`input[name="ankiFormat"][value="${state.anki.format}"]`);
     const answerStyle = document.querySelector(`input[name="answerStyle"][value="${state.anki.answerStyle}"]`);
     if (format) format.checked = true;
@@ -1165,6 +1216,75 @@
       throw error;
     });
     return calendarOcrLibraryPromise;
+  }
+
+  function loadSourcePdfLibrary() {
+    if (sourcePdfLibraryPromise) return sourcePdfLibraryPromise;
+    sourcePdfLibraryPromise = import('https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289/build/pdf.mjs')
+      .then(pdfjs => {
+        pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289/build/pdf.worker.mjs';
+        return pdfjs;
+      })
+      .catch(error => {
+        sourcePdfLibraryPromise = null;
+        throw new Error('The on-device PDF reader could not load. Check your connection, then try again.');
+      });
+    return sourcePdfLibraryPromise;
+  }
+
+  async function readPdfTextOnDevice(file, selectedPages = [], existingPageTexts = [], onProgress = () => {}) {
+    const pdfjs = await loadSourcePdfLibrary();
+    const tesseract = await loadCalendarOcrLibrary();
+    const data = new Uint8Array(await file.arrayBuffer());
+    const loadingTask = pdfjs.getDocument({ data, isEvalSupported: false, useWorkerFetch: false });
+    let pdf;
+    let worker;
+    try {
+      pdf = await loadingTask.promise;
+      if (pdf.numPages > 100) throw new Error('This scan has more than 100 pages. Split it into smaller PDFs, then try again.');
+      const pageTexts = Array.from({ length: pdf.numPages }, (_, index) => String(existingPageTexts[index] || ''));
+      const pageNumbers = selectedPages.length
+        ? [...new Set(selectedPages.map(Number).filter(page => Number.isInteger(page) && page >= 1 && page <= pdf.numPages))]
+        : Array.from({ length: pdf.numPages }, (_, index) => index + 1);
+      if (!pageNumbers.length) return { pageTexts, text: pageTexts.filter(Boolean).join('\n') };
+      worker = await tesseract.createWorker('eng', 1, {
+        logger: progress => {
+          if (progress.status === 'recognizing text') {
+            onProgress(`Reading page text on this device… ${Math.round((progress.progress || 0) * 100)}%`);
+          }
+        }
+      });
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d', { alpha: false });
+      for (let index = 0; index < pageNumbers.length; index += 1) {
+        const pageNumber = pageNumbers[index];
+        onProgress(`Reading scanned page ${pageNumber} of ${pdf.numPages} on this device…`);
+        const page = await pdf.getPage(pageNumber);
+        const viewportAtOne = page.getViewport({ scale: 1 });
+        const scale = Math.min(2, 2200 / Math.max(viewportAtOne.width, viewportAtOne.height));
+        const viewport = page.getViewport({ scale: Math.max(0.5, scale) });
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        await page.render({ canvas, canvasContext: context, viewport }).promise;
+        const recognized = (await worker.recognize(canvas)).data.text || '';
+        const prior = pageTexts[pageNumber - 1].trim();
+        pageTexts[pageNumber - 1] = [prior, recognized.trim()].filter(Boolean).join('\n');
+        page.cleanup();
+        canvas.width = 0;
+        canvas.height = 0;
+        onProgress(`Read ${index + 1} of ${pageNumbers.length} scanned pages on this device.`);
+        if (pageTexts.reduce((total, text) => total + text.length, 0) > 192000) {
+          throw new Error('This PDF contains more than 192,000 characters of text. Split it into smaller files, then retry.');
+        }
+      }
+      const text = pageTexts.filter(page => page.trim()).join('\n');
+      if (!text.trim()) throw new Error('No readable text was found. Try a clearer scan or a text-based copy of the PDF.');
+      return { pageTexts, text };
+    } finally {
+      if (worker) await worker.terminate().catch(() => {});
+      if (pdf) await pdf.destroy().catch(() => {});
+      else await loadingTask.destroy().catch(() => {});
+    }
   }
 
   function renderCalendarImportCandidates(text) {
@@ -1742,7 +1862,7 @@
           : state.baselineScore === 0
             ? 'The first check suggests revisiting these foundations'
             : 'The first check suggests reviewing the missed topics';
-      document.querySelector('#summaryAnki').textContent = `${state.anki.format} · ${state.anki.newPerDay} new per day`;
+      document.querySelector('#summaryAnki').textContent = `${state.anki.format} · ${questionStyleLabels[normalizedQuestionStyle(state.anki.questionStyle)]} · ${state.anki.newPerDay} new per day`;
     }
     document.querySelector('#onboarding').scrollTo({ top: 0, behavior: 'auto' });
     window.scrollTo({ top: 0, behavior: 'auto' });
@@ -3816,6 +3936,7 @@
     const uploadInput = document.querySelector('#sourceUpload');
     const uploadLabel = document.querySelector('#sourceUploadLabel');
     const defaultTypeTrigger = document.querySelector('#sourceKindTrigger');
+    const questionStyleSelect = document.querySelector('#questionStyleMaterials');
     const feedback = document.querySelector('#sourceBatchFeedback');
     if (!queue || !list || !addButton || !progress) return;
 
@@ -3829,6 +3950,7 @@
       ? 'Adding documents…'
       : sourceQueueItems.length ? 'Choose more documents' : 'Choose documents';
     defaultTypeTrigger.disabled = sourceBatchRunning;
+    questionStyleSelect.disabled = sourceBatchRunning;
     clearButton.disabled = sourceBatchRunning;
 
     if (!sourceQueueItems.length) {
@@ -3841,9 +3963,9 @@
 
     list.innerHTML = sourceQueueItems.map(item => {
       const statusLabel = item.status === 'processing'
-        ? 'Reading'
+        ? (item.progressStatus || 'Reading')
         : item.status === 'done'
-          ? 'Added'
+          ? item.duplicateSkipped ? 'Duplicate skipped' : 'Added'
           : item.status === 'failed'
             ? item.retryable ? 'Needs retry' : 'Check file'
             : 'Ready';
@@ -3884,7 +4006,7 @@
           </div>
           <div class="source-queue-state">
             <span class="source-queue-status ${statusClass}">${statusLabel}</span>
-            ${item.error ? '<small>' + escapeHtml(item.error) + '</small>' : ''}
+            ${item.error ? '<small>' + escapeHtml(item.error) + '</small>' : item.preflightLabel ? '<small class="is-meta">' + escapeHtml(item.preflightLabel) + '</small>' : ''}
           </div>
           <button class="source-queue-remove" type="button" data-remove-queued-source="${escapeHtml(item.id)}" aria-label="Remove ${escapeHtml(item.name)} from this batch" ${sourceBatchRunning ? 'disabled' : ''}>×</button>
         </article>`;
@@ -3902,7 +4024,7 @@
 
     const current = sourceQueueItems.find(item => item.status === 'processing');
     if (sourceBatchRunning && current && sourceBatchProgress) {
-      progress.textContent = 'Reading ' + sourceBatchProgress.current + ' of ' + sourceBatchProgress.total + ' · ' + current.name;
+      progress.textContent = (current.progressLabel || 'Reading') + ' · ' + sourceBatchProgress.current + ' of ' + sourceBatchProgress.total + ' · ' + current.name;
     } else if (processable.length) {
       progress.textContent = processable.length + ' ready. One unreadable file will not stop the others.';
     } else {
@@ -3934,12 +4056,22 @@
     if (!processable) return;
 
     sourceBatchRunning = true;
+    const questionStyle = normalizedQuestionStyle(state.anki.questionStyle);
     sourceBatchProgress = null;
     sourceBatchFeedback = '';
     renderSourceQueue();
     const result = await window.SyllabloomSourceBatch.processQueue(
       sourceQueueItems,
-      item => uploadSource(item.file, item.kind, { silent: true, manageButton: false }),
+      item => uploadSource(item.file, item.kind, {
+        silent: true,
+        manageButton: false,
+        queueItem: item,
+        questionStyle,
+        onProgress: message => {
+          item.progressLabel = message;
+          renderSourceQueue();
+        }
+      }),
       (item, details) => {
         if (item.status === 'processing') {
           sourceBatchProgress = { current: details.index + 1, total: details.total };
@@ -3949,30 +4081,33 @@
     );
 
     const completed = sourceQueueItems.filter(item => item.status === 'done');
+    const added = completed.filter(item => !item.duplicateSkipped);
+    const duplicateSkipped = completed.filter(item => item.duplicateSkipped).length;
     const remainingItems = sourceQueueItems.filter(item => item.status !== 'done');
-    const cardCount = completed.reduce((total, item) => total + (item.result?.draftCards?.length || 0), 0);
-    const noteCount = completed.reduce((total, item) => total + (item.result?.notes?.length || 0), 0);
-    const calendarCount = completed.reduce((total, item) => total + (item.result?.calendarEvents?.length || 0), 0);
-    const calendarWarningCount = completed.reduce((total, item) => total + (item.result?.calendarWarnings?.length || 0), 0);
-    const contentDocumentCount = completed.filter(item => item.result?.kind !== 'syllabus').length;
+    const cardCount = added.reduce((total, item) => total + (item.result?.draftCards?.length || 0), 0);
+    const noteCount = added.reduce((total, item) => total + (item.result?.notes?.length || 0), 0);
+    const calendarCount = added.reduce((total, item) => total + (item.result?.calendarEvents?.length || 0), 0);
+    const calendarWarningCount = added.reduce((total, item) => total + (item.result?.calendarWarnings?.length || 0), 0);
+    const contentDocumentCount = added.filter(item => item.result?.kind !== 'syllabus').length;
     sourceQueueItems = remainingItems;
     sourceBatchRunning = false;
     sourceBatchProgress = null;
     const remaining = sourceQueueItems.length;
     const feedbackParts = [];
-    if (completed.length) feedbackParts.push(completed.length + ' document' + (completed.length === 1 ? '' : 's') + ' added');
+    if (added.length) feedbackParts.push(added.length + ' document' + (added.length === 1 ? '' : 's') + ' added');
+    if (duplicateSkipped) feedbackParts.push(duplicateSkipped + ' exact duplicate' + (duplicateSkipped === 1 ? '' : 's') + ' skipped without reprocessing');
     if (cardCount) feedbackParts.push(cardCount + ' source-based card' + (cardCount === 1 ? '' : 's') + ' ready');
     if (noteCount) feedbackParts.push(noteCount + ' note section' + (noteCount === 1 ? '' : 's') + ' added');
     if (calendarCount) feedbackParts.push(calendarCount + ' syllabus date' + (calendarCount === 1 ? '' : 's') + ' added to Calendar');
     if (calendarWarningCount) feedbackParts.push(calendarWarningCount + ' calendar note' + (calendarWarningCount === 1 ? '' : 's') + ' need review');
     if (contentDocumentCount && !cardCount) feedbackParts.push('No study cards were generated; check the document type or selectable text');
-    else if (completed.length) feedbackParts.push('Review the imported content in Materials and Review');
+    else if (added.length) feedbackParts.push('Review the imported content in Materials and Review');
     if (remaining) feedbackParts.push(remaining + ' document' + (remaining === 1 ? '' : 's') + ' still need attention');
     sourceBatchFeedback = feedbackParts.length ? feedbackParts.join(' · ') + '.' : '';
     renderSourceQueue();
     showToast(remaining
       ? remaining + ' document' + (remaining === 1 ? '' : 's') + ' need attention'
-      : result.succeeded + ' document' + (result.succeeded === 1 ? '' : 's') + ' added');
+      : result.succeeded + ' document' + (result.succeeded === 1 ? '' : 's') + ' processed');
   }
 
   function uploadLargeSourceFile(url, file, contentType, onProgress = () => {}) {
@@ -3993,6 +4128,20 @@
     });
   }
 
+  async function checkedSourceResponse(response, fallback) {
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(payload.error || fallback);
+      error.code = payload.errorCode || '';
+      error.retryable = payload.retryable === undefined
+        ? response.status < 500
+        : payload.retryable !== false;
+      error.fileFingerprint = payload.fileFingerprint || '';
+      throw error;
+    }
+    return payload;
+  }
+
   async function uploadLargeSource(file, kind, token, onProgress = () => {}) {
     const ticketResponse = await fetch('/api/source-upload-url', {
       method: 'POST',
@@ -4009,14 +4158,13 @@
         body: JSON.stringify({
           filename: file.name,
           kind,
+          operation: 'inspect',
           pathname: ticket.pathname,
           sourceUrl: ticket.sourceUrl,
           deleteUrl: ticket.deleteUrl
         })
       });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'The document could not be read.');
-      return payload;
+      return await checkedSourceResponse(response, 'The document could not be read.');
     } finally {
       fetch(ticket.deleteUrl, { method: 'DELETE', mode: 'cors' }).catch(() => {});
     }
@@ -4026,32 +4174,195 @@
     const label = document.querySelector('#sourceUploadLabel');
     const priorText = label.textContent;
     const manageButton = options.manageButton !== false;
+    const queueItem = options.queueItem || null;
+    const questionStyle = normalizedQuestionStyle(options.questionStyle || state.anki.questionStyle);
+    let lastProgressLabel = '';
+    let lastProgressAt = 0;
+    const reportProgress = message => {
+      const now = Date.now();
+      if (message === lastProgressLabel || (now - lastProgressAt < 250 && !/\b(?:of|%)\b/.test(message))) return;
+      lastProgressLabel = message;
+      lastProgressAt = now;
+      if (manageButton) label.textContent = message;
+      if (queueItem) {
+        queueItem.progressLabel = message;
+        queueItem.progressStatus = message.toLowerCase().includes('batch') ? 'Drafting' :
+          message.toLowerCase().includes('page') || message.toLowerCase().includes('ocr') ? 'Reading scans' :
+            message.toLowerCase().includes('upload') ? 'Uploading' : 'Reading';
+      }
+      options.onProgress?.(message);
+    };
+    let token = '';
+    let payload;
     if (manageButton) {
       label.textContent = 'Reading source…';
       label.classList.add('disabled');
     }
     try {
-      const token = await window.SyllabloomAuth?.getToken?.();
+      reportProgress('Inspecting the source before card generation…');
+      token = await window.SyllabloomAuth?.getToken?.();
       const isLocalDevelopment = ['localhost', '127.0.0.1'].includes(window.location.hostname);
       if (!token && !isLocalDevelopment) throw new Error('Sign in before adding course materials.');
-      let payload;
-      if (!isLocalDevelopment && file.size > 3 * 1024 * 1024) {
-        payload = await uploadLargeSource(file, kind, token, percent => {
-          if (manageButton) label.textContent = `Uploading securely… ${percent}%`;
-        });
-      } else {
-        const body = new FormData();
-        body.append('source', file, file.name);
-        body.append('kind', kind);
+      const inspectOcrText = async (pageTexts, fileFingerprint) => {
+        const text = pageTexts.filter(page => page.trim()).join('\n');
+        reportProgress('Updating the source preview with on-device OCR…');
         const response = await fetch('/api/source', {
           method: 'POST',
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          body
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({
+            operation: 'inspect-text',
+            filename: file.name,
+            kind,
+            extractedText: text,
+            pageTexts,
+            fileFingerprint
+          })
         });
-        payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || 'The document could not be read');
+        return checkedSourceResponse(response, 'The scanned PDF could not be prepared.');
+      };
+
+      try {
+        if (!isLocalDevelopment && file.size > 3 * 1024 * 1024) {
+          payload = await uploadLargeSource(file, kind, token, percent => {
+            reportProgress(`Uploading securely… ${percent}%`);
+          });
+        } else {
+          reportProgress('Inspecting the source before card generation…');
+          const body = new FormData();
+          body.append('source', file, file.name);
+          body.append('kind', kind);
+          body.append('questionStyle', questionStyle);
+          body.append('inspect', '1');
+          const response = await fetch('/api/source', {
+            method: 'POST',
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            body
+          });
+          payload = await checkedSourceResponse(response, 'The document could not be read.');
+        }
+      } catch (inspectError) {
+        if (inspectError?.code !== 'NO_SELECTABLE_TEXT' || !String(file.name || '').toLowerCase().endsWith('.pdf')) throw inspectError;
+        reportProgress('No text layer · reading scanned pages on this device…');
+        const reading = await readPdfTextOnDevice(file, [], [], reportProgress);
+        payload = await inspectOcrText(reading.pageTexts, inspectError.fileFingerprint);
       }
+
+      if (String(file.name || '').toLowerCase().endsWith('.pdf')) {
+        const lowTextPages = payload.source?.preflight?.lowTextPages || [];
+        if (lowTextPages.length) {
+          const reading = await readPdfTextOnDevice(file, lowTextPages, payload.extractedUnits?.pageTexts || [], reportProgress);
+          payload = await inspectOcrText(reading.pageTexts, payload.source.fileFingerprint);
+        }
+      }
+      if (!payload?.source) throw new Error('The source preview did not contain readable course material.');
       const detectedKind = payload.source.kind || kind;
+      if (queueItem && payload.source.preflight && !payload.source.preflight.requiresCards) {
+        const preflight = payload.source.preflight;
+        const detail = detectedKind === 'syllabus'
+          ? `${payload.source.calendarEvents?.length || 0} calendar dates detected · no AI generation`
+          : 'No card generation needed for this source';
+        queueItem.preflightLabel = `${preflight.unitCount} ${preflight.unitLabel} · ${preflight.inputCharacters.toLocaleString()} readable characters · ${detail}`;
+        options.onProgress?.(queueItem.preflightLabel);
+      }
+
+      const duplicate = state.sources.find(item =>
+        item.fileFingerprint && item.fileFingerprint === payload.source.fileFingerprint
+      );
+      if (duplicate) {
+        if (queueItem) {
+          queueItem.duplicateSkipped = true;
+          queueItem.progressLabel = 'Exact duplicate · skipped';
+        }
+        if (!options.silent) showToast(`${file.name} is already in Materials. It was not processed again.`);
+        return duplicate;
+      }
+
+      if (payload.source.preflight?.requiresCards) {
+        const text = payload.extractedText || '';
+        const units = payload.extractedUnits || {};
+        const preflight = payload.source.preflight;
+        const batchCount = Number(preflight.batchCount) || 0;
+        if (!text.trim() || !batchCount) throw new Error('No selectable text was found for card generation. Add slide notes or text, then retry.');
+        if (queueItem) {
+          const imageGap = preflight.slidesWithUnlabeledImages?.length
+            ? ` · ${preflight.slidesWithUnlabeledImages.length} image-only slide${preflight.slidesWithUnlabeledImages.length === 1 ? '' : 's'} may need descriptions`
+            : '';
+          queueItem.preflightLabel = `${preflight.unitCount} ${preflight.unitLabel} · ${preflight.inputCharacters.toLocaleString()} readable characters · ${batchCount} card batch${batchCount === 1 ? '' : 'es'}${imageGap}`;
+          options.onProgress?.(queueItem.preflightLabel);
+        }
+        const cache = queueItem?.generationCache;
+        const batchCache = cache?.fingerprint === payload.source.fileFingerprint && cache?.questionStyle === questionStyle
+          ? cache
+          : { fingerprint: payload.source.fileFingerprint, questionStyle, results: [] };
+        if (queueItem) queueItem.generationCache = batchCache;
+        const generatedCards = [];
+        const generatedConcepts = [];
+        for (let batchIndex = 0; batchIndex < batchCount; batchIndex += 1) {
+          let result = batchCache.results[batchIndex];
+          if (!result) {
+            reportProgress(`Preparing card batch ${batchIndex + 1} of ${batchCount}…`);
+            let response;
+            try {
+              response = await fetch('/api/source-batch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                body: JSON.stringify({
+                  filename: file.name,
+                  kind: detectedKind,
+                  extractedText: text,
+                  extractedUnits: units,
+                  textFingerprint: payload.source.fingerprint,
+                  batchIndex,
+                  questionStyle
+                })
+              });
+            } catch (error) {
+              // The request may have reached the model before the connection failed.
+              error.retryable = false;
+              throw error;
+            }
+            const batchPayload = await checkedSourceResponse(response, 'This card batch could not finish.');
+            result = batchPayload.result;
+            if (!result || !Array.isArray(result.cards)) throw new Error('The card batch returned an incomplete result.');
+            batchCache.results[batchIndex] = result;
+          }
+          generatedCards.push(...(result.cards || []));
+          generatedConcepts.push(...(result.concepts || []));
+          reportProgress(`Prepared card batch ${batchIndex + 1} of ${batchCount} · ${generatedCards.length} cards verified so far.`);
+        }
+        const seenCards = new Set();
+        payload.source.draftCards = generatedCards.filter(card => {
+          const key = window.SyllabloomCardSet.contentKey(card);
+          if (!key || seenCards.has(key)) return false;
+          seenCards.add(key);
+          return true;
+        });
+        const seenConcepts = new Set();
+        payload.source.concepts = generatedConcepts.filter(concept => {
+          const key = String(concept?.name || '').trim().toLocaleLowerCase();
+          if (!key || seenConcepts.has(key)) return false;
+          seenConcepts.add(key);
+          return true;
+        });
+        if (!payload.source.draftCards.length) {
+          throw new Error('We could read this source, but could not verify useful study cards. Try a clearer or more concept-focused file.');
+        }
+        const batchGeneration = batchCache.results.find(Boolean)?.generation || {};
+        payload.source.generation = {
+          provider: 'OpenAI',
+          model: batchGeneration.model || 'gpt-5.4-nano',
+          inputCharacters: preflight.inputCharacters,
+          chunkCount: preflight.chunkCount,
+          batchCount,
+          generatedAt: new Date().toISOString(),
+          questionStyle,
+          cardsAccepted: payload.source.draftCards.length,
+          qualityGate: 'exact source quote, source-location, and answer-term overlap checked'
+        };
+      }
+
+      delete payload.extractedText;
+      delete payload.extractedUnits;
       const previousSource = state.sources.find(item => item.id === payload.source.id);
       payload.source = window.SyllabloomCardSet.mergeSource(previousSource, payload.source);
       if (detectedKind === 'syllabus') {
@@ -4397,6 +4708,14 @@
   document.querySelector('#ankiSettingsForm').addEventListener('input', event => {
     if (event.target.matches('#ankiFsrsEnabled, #ankiDesiredRetention, #ankiNewReviewOrder, #ankiReleaseStrategy')) refreshAnkiLearningPreview();
   });
+  document.querySelectorAll('.question-style-select').forEach(select => select.addEventListener('change', event => {
+    const value = normalizedQuestionStyle(event.currentTarget.value);
+    if (event.currentTarget.id === 'questionStyleFull') {
+      renderQuestionStyleDescriptions(value);
+      return;
+    }
+    setQuestionStyle(value);
+  }));
 
   document.querySelector('#calendarEventForm').addEventListener('submit', event => {
     event.preventDefault();
@@ -4708,8 +5027,9 @@
   });
   document.querySelector('#onboardingMaterials').addEventListener('change', async event => {
     const files = [...event.target.files];
+    const questionStyle = normalizedQuestionStyle(state.anki.questionStyle);
     for (const file of files) {
-      await uploadSource(file, 'auto').catch(() => {});
+      await uploadSource(file, 'auto', { questionStyle }).catch(() => {});
     }
     event.target.value = '';
   });

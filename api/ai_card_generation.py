@@ -15,9 +15,12 @@ from urllib.request import Request, urlopen
 
 
 DEFAULT_MODEL = "gpt-5.4-nano"
-MAX_SOURCE_TEXT_CHARS = 48_000
+MAX_SOURCE_TEXT_CHARS = 192_000
 MAX_CHUNK_CHARS = 12_000
-MAX_CHUNKS = 4
+MAX_CHUNKS = 16
+CHUNKS_PER_BATCH = 4
+QUESTION_STYLES = {"balanced", "direct", "explain", "compare", "apply"}
+MAX_SYNC_SOURCE_TEXT_CHARS = MAX_CHUNK_CHARS * CHUNKS_PER_BATCH
 MAX_CARDS_PER_CHUNK = 12
 MAX_OUTPUT_TOKENS_PER_CHUNK = 1_900
 REQUEST_TIMEOUT_SECONDS = 38
@@ -68,32 +71,39 @@ _CARD_SCHEMA_BASE = {
 
 class CardGenerationError(RuntimeError):
     status = HTTPStatus.BAD_GATEWAY
-    public_message = "AI card generation could not finish. Retry this document shortly."
+    public_message = "The card batch result could not be confirmed. It was not automatically retried to avoid duplicate generation."
+    # A failed provider exchange may have reached the model even if the reply was
+    # lost. Do not invite an automatic retry that could bill for the same batch.
+    retryable = False
 
 
 class AIConfigurationError(CardGenerationError):
     status = HTTPStatus.SERVICE_UNAVAILABLE
     public_message = "AI card generation is not configured yet. Your document was not added."
+    retryable = True
 
 
 class AIUsageLimitError(CardGenerationError):
     status = HTTPStatus.TOO_MANY_REQUESTS
     public_message = "The beta's AI card-generation limit has been reached for today. Try again tomorrow."
+    retryable = True
 
 
 class AIMonthlyBudgetLimitError(CardGenerationError):
     status = HTTPStatus.TOO_MANY_REQUESTS
     public_message = "Syllabloom has reached its monthly AI study-generation budget. Try again next month."
+    retryable = True
 
 
 class AIUsageUnavailable(CardGenerationError):
     status = HTTPStatus.SERVICE_UNAVAILABLE
     public_message = "AI card generation is temporarily unavailable. Your document was not added."
+    retryable = True
 
 
 class SourceTextLimitError(CardGenerationError):
     status = HTTPStatus.REQUEST_ENTITY_TOO_LARGE
-    public_message = "This document has too much selectable text for one import. Split it into smaller files and retry."
+    public_message = "This document has more than 192,000 characters of selectable text. Split it into smaller files and retry."
 
 
 class NoStudyCardsError(CardGenerationError):
@@ -229,7 +239,35 @@ def _response_text(payload: dict) -> str:
     raise CardGenerationError()
 
 
-def _request_payload(chunk: dict, kind: str, model: str) -> dict:
+def _question_style_instruction(question_style: str) -> str:
+    instructions = {
+        "balanced": (
+            "Use active-recall questions with a source-supported mix of focused definitions, mechanisms, and cause/effect; "
+            "use a comparison or course example only when the source makes it clear. Keep one answerable task per question."
+        ),
+        "direct": (
+            "Use direct, short-answer retrieval questions about one named fact, term, or relationship at a time. "
+            "Avoid multi-part prompts and avoid asking for broad summaries."
+        ),
+        "explain": (
+            "Prefer closed, focused how/why questions that retrieve an explicitly described mechanism, reason, or cause/effect link. "
+            "Do not ask for a causal explanation the source does not provide."
+        ),
+        "compare": (
+            "Prefer focused compare/contrast questions only when the source explicitly explains both concepts and their relationship. "
+            "If it does not, write a direct recall question instead of inventing a comparison."
+        ),
+        "apply": (
+            "Prefer a focused application question using a concrete example, case, or worked situation present in the supplied source. "
+            "Do not invent a new scenario or require knowledge beyond the source; if no source example supports this, use direct recall."
+        ),
+    }
+    if question_style not in QUESTION_STYLES:
+        raise ValueError("Choose a supported question style.")
+    return instructions[question_style]
+
+
+def _request_payload(chunk: dict, kind: str, model: str, question_style: str = "balanced") -> dict:
     locators = chunk["locators"]
     source_type = "past assessment" if kind == "assessment" else "class material"
     system_prompt = (
@@ -239,6 +277,7 @@ def _request_payload(chunk: dict, kind: str, model: str) -> dict:
         "one important concept per card, wording that names the concept rather than vague 'what is this' prompts, and concise "
         "answers that preserve the source's meaning. Ask closed, answerable recall questions rather than broad discussion prompts. "
         "Prefer definitions, mechanisms, cause/effect, meaningful contrasts, and examples that the source itself explains. "
+        f"Question-format preference: {_question_style_instruction(question_style)} "
         "Scan the entire supplied chunk first, identify its distinct examinable concepts, then cover those concepts broadly before "
         "making a second card about the same concept. Prefer the key idea, its mechanism or contrast, and a source-supported example "
         "over several cards that test the same wording. Do not invent applications, extra background, or missing answers. For assessment documents, "
@@ -274,14 +313,29 @@ def _request_payload(chunk: dict, kind: str, model: str) -> dict:
     }
 
 
-def estimate_max_cost_microdollars(text: str, filename: str, kind: str, units: dict | None) -> int:
+def _selected_chunks(chunks: list[dict], batch_index: int | None = None) -> list[dict]:
+    if batch_index is None:
+        return chunks
+    if not isinstance(batch_index, int) or batch_index < 0:
+        raise SourceTextLimitError()
+    start = batch_index * CHUNKS_PER_BATCH
+    selected = chunks[start : start + CHUNKS_PER_BATCH]
+    if not selected:
+        raise SourceTextLimitError()
+    return selected
+
+
+def estimate_max_cost_microdollars(
+    text: str, filename: str, kind: str, units: dict | None, batch_index: int | None = None,
+    question_style: str = "balanced",
+) -> int:
     """Reserve a conservative upper bound for this request at current nano rates."""
     model = configured_model()
-    chunks = _source_chunks(text or "", filename, units)
+    chunks = _selected_chunks(_source_chunks(text or "", filename, units), batch_index)
     if not chunks:
         return 0
     estimated_input_tokens = sum(
-        len(json.dumps(_request_payload(chunk, kind, model), ensure_ascii=False).encode("utf-8"))
+        len(json.dumps(_request_payload(chunk, kind, model, question_style), ensure_ascii=False).encode("utf-8"))
         for chunk in chunks
     )
     max_output_tokens = MAX_OUTPUT_TOKENS_PER_CHUNK * len(chunks)
@@ -290,8 +344,10 @@ def estimate_max_cost_microdollars(text: str, filename: str, kind: str, units: d
     return math.ceil(estimated_input_tokens * 0.20 + max_output_tokens * 1.25)
 
 
-def _request_chunk(chunk: dict, kind: str, model: str, api_key: str, opener=urlopen) -> list[dict]:
-    body = _request_payload(chunk, kind, model)
+def _request_chunk(
+    chunk: dict, kind: str, model: str, api_key: str, opener=urlopen, question_style: str = "balanced"
+) -> list[dict]:
+    body = _request_payload(chunk, kind, model, question_style)
     request = Request(
         "https://api.openai.com/v1/responses",
         data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
@@ -380,6 +436,8 @@ def generate_ai_cards(
     kind: str,
     units: dict | None,
     *,
+    batch_index: int | None = None,
+    question_style: str = "balanced",
     api_key: str | None = None,
     model: str | None = None,
     opener=urlopen,
@@ -388,7 +446,15 @@ def generate_ai_cards(
     if not key:
         raise AIConfigurationError()
     selected_model = model or configured_model()
-    chunks = _source_chunks(text or "", filename, units)
+    if question_style not in QUESTION_STYLES:
+        raise ValueError("Choose a supported question style.")
+    if batch_index is None and len(text or "") > MAX_SYNC_SOURCE_TEXT_CHARS:
+        raise SourceTextLimitError()
+    all_chunks = _source_chunks(text or "", filename, units)
+    batch_count = math.ceil(len(all_chunks) / CHUNKS_PER_BATCH)
+    if batch_index is not None and batch_index >= batch_count:
+        raise SourceTextLimitError()
+    chunks = _selected_chunks(all_chunks, batch_index)
     if not chunks:
         return {"cards": [], "concepts": [], "generation": {"provider": "OpenAI", "model": selected_model, "inputCharacters": 0}}
 
@@ -396,7 +462,7 @@ def generate_ai_cards(
     try:
         with ThreadPoolExecutor(max_workers=min(4, len(chunks))) as executor:
             futures = {
-                executor.submit(_request_chunk, chunk, kind, selected_model, key, opener): index
+                executor.submit(_request_chunk, chunk, kind, selected_model, key, opener, question_style): index
                 for index, chunk in enumerate(chunks)
             }
             for future in as_completed(futures, timeout=REQUEST_TIMEOUT_SECONDS + 8):
@@ -434,7 +500,10 @@ def generate_ai_cards(
         "generation": {
             "provider": "OpenAI",
             "model": selected_model,
-            "inputCharacters": len(text or ""),
+            "inputCharacters": sum(len(chunk["source"]) for chunk in chunks),
+            "batchIndex": batch_index,
+            "batchCount": batch_count,
+            "questionStyle": question_style,
             "generatedAt": datetime.now(timezone.utc).isoformat(),
             "cardsAccepted": len(cards),
             "qualityGate": "exact source quote, source-location, and answer-term overlap checked",

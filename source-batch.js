@@ -53,7 +53,7 @@
       } catch (error) {
         item.status = 'failed';
         item.error = error?.message || 'This document could not be read. Try again or remove it.';
-        item.retryable = true;
+        item.retryable = error?.retryable !== false;
         failed += 1;
       }
 
