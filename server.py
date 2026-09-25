@@ -114,6 +114,10 @@ def extract_source_text(path: Path, suffix: str) -> tuple[str, dict]:
                     )
 
             lines = []
+            image_count = 0
+            image_alt_text_count = 0
+            notes_count = 0
+            slides_with_unlabeled_images = []
             for slide_number, slide_path in enumerate(slide_paths, start=1):
                 slide_root = ElementTree.fromstring(package.read(slide_path))
                 slide_lines = []
@@ -123,9 +127,75 @@ def extract_source_text(path: Path, suffix: str) -> tuple[str, dict]:
                     ).strip()
                     if paragraph_text:
                         slide_lines.append(paragraph_text)
+                slide_images = slide_root.findall(".//p:pic", namespaces)
+                image_count += len(slide_images)
+                image_descriptions = []
+                for picture in slide_images:
+                    properties = picture.find("p:nvPicPr/p:cNvPr", namespaces)
+                    if properties is None:
+                        continue
+                    description = " ".join(
+                        str(properties.attrib.get(key) or "").strip()
+                        for key in ("title", "descr")
+                    ).strip()
+                    if description and description.lower() not in {"image", "picture", "graphic"}:
+                        image_descriptions.append(description)
+                image_alt_text_count += len(image_descriptions)
+                if slide_images and not image_descriptions:
+                    slides_with_unlabeled_images.append(slide_number)
+                if image_descriptions:
+                    slide_lines.extend(f"Image description: {description}" for description in image_descriptions)
+
+                rels_path = posixpath.join(
+                    posixpath.dirname(slide_path), "_rels", posixpath.basename(slide_path) + ".rels"
+                )
+                try:
+                    slide_relationships = ElementTree.fromstring(package.read(rels_path))
+                except KeyError:
+                    slide_relationships = None
+                notes_path = ""
+                if slide_relationships is not None:
+                    for relationship in slide_relationships.findall("pr:Relationship", namespaces):
+                        if relationship.attrib.get("Type", "").endswith("/notesSlide"):
+                            notes_target = relationship.attrib.get("Target", "")
+                            notes_path = (
+                                notes_target.lstrip("/")
+                                if notes_target.startswith("/")
+                                else posixpath.normpath(posixpath.join(posixpath.dirname(slide_path), notes_target))
+                            )
+                            break
+                if notes_path:
+                    try:
+                        notes_root = ElementTree.fromstring(package.read(notes_path))
+                    except KeyError:
+                        notes_root = None
+                    if notes_root is not None:
+                        note_lines = []
+                        for shape in notes_root.findall(".//p:sp", namespaces):
+                            placeholder = shape.find("p:nvSpPr/p:nvPr/p:ph", namespaces)
+                            if placeholder is not None and placeholder.attrib.get("type") in {
+                                "sldNum", "dt", "hdr", "ftr", "sldImg"
+                            }:
+                                continue
+                            paragraph_text = "".join(
+                                node.text or "" for node in shape.findall(".//a:t", namespaces)
+                            ).strip()
+                            if paragraph_text and not paragraph_text.isdigit():
+                                note_lines.append(paragraph_text)
+                        note_text = "\n".join(note_lines).strip()
+                        if note_text:
+                            notes_count += 1
+                            slide_lines.append("Speaker notes:\n" + note_text)
                 if slide_lines:
                     lines.append(f"Slide {slide_number}\n" + "\n".join(slide_lines))
-        return "\n".join(lines), {"unitLabel": "slides", "unitCount": len(slide_paths)}
+        return "\n".join(lines), {
+            "unitLabel": "slides",
+            "unitCount": len(slide_paths),
+            "imageCount": image_count,
+            "imageAltTextCount": image_alt_text_count,
+            "slidesWithUnlabeledImages": slides_with_unlabeled_images,
+            "speakerNotesCount": notes_count,
+        }
     if suffix == ".pdf":
         import pdfplumber
 
@@ -2133,9 +2203,10 @@ def source_summary(
     filename: str,
     kind: str,
     card_generator: Callable[[str, str, str, dict], dict] | None = None,
+    extracted: tuple[str, dict] | None = None,
 ) -> dict:
     suffix = path.suffix.lower()
-    text, units = extract_source_text(path, suffix)
+    text, units = extracted if extracted is not None else extract_source_text(path, suffix)
     if suffix == ".pdf" and not text.strip():
         raise NoSelectableTextError(
             "This PDF has no selectable text. Scanned or image-only PDFs need OCR before they can be imported."
@@ -3182,6 +3253,9 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
         if request_path == "/api/source":
             self.handle_source_upload()
             return
+        if request_path == "/api/source-batch":
+            self.handle_source_batch()
+            return
         if request_path not in {"/api/transcribe", "/api/transcribe-stream"}:
             self.send_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
             return
@@ -3313,12 +3387,21 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
             from api.user_data import authenticated_user
 
             user_id = authenticated_user(self.headers) or "local-development"
+            question_style = form.getfirst("questionStyle", "balanced")
+            if form.getfirst("inspect", "") == "1":
+                from api.source import _source_preflight
+
+                result = _source_preflight(temporary_path, filename, kind_value)
+                result["source"]["localOnly"] = False
+                result["source"]["storage"] = "session"
+                self.send_json(result)
+                return
             summary = source_summary(
                 temporary_path,
                 filename,
                 kind_value,
                 card_generator=lambda text, source_name, source_kind, units: generate_source_cards(
-                    text, source_name, source_kind, units, user_id
+                    text, source_name, source_kind, units, user_id, question_style
                 ),
             )
             with _data_lock:
@@ -3327,7 +3410,11 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
                 write_json(SOURCE_LIBRARY_PATH, library)
             self.send_json({"source": summary})
         except NoSelectableTextError as exc:
-            self.send_json({"error": str(exc)}, HTTPStatus.UNPROCESSABLE_ENTITY)
+            self.send_json({
+                "error": str(exc),
+                "errorCode": "NO_SELECTABLE_TEXT",
+                "fileFingerprint": getattr(exc, "file_fingerprint", ""),
+            }, HTTPStatus.UNPROCESSABLE_ENTITY)
         except CardGenerationError as exc:
             self.send_json({"error": exc.public_message}, exc.status)
         except Exception as exc:
@@ -3336,6 +3423,33 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
         finally:
             if temporary_path is not None:
                 temporary_path.unlink(missing_ok=True)
+
+    def handle_source_batch(self) -> None:
+        try:
+            content_length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            content_length = 0
+        if content_length <= 0 or content_length > 3_000_000:
+            self.send_json({"error": "The card-generation request is missing or too large."}, HTTPStatus.BAD_REQUEST)
+            return
+        try:
+            from api.source import _generate_source_batch
+            from api.ai_card_generation import CardGenerationError
+            from api.user_data import authenticated_user
+
+            body = json.loads(self.rfile.read(content_length).decode("utf-8"))
+            result = _generate_source_batch(body, authenticated_user(self.headers) or "local-development")
+            self.send_json({"result": result})
+        except CardGenerationError as exc:
+            self.send_json({"error": exc.public_message, "retryable": exc.retryable}, exc.status)
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
+            self.send_json({"error": str(exc) or "The card-generation request is invalid."}, HTTPStatus.BAD_REQUEST)
+        except Exception as exc:
+            print(f"Source card batch failed: {type(exc).__name__}", flush=True)
+            self.send_json({
+                "error": "The card batch result could not be confirmed. It was not automatically retried to avoid duplicate generation.",
+                "retryable": False,
+            }, HTTPStatus.BAD_GATEWAY)
 
 
 if __name__ == "__main__":

@@ -57,6 +57,18 @@ class UploadedSourceActivationContractTests(unittest.TestCase):
         self.assertNotIn("const distractors =", self.app)
         self.assertNotIn("distractors.push('I need to review this topic')", self.app)
 
+    def test_today_session_opens_the_real_quick_check_flow(self):
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+
+        self.assertIn("'quick-check'", self.app.split("const appViews = new Set(", 1)[1].split(");", 1)[0])
+        self.assertIn("if (view === 'quick-check') renderQuickCheck();", self.app)
+        self.assertEqual(page.count('data-go="quick-check"'), 2)
+        self.assertIn('id="quick-check" class="page" aria-labelledby="quickCheckPageTitle"', page)
+        self.assertIn('id="quickCheckStart"', page)
+        self.assertIn("document.querySelector('#quickCheckStart').addEventListener('click', startQuickCheck)", self.app)
+        self.assertIn("function rotatingQuickCheckQuestions()", self.app)
+        self.assertIn("missCounts: state.missCounts", self.app)
+
     def test_custom_plan_uses_uploaded_concepts_instead_of_anatomy_fixture(self):
         self.assertIn("function sourceConceptNames()", self.app)
         self.assertIn("const customTopics = sourceConceptNames();", self.app)

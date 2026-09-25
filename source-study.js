@@ -94,7 +94,7 @@
     return !/^what\s+is\s+(?:https?|www\.)\b/i.test(front);
   }
 
-  function quickCheckItems(cards, limit = 3) {
+  function quickCheckItems(cards, limit = 3, options = {}) {
     const candidates = (Array.isArray(cards) ? cards : []).filter(card => {
       const answer = String(card?.back || '').replace(/\s+/g, ' ').trim();
       const words = answer.match(/\b\w+\b/g) || [];
@@ -115,11 +115,21 @@
       }) === index;
     });
     const pool = sectionCards.length >= limit ? sectionCards : candidates;
-    const positions = pool.length <= limit
-      ? pool.map((_, index) => index)
-      : [0, Math.floor((pool.length - 1) / 2), pool.length - 1].slice(0, limit);
-    return [...new Set(positions)].map(index => pool[index]).filter(Boolean).map(card => {
-      const sourceName = card.source || (card.slideNumber ? `slide ${card.slideNumber}` : 'your uploaded material');
+    const missCounts = options?.missCounts && typeof options.missCounts === 'object' ? options.missCounts : {};
+    const offset = Math.max(0, Number(options?.offset) || 0);
+    const rotated = pool.map((card, index) => ({ card, index, rotation: pool.length ? (index - (offset % pool.length) + pool.length) % pool.length : index }));
+    rotated.sort((left, right) => {
+      const leftId = String(left.card.id || '');
+      const rightId = String(right.card.id || '');
+      const leftMisses = Math.max(0, Number(missCounts[`lecture-${leftId}`] ?? missCounts[leftId]) || 0);
+      const rightMisses = Math.max(0, Number(missCounts[`lecture-${rightId}`] ?? missCounts[rightId]) || 0);
+      return rightMisses - leftMisses || left.rotation - right.rotation || left.index - right.index;
+    });
+    return rotated.slice(0, Math.max(0, limit)).map(({ card }) => {
+      const rawSourceName = card.source || (card.slideNumber ? `slide ${card.slideNumber}` : 'your uploaded material');
+      URL_RE.lastIndex = 0;
+      const sourceName = URL_RE.test(rawSourceName) ? 'your uploaded material' : rawSourceName;
+      URL_RE.lastIndex = 0;
       return {
         mode: 'recall',
         question: card.front,

@@ -86,3 +86,32 @@ test('AI-generated quick-check prompts reuse the reviewed card and preserve its 
   assert.equal(items[0].sourceName, card.source);
   assert.ok(card.sourceQuote.includes('systems consolidation'));
 });
+
+test('quick checks rotate prompts and prioritize repeatedly missed cards', () => {
+  const cards = Array.from({ length: 5 }, (_, index) => ({
+    id: `card-${index}`,
+    front: `What does concept ${index} explain?`,
+    back: `Concept ${index} explains an important source-supported mechanism.`,
+    section: `Concept ${index}`,
+    source: 'Lecture notes · Page 1'
+  }));
+
+  assert.deepEqual(quickCheckItems(cards, 3, { offset: 3 }).map(item => item.cardId), [
+    'lecture-card-3', 'lecture-card-4', 'lecture-card-0'
+  ]);
+  assert.deepEqual(quickCheckItems(cards, 3, { missCounts: { 'lecture-card-4': 2 } }).map(item => item.cardId), [
+    'lecture-card-4', 'lecture-card-0', 'lecture-card-1'
+  ]);
+});
+
+test('quick-check source labels never render pasted web links', () => {
+  const [item] = quickCheckItems([{
+    id: 'linked-source',
+    front: 'What does binary search halve at each step?',
+    back: 'It halves the remaining sorted search interval.',
+    section: 'Binary search',
+    source: 'https://example.edu/course/lecture.pdf'
+  }]);
+
+  assert.equal(item.sourceName, 'your uploaded material');
+});

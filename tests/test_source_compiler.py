@@ -15,7 +15,7 @@ from docx import Document
 from pypdf import PdfWriter
 from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 
-from server import NoSelectableTextError, _refine_pdf_quiz_pair, classify_source, compile_lecture_window, compile_study_material, source_summary
+from server import NoSelectableTextError, _refine_pdf_quiz_pair, classify_source, compile_lecture_window, compile_study_material, extract_source_text, source_summary
 
 
 def write_text_pdf(path: Path, pages: list[str]) -> None:
@@ -804,6 +804,33 @@ Interpretation bias treats ambiguous evidence as supportive of a preferred concl
             self.assertEqual(len(summary["concepts"]), 2)
             self.assertGreaterEqual(len(summary["draftCards"]), 2)
             self.assertTrue(any("glomerular filtration" in card["front"].lower() for card in summary["draftCards"]))
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_powerpoint_extraction_includes_speaker_notes_and_picture_descriptions(self) -> None:
+        presentation = """<p:presentation xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:sldIdLst><p:sldId id="256" r:id="rId1"/></p:sldIdLst></p:presentation>"""
+        relationships = """<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/></Relationships>"""
+        slide_relationships = """<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide" Target="../notesSlides/notesSlide1.xml"/></Relationships>"""
+        slide = """<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:sp><p:txBody><a:p><a:r><a:t>Memory encoding</a:t></a:r></a:p></p:txBody></p:sp><p:pic><p:nvPicPr><p:cNvPr id="2" name="hippocampus figure" descr="Diagram of hippocampal pathways during episodic memory encoding"/></p:nvPicPr></p:pic></p:spTree></p:cSld></p:sld>"""
+        notes = """<p:notes xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:sp><p:nvSpPr><p:nvPr/></p:nvSpPr><p:txBody><a:p><a:r><a:t>Explain how the hippocampus binds the parts of an episode.</a:t></a:r></a:p></p:txBody></p:sp></p:spTree></p:cSld></p:notes>"""
+
+        with tempfile.NamedTemporaryFile(suffix=".pptx", delete=False) as handle:
+            path = Path(handle.name)
+        try:
+            with zipfile.ZipFile(path, "w") as package:
+                package.writestr("ppt/presentation.xml", presentation)
+                package.writestr("ppt/_rels/presentation.xml.rels", relationships)
+                package.writestr("ppt/slides/slide1.xml", slide)
+                package.writestr("ppt/slides/_rels/slide1.xml.rels", slide_relationships)
+                package.writestr("ppt/notesSlides/notesSlide1.xml", notes)
+
+            text, units = extract_source_text(path, ".pptx")
+            self.assertIn("Diagram of hippocampal pathways", text)
+            self.assertIn("Explain how the hippocampus binds", text)
+            self.assertEqual(units["imageCount"], 1)
+            self.assertEqual(units["imageAltTextCount"], 1)
+            self.assertEqual(units["speakerNotesCount"], 1)
+            self.assertEqual(units["slidesWithUnlabeledImages"], [])
         finally:
             path.unlink(missing_ok=True)
 
