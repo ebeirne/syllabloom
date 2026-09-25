@@ -76,26 +76,14 @@ def read_source_library() -> list[dict]:
         return []
     
 def _detect_pdf_content_width(page) -> float:
-    """
-    Detect a narrow navigation/sidebar column on the far-right side
-    of a PDF page.
-
-    Only crop when there is strong evidence of a real sidebar:
-    - it starts in the far-right 25% of the page
-    - it contains several separate lines
-    - those lines are relatively narrow
-    - the sidebar extends vertically across a meaningful part of the page
-
-    This avoids treating normal gaps between words as sidebar boundaries.
-    """
-
+    #if ther is a sidebar on the pdf
     words = page.extract_words()
 
     if not words:
         return page.width
 
     # Ignore headers and footers.
-    # These often contain dates, page numbers, URLs, etc. on the far right.
+    # contain dates, page numbers, URLs
     body_top = page.height * 0.08
     body_bottom = page.height * 0.92
 
@@ -108,9 +96,6 @@ def _detect_pdf_content_width(page) -> float:
     if len(body_words) < 10:
         return page.width
 
-    # ---------------------------------------------------------
-    # Group words into visual lines.
-    # ---------------------------------------------------------
     body_words.sort(key=lambda word: (word["top"], word["x0"]))
 
     lines = []
@@ -129,19 +114,6 @@ def _detect_pdf_content_width(page) -> float:
         else:
             lines[-1]["words"].append(word)
 
-    # ---------------------------------------------------------
-    # Look for repeated narrow lines starting far to the right.
-    #
-    # A real sidebar looks like:
-    #
-    #                       Getting
-    #                       Started
-    #                       Grading
-    #                       Install
-    #                       Java
-    #
-    # Normal paragraph text does NOT repeatedly start this far right.
-    # ---------------------------------------------------------
     right_side_lines = []
 
     SIDEBAR_START_RATIO = 0.75
@@ -170,10 +142,6 @@ def _detect_pdf_content_width(page) -> float:
                 "x1": line_x1,
             })
 
-    # ---------------------------------------------------------
-    # Don't crop because of one or two random right-aligned lines.
-    # We want a persistent sidebar.
-    # ---------------------------------------------------------
     MIN_SIDEBAR_LINES = 6
 
     if len(right_side_lines) < MIN_SIDEBAR_LINES:
@@ -187,11 +155,6 @@ def _detect_pdf_content_width(page) -> float:
     if vertical_span < page.height * 0.15:
         return page.width
 
-    # ---------------------------------------------------------
-    # Find the left edge of the sidebar.
-    # Give the main content a little safety margin so we never
-    # crop directly through a word.
-    # ---------------------------------------------------------
     sidebar_start = min(
         line["x0"]
         for line in right_side_lines
@@ -199,8 +162,6 @@ def _detect_pdf_content_width(page) -> float:
 
     crop_width = sidebar_start - 8
 
-    # Extra sanity check.
-    # Never allow an unreasonable crop.
     if crop_width < page.width * 0.65:
         return page.width
 
