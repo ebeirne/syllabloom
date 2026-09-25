@@ -46,6 +46,10 @@ test('repeated PDF headers and link-only lines are removed and notes are merged'
 test('source cards with link answers or PDF running headers cannot enter study checks', () => {
   assert.equal(isUsableCard({ front: 'What is https?', back: 'https://example.edu/spec Page 18 of 18' }), false);
   assert.equal(isUsableCard({ front: 'What is the assignment?', back: 'Percolation Assignment 9/23/26, 11:46 PM' }), false);
+  assert.equal(isUsableCard({ front: 'What is following question?', back: 'If sites are open with probability p, what is the chance the system percolates?' }), false);
+  assert.equal(isUsableCard({ front: 'What are the key ideas about What is AI?', back: 'AI simulates human intelligence in machines.' }), false);
+  assert.equal(isUsableCard({ front: 'What is a batch file and what is its key feature?', back: 'It runs during system initialization.' }), false);
+  assert.equal(isUsableCard({ front: 'What API constraint is required for the Percolation data type?', back: 'Implement the public methods and signatures exactly as the specification requires.' }), false);
   assert.equal(isUsableCard({ front: 'What is percolation?', back: 'A model of fluid flow through a system of connected sites.' }), true);
 });
 

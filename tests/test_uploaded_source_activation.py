@@ -40,8 +40,16 @@ class UploadedSourceActivationContractTests(unittest.TestCase):
 
     def test_empty_review_state_does_not_claim_cards_are_ready(self):
         self.assertIn("id=\"reviewPageTitle\"", (ROOT / "index.html").read_text(encoding="utf-8"))
-        self.assertIn("document.querySelector('#reviewPageTitle').textContent = total || approved", self.app)
+        self.assertIn("document.querySelector('#reviewEmpty').hidden = total > 0 || approved > 0", self.app)
+        self.assertIn("exportButton.disabled = approved === 0", self.app)
+        self.assertIn("studyButton.disabled = approved === 0", self.app)
         self.assertIn("'Your cards will appear here.'", self.app)
+
+    def test_unusable_approved_cards_stay_editable_but_are_excluded_from_study_and_export(self):
+        self.assertIn("function isUsableLectureCard(card)", self.app)
+        self.assertIn("return state.lectureCards.filter(card => card.reviewStatus === 'approved' && isUsableLectureCard(card));", self.app)
+        self.assertIn("if (card.reviewStatus !== 'approved' || !isUsableLectureCard(card)) return;", self.app)
+        self.assertIn("Edit this into one focused question and a source-backed answer", self.app)
 
     def test_quick_check_uses_uploaded_cards(self):
         self.assertIn("function sourceAssessmentQuestions()", self.app)
@@ -62,17 +70,21 @@ class UploadedSourceActivationContractTests(unittest.TestCase):
 
         self.assertIn("'quick-check'", self.app.split("const appViews = new Set(", 1)[1].split(");", 1)[0])
         self.assertIn("if (view === 'quick-check') renderQuickCheck();", self.app)
-        self.assertEqual(page.count('data-go="quick-check"'), 2)
+        self.assertEqual(page.count('data-start-quick-check'), 2)
+        self.assertIn("document.querySelectorAll('[data-start-quick-check]')", self.app)
+        self.assertIn("navigate('quick-check');\n    startQuickCheck();", self.app)
         self.assertIn('id="quick-check" class="page" aria-labelledby="quickCheckPageTitle"', page)
         self.assertIn('id="quickCheckStart"', page)
         self.assertIn("document.querySelector('#quickCheckStart').addEventListener('click', startQuickCheck)", self.app)
+        self.assertIn("reviewSet.dataset.go = custom ? 'cards' : 'study';", self.app)
+        self.assertIn("reviewSet.textContent = custom ? 'Review the ready set' : 'Study the anatomy example';", self.app)
         self.assertIn("function rotatingQuickCheckQuestions()", self.app)
         self.assertIn("missCounts: state.missCounts", self.app)
 
     def test_custom_plan_uses_uploaded_concepts_instead_of_anatomy_fixture(self):
         self.assertIn("function sourceConceptNames()", self.app)
         self.assertIn("const customTopics = sourceConceptNames();", self.app)
-        self.assertIn("const cardSupply = state.includeSampleMaterial ? 42 : state.lectureCards.length;", self.app)
+        self.assertIn("const cardSupply = state.includeSampleMaterial ? 42 : approvedLectureCards().length;", self.app)
         self.assertIn("function renderHomeForActiveClass()", self.app)
 
 

@@ -1455,7 +1455,7 @@
     const daysLeft = exam
       ? Math.max(1, Math.ceil((new Date(`${exam.date}T12:00:00`) - new Date()) / 86400000))
       : null;
-    const cardSupply = state.includeSampleMaterial ? 42 : state.lectureCards.length;
+    const cardSupply = state.includeSampleMaterial ? 42 : approvedLectureCards().length;
     const examPaceLimit = daysLeft ? Math.ceil(cardSupply / daysLeft) : cardSupply;
     const availableNew = cardSupply
       ? Math.max(1, Math.min(state.anki.newPerDay, Math.floor(state.dailyStudyMinutes / 2), examPaceLimit))
@@ -1469,6 +1469,7 @@
     const customTopics = sourceConceptNames();
     const missByTopic = new Map();
     state.lectureCards.forEach(card => {
+      if (!isUsableLectureCard(card)) return;
       const misses = Number(state.missCounts[`lecture-${card.id}`]) || 0;
       if (!misses) return;
       const topic = card.section || card.muscle || '';
@@ -1541,6 +1542,19 @@
     return `<button class="button${compact ? ' course-objective-topic' : ' course-map-action'}" type="button" data-topic-action="${action}" data-topic-name="${escapeHtml(topic.name)}">${label}</button>`;
   }
 
+  function isUsableLectureCard(card) {
+    const validate = window.SyllabloomSourceStudy?.isUsableCard;
+    return typeof validate === 'function' && validate(card);
+  }
+
+  function approvedLectureCards() {
+    return state.lectureCards.filter(card => card.reviewStatus === 'approved' && isUsableLectureCard(card));
+  }
+
+  function lectureCardsNeedingEdit() {
+    return state.lectureCards.filter(card => card.reviewStatus !== 'skipped' && !isUsableLectureCard(card));
+  }
+
   function renderKnowledgeModel() {
     const list = document.querySelector('#knowledgeRows');
     if (!list) return;
@@ -1573,7 +1587,7 @@
           concept: card.section || card.concept || '',
           sourceName: sourceName.replace(/\s*[·–-]\s*(?:slide|page)\s+\d+$/i, ''),
           location,
-          ready: card.reviewStatus === 'approved',
+          ready: card.reviewStatus === 'approved' && isUsableLectureCard(card),
           skipped: card.reviewStatus === 'skipped'
         };
       });
@@ -1924,9 +1938,9 @@
     const custom = !state.includeSampleMaterial;
     const concepts = sourceConceptNames();
     const latestSource = [...state.sources].reverse().find(item => item.draftCards?.length || item.notes?.length);
-    const cardCount = state.lectureCards.length;
+    const cardCount = approvedLectureCards().length;
     const quickCheckCount = custom ? rotatingQuickCheckQuestions().length : assessmentQuestions.length;
-    const approved = state.lectureCards.filter(card => card.reviewStatus === 'approved').length;
+    const approved = approvedLectureCards().length;
     const firstConcept = concepts[0] || 'your new material';
     const sourceTotal = state.includeSampleMaterial ? 3 : state.sources.length;
     const next = nextExamEvent();
@@ -2323,7 +2337,7 @@
     const values = Object.values(state.statuses);
     const readyFromSample = state.includeSampleMaterial ? values.filter(value => value === 'Approved').length : 0;
     const skippedFromSample = state.includeSampleMaterial ? values.filter(value => value === 'Skipped').length : 0;
-    document.querySelector('#approvedCount').textContent = readyFromSample + state.lectureCards.filter(card => card.reviewStatus === 'approved').length;
+    document.querySelector('#approvedCount').textContent = readyFromSample + approvedLectureCards().length;
     document.querySelector('#skippedCount').textContent = skippedFromSample + state.lectureCards.filter(card => card.reviewStatus === 'skipped').length;
   }
 
@@ -2337,8 +2351,7 @@
         if (record) approved.push({ record, field });
       });
     }
-    state.lectureCards
-      .filter(card => card.reviewStatus === 'approved')
+    approvedLectureCards()
       .forEach(card => approved.push({ directCard: card }));
     if (state.studyFocusConcept && approved.length) {
       const normalize = window.SyllabloomCourseMap?.normalize || (value => String(value || '').toLocaleLowerCase().trim());
@@ -2573,6 +2586,7 @@
     const options = document.querySelector('#assessmentOptions');
 
     if (item.mode === 'recall') {
+      options.before(result);
       options.innerHTML = '<button class="button primary answer-option" id="revealSourceAnswer" type="button">Reveal answer</button>';
       options.querySelector('#revealSourceAnswer').addEventListener('click', () => {
         const sourceLabel = item.sourceName ? `Source: ${item.sourceName}.` : '';
@@ -2597,6 +2611,7 @@
       return;
     }
 
+    options.after(result);
     options.innerHTML = item.options.map((option, index) => (
       `<button class="button answer-option" data-answer="${index}" type="button">${escapeHtml(option)}</button>`
     )).join('');
@@ -2623,16 +2638,20 @@
     const complete = document.querySelector('#quickCheckComplete');
     const start = document.querySelector('#quickCheckStart');
     const addMaterial = document.querySelector('#quickCheckAddMaterial');
+    const reviewSet = document.querySelector('#quickCheckReviewSet');
     const available = custom
       ? rotatingQuickCheckQuestions()
       : assessmentQuestions;
+
+    reviewSet.textContent = custom ? 'Review the ready set' : 'Study the anatomy example';
+    reviewSet.dataset.go = custom ? 'cards' : 'study';
 
     document.querySelector('#quickCheckIntroTitle').textContent = custom
       ? available.length ? 'Check what stuck from your materials' : 'Add a source to start a check'
       : 'A quick check across the example class';
     document.querySelector('#quickCheckIntroCopy').textContent = custom
       ? available.length
-        ? `${state.lectureCards.length} ready cards in your class. This check uses up to ${available.length} distinct, source-linked prompts${Object.keys(state.missCounts).length ? ', prioritizing topics marked for review' : ''}. Answers stay tied to the uploaded material.`
+        ? `${approvedLectureCards().length} ready cards in your class. This check uses up to ${available.length} distinct, source-linked prompts${Object.keys(state.missCounts).length ? ', prioritizing topics marked for review' : ''}. Answers stay tied to the uploaded material.`
         : 'Add lecture slides, notes, or a past assessment to create a short recall check from your own class content.'
       : 'Try three anatomy recall questions. Add your own class material whenever you are ready.';
     start.hidden = available.length === 0;
@@ -2689,6 +2708,7 @@
     result.replaceChildren();
 
     if (item.mode === 'recall') {
+      options.before(result);
       options.innerHTML = '<button class="button primary answer-option" id="quickCheckReveal" type="button">Reveal answer</button>';
       options.querySelector('#quickCheckReveal').addEventListener('click', () => {
         const answer = document.createElement('article');
@@ -2722,6 +2742,7 @@
       return;
     }
 
+    options.after(result);
     options.innerHTML = item.options.map((option, index) => (
       `<button class="button answer-option" data-answer="${index}" type="button">${escapeHtml(option)}</button>`
     )).join('');
@@ -2783,7 +2804,7 @@
     }
 
     state.lectureCards.forEach(card => {
-      if (card.reviewStatus !== 'approved') return;
+      if (card.reviewStatus !== 'approved' || !isUsableLectureCard(card)) return;
       approved.push({
         front: card.front,
         back: card.back,
@@ -3335,11 +3356,14 @@
 
   function updateReviewSurface() {
     const total = state.lectureCards.length;
-    const waiting = state.lectureCards.filter(card => card.reviewStatus === 'waiting').length;
+    const waiting = state.lectureCards.filter(card => card.reviewStatus === 'waiting' && isUsableLectureCard(card)).length;
+    const needsEdit = lectureCardsNeedingEdit().length;
     const approved = collectApprovedCards().length;
-    document.querySelector('#reviewPageTitle').textContent = total || approved
-      ? 'Your cards are ready.'
-      : 'Your cards will appear here.';
+    document.querySelector('#reviewPageTitle').textContent = needsEdit && !approved
+      ? 'Some cards need an edit.'
+      : total || approved
+        ? 'Your cards are ready.'
+        : 'Your cards will appear here.';
     document.querySelector('#reviewEmpty').hidden = total > 0 || approved > 0;
     const exportButton = document.querySelector('#exportAnki');
     const studyButton = document.querySelector('#studyAccepted');
@@ -3350,12 +3374,12 @@
     exportButton.hidden = total === 0 && approved === 0;
     studyButton.hidden = total === 0 && approved === 0;
     document.querySelector('#homeReviewSummary').textContent = total
-      ? `${approved} ready${waiting ? ` · ${waiting} need a source check` : ''}`
+      ? `${approved} ready${waiting ? ` · ${waiting} need a source check` : ''}${needsEdit ? ` · ${needsEdit} need an edit` : ''}`
       : approved
         ? `${approved} ready from your course source`
         : 'No lecture cards yet';
     document.querySelector('#reviewPageDescription').textContent = total
-      ? `${approved} card${approved === 1 ? '' : 's'} are ready to study or export${waiting ? `. ${waiting} lecture-only card${waiting === 1 ? '' : 's'} need a quick check` : '. Look through the set only if you want to'}.`
+      ? `${approved} card${approved === 1 ? '' : 's'} are ready to study or export${waiting ? `. ${waiting} lecture-only card${waiting === 1 ? '' : 's'} need a quick check` : ''}${needsEdit ? `${waiting ? '; ' : '. '}${needsEdit} card${needsEdit === 1 ? '' : 's'} ${needsEdit === 1 ? 'needs' : 'need'} an edit before they can be studied or exported` : '. Look through the set only if you want to'}.`
       : approved
         ? `${approved} source-matched card${approved === 1 ? ' is' : 's are'} ready to study here or export to Anki.`
         : 'Record or import a lecture. Anki-ready cards will appear here.';
@@ -3374,10 +3398,11 @@
       return;
     }
     section.hidden = false;
-    const waiting = state.lectureCards.filter(card => card.reviewStatus === 'waiting').length;
-    const approved = state.lectureCards.filter(card => card.reviewStatus === 'approved').length;
+    const waiting = state.lectureCards.filter(card => card.reviewStatus === 'waiting' && isUsableLectureCard(card)).length;
+    const approved = approvedLectureCards().length;
+    const needsEdit = lectureCardsNeedingEdit().length;
     const skipped = state.lectureCards.filter(card => card.reviewStatus === 'skipped').length;
-    document.querySelector('#lectureDraftCount').textContent = `${state.lectureCards.length} in set · ${approved} ready${waiting ? ` · ${waiting} to check` : ''}${skipped ? ` · ${skipped} left out` : ''}`;
+    document.querySelector('#lectureDraftCount').textContent = `${state.lectureCards.length} in set · ${approved} ready${waiting ? ` · ${waiting} to check` : ''}${needsEdit ? ` · ${needsEdit} need an edit` : ''}${skipped ? ` · ${skipped} left out` : ''}`;
     const grouped = new Map();
     const addCard = (sourceId, card) => {
       const key = sourceId || 'recorded-lecture';
@@ -3393,6 +3418,7 @@
     const sourceById = new Map(state.sources.map(sourceItem => [sourceItem.id, sourceItem]));
     let index = 0;
     const renderCard = card => {
+      const needsEdit = card.reviewStatus !== 'skipped' && !isUsableLectureCard(card);
       const location = card.sourceLocation || (card.pageNumber ? `Page ${card.pageNumber}` : card.slideNumber ? `Slide ${card.slideNumber}` : '');
       const evidenceLabel = card.generatedBy === 'openai'
         ? `AI draft · quote matched${location ? ` · ${location}` : ''}`
@@ -3401,15 +3427,16 @@
         ? `<details class="lecture-draft-source-evidence"><summary>Source passage${location ? ` · ${escapeHtml(location)}` : ''}</summary><blockquote>${escapeHtml(card.sourceQuote)}</blockquote></details>`
         : '';
       return `
-      <article class="lecture-draft-card ${escapeHtml(card.reviewStatus)}" data-lecture-card="${escapeHtml(card.id)}" data-concept="${escapeHtml(card.section || card.concept || '')}">
+      <article class="lecture-draft-card ${escapeHtml(card.reviewStatus)}${needsEdit ? ' needs-edit' : ''}" data-lecture-card="${escapeHtml(card.id)}" data-concept="${escapeHtml(card.section || card.concept || '')}">
         <div class="lecture-draft-index"><b>${String(++index).padStart(2, '0')}</b><span class="lecture-draft-evidence">${escapeHtml(evidenceLabel)}</span></div>
         <div class="lecture-draft-body">
           <label>Front<textarea data-lecture-field="front">${escapeHtml(card.front)}</textarea></label>
           <label>Back<textarea data-lecture-field="back">${escapeHtml(card.back)}</textarea></label>
+          ${needsEdit ? '<p class="lecture-card-quality-note">This card is not a focused study prompt; it may contain directions or another question. It stays in your library. Edit both sides into one focused question and a source-backed answer before studying or exporting it.</p>' : ''}
           ${sourceEvidence}
         </div>
         <div class="lecture-draft-actions">
-          <button class="button primary" data-lecture-action="approve">${card.reviewStatus === 'approved' ? 'Ready' : 'Add to ready set'}</button>
+          <button class="button primary" data-lecture-action="approve">${needsEdit ? 'Needs edit' : card.reviewStatus === 'approved' ? 'Ready' : 'Add to ready set'}</button>
           <button class="button" data-lecture-action="skip">${card.reviewStatus === 'skipped' ? 'Left out' : 'Leave out'}</button>
           <button class="button lecture-card-delete" type="button" data-lecture-action="delete" aria-label="Remove card: ${escapeHtml(card.front)}">Delete card</button>
         </div>
@@ -4679,6 +4706,10 @@
     renderStudy();
   });
   document.querySelectorAll('[data-go]').forEach(button => button.addEventListener('click', () => navigate(button.dataset.go)));
+  document.querySelectorAll('[data-start-quick-check]').forEach(button => button.addEventListener('click', () => {
+    navigate('quick-check');
+    startQuickCheck();
+  }));
   document.querySelectorAll('[data-open-profile]').forEach(button => button.addEventListener('click', () => openAccountPage('profile')));
   document.querySelectorAll('[data-open-billing]').forEach(button => button.addEventListener('click', () => openAccountPage('billing')));
   document.querySelectorAll('[data-account-view]').forEach(button => button.addEventListener('click', () => navigate(button.dataset.accountView)));
@@ -5133,6 +5164,12 @@
     if (card) {
       card[field] = event.target.value;
       autoSizeTextArea(event.target);
+      const needsEdit = !isUsableLectureCard(card);
+      cardElement.classList.toggle('needs-edit', needsEdit);
+      const note = cardElement.querySelector('.lecture-card-quality-note');
+      if (note) note.hidden = !needsEdit;
+      const approveButton = cardElement.querySelector('[data-lecture-action="approve"]');
+      if (approveButton) approveButton.textContent = needsEdit ? 'Needs edit' : card.reviewStatus === 'approved' ? 'Ready' : 'Add to ready set';
       saveLectureReview();
     }
   });
@@ -5145,6 +5182,10 @@
     if (!card) return;
     if (action === 'delete') {
       openRemoveCardDialog(card);
+      return;
+    }
+    if (action === 'approve' && !isUsableLectureCard(card)) {
+      showToast('Edit this into one focused question and a source-backed answer before adding it to your study set');
       return;
     }
     card.reviewStatus = action === 'approve' ? 'approved' : 'skipped';
@@ -5183,7 +5224,7 @@
     if (!state.selectedTypes.length) return showToast('Choose at least one card type');
     if (!state.includeSampleMaterial) {
       const drafts = state.lectureCards.filter(card => card.reviewStatus === 'waiting').length;
-      const ready = state.lectureCards.filter(card => card.reviewStatus === 'approved').length;
+      const ready = approvedLectureCards().length;
       if (ready) {
         navigate('cards');
         return showToast(`${ready} ready card${ready === 1 ? '' : 's'} opened`);

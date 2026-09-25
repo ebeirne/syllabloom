@@ -295,6 +295,9 @@ class AICardGenerationTests(unittest.TestCase):
 
         self.assertIn("cover those concepts broadly", system_prompt)
         self.assertIn("deadlines, grading rules, submission directions", system_prompt)
+        self.assertIn("broad 'key ideas' or 'main points' list cards", system_prompt)
+        self.assertIn("one retrieval task", system_prompt)
+        self.assertIn("Answers must be statements, not another question", system_prompt)
         self.assertIn("answered concept questions", user_prompt)
 
     def test_each_question_style_changes_only_the_source_grounded_front_guidance(self) -> None:
@@ -364,6 +367,88 @@ class AICardGenerationTests(unittest.TestCase):
             "assignment.pdf",
             "assessment",
             {"pageTexts": [instruction]},
+            api_key="test-key-not-real",
+            opener=FakeOpener([draft]),
+        )
+
+        self.assertEqual(result["cards"], [])
+
+    def test_assignment_api_and_autograder_requirements_are_not_study_concepts(self) -> None:
+        instruction = (
+            "You must implement the API exactly as specified, with the identical set of public methods and signatures; "
+            "otherwise, the autograder will not be able to test your code."
+        )
+        draft = card(
+            concept="Percolation API requirements",
+            question="What API constraint is required for the Percolation data type?",
+            answer="Implement the public methods and signatures exactly as the specification requires.",
+            source_quote=instruction,
+        )
+        result = generate_ai_cards(
+            instruction,
+            "cosA1.pdf",
+            "material",
+            {"pageTexts": [instruction]},
+            api_key="test-key-not-real",
+            opener=FakeOpener([draft]),
+        )
+
+        self.assertEqual(result["cards"], [])
+
+    def test_broad_key_ideas_lists_are_not_accepted_as_atomic_cards(self) -> None:
+        source = (
+            "Artificial intelligence simulates human intelligence in machines. "
+            "Machine learning enables systems to learn from data."
+        )
+        draft = card(
+            concept="Artificial intelligence overview",
+            question="What are the key ideas about What is AI?",
+            answer="Artificial intelligence simulates human intelligence in machines, and machine learning enables systems to learn from data.",
+            source_quote=source,
+        )
+        result = generate_ai_cards(
+            source,
+            "ai-slides.pptx",
+            "material",
+            {"pageTexts": [source]},
+            api_key="test-key-not-real",
+            opener=FakeOpener([draft]),
+        )
+
+        self.assertEqual(result["cards"], [])
+
+    def test_two_question_fronts_are_not_accepted_as_atomic_cards(self) -> None:
+        source = "A batch file is an executable system file that is usually run during operating-system initialization."
+        draft = card(
+            concept="Batch files",
+            question="What is a batch file and what is a key characteristic of it?",
+            answer="It is an executable system file, usually run during operating-system initialization.",
+            source_quote=source,
+        )
+        result = generate_ai_cards(
+            source,
+            "operating-systems.pdf",
+            "material",
+            {"pageTexts": [source]},
+            api_key="test-key-not-real",
+            opener=FakeOpener([draft]),
+        )
+
+        self.assertEqual(result["cards"], [])
+
+    def test_meta_questions_and_question_answers_are_not_accepted(self) -> None:
+        source = "If sites are independently open with probability p, what is the probability that the system percolates?"
+        draft = card(
+            concept="Percolation probability",
+            question="What is following question?",
+            answer=source,
+            source_quote=source,
+        )
+        result = generate_ai_cards(
+            source,
+            "cosA1.pdf",
+            "material",
+            {"pageTexts": [source]},
             api_key="test-key-not-real",
             opener=FakeOpener([draft]),
         )

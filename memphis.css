@@ -1221,6 +1221,23 @@ textarea {
   border-left-color: var(--ink) !important;
 }
 
+.lecture-draft-card.needs-edit {
+  background: color-mix(in srgb, var(--memphis-pink-soft) 72%, var(--paper)) !important;
+  border-left: 5px solid var(--ink) !important;
+}
+
+.lecture-card-quality-note {
+  margin: 0;
+  padding: 11px 14px;
+  border: 1.5px solid var(--ink);
+  border-radius: 14px;
+  background: var(--memphis-yellow);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
 .lecture-draft-body textarea {
   background: var(--paper) !important;
   border: 1.5px solid var(--ink) !important;
@@ -2390,591 +2407,80 @@ textarea {
   .calendar-photo-import { scroll-behavior: auto; }
 }
 
-/* import card ui change*/
-/* =========================================================
-   SOURCE IMPORT - TWO COLUMN REDESIGN
-   ========================================================= */
+/* Source groups were added inside the card queue, so give their headings a
+   deliberate layout instead of inheriting the browser's default h3 margins. */
+.lecture-draft-queue {
+  min-width: 0;
+  gap: 16px;
+  padding: 16px;
+}
 
-.materials-story-panel {
-  position: relative !important;
-  min-height: 540px !important;
-
-  box-sizing: border-box;
-
-  padding: 48px 48px 48px 220px !important;
-
-  display: grid !important;
-
-  grid-template-columns:
-    minmax(290px, 0.8fr)
-    minmax(520px, 1.25fr) !important;
-
-  align-items: center !important;
-
-  gap: 55px !important;
-
+.lecture-source-group {
+  min-width: 0;
   overflow: hidden;
-
-  background: var(--memphis-aqua) !important;
-
-  border: 2px solid var(--ink) !important;
-  border-radius: 36px !important;
-
-  box-shadow: 8px 8px 0 var(--ink) !important;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 18px;
+  box-shadow: 3px 3px 0 var(--ink);
 }
 
-
-/* =========================================================
-   MASCOT
-   ========================================================= */
-
-.materials-mascot {
-  position: absolute !important;
-
-  width: 185px !important;
-  height: auto !important;
-
-  left: 18px !important;
-  bottom: 16px !important;
-
-  top: auto !important;
-  right: auto !important;
-
-  transform: rotate(-2deg) !important;
-}
-
-
-/* =========================================================
-   LEFT COLUMN
-   ========================================================= */
-
-.source-import-intro {
-  position: relative;
-
-  z-index: 2;
-
+.lecture-source-group-heading {
   min-width: 0;
+  margin: 0;
+  padding: 14px 17px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 9px 14px;
+  background: var(--memphis-yellow, #f2df12);
+  border-bottom: 2px solid var(--ink);
 }
 
-
-.source-import-kicker {
-  display: block;
-
-  margin-bottom: 10px;
-
-  font-size: 13px;
-  font-weight: 800;
-
-  letter-spacing: 0.08em;
-
-  text-transform: uppercase;
+.lecture-source-group-heading h3 {
+  flex: 1 1 240px;
+  min-width: 0;
+  margin: 0;
+  font-size: clamp(17px, 2vw, 21px);
+  font-weight: 760;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
 }
 
-
-.source-import-intro h2 {
-  max-width: 11ch;
-
-  margin: 0 0 18px !important;
-
-  font-size: clamp(38px, 3vw, 50px) !important;
-
-  line-height: 1.02 !important;
-
-  letter-spacing: -0.045em;
-}
-
-
-.source-import-lede {
-  max-width: 34ch !important;
-
-  margin: 0 !important;
-
-  color: #555951 !important;
-
-  font-size: 16px !important;
-
-  line-height: 1.55 !important;
-}
-
-
-/* =========================================================
-   PRIVACY DETAILS
-   ========================================================= */
-
-.source-import-details {
-  max-width: 370px;
-
-  margin-top: 20px;
-}
-
-
-.source-import-details summary {
-  width: fit-content;
-
-  cursor: pointer;
-
-  font-size: 14px;
-
-  font-weight: 700;
-}
-
-
-.source-import-details-body {
-  margin-top: 12px;
-
-  padding: 14px;
-
-  background: rgba(255, 255, 255, 0.5);
-
+.lecture-source-group-heading > span {
+  max-width: 100%;
+  padding: 5px 10px;
   border: 1.5px solid var(--ink);
-
-  border-radius: 14px;
+  border-radius: 999px;
+  background: var(--paper);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.35;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 
-
-.source-import-details-body p {
-  margin: 0 0 9px !important;
-
-  font-size: 12px !important;
-
-  line-height: 1.5 !important;
-}
-
-
-.source-import-details-body p:last-child {
-  margin-bottom: 0 !important;
-}
-
-
-/* =========================================================
-   RIGHT WORKFLOW PANEL
-   ========================================================= */
-
-.source-import-workflow {
-  position: relative;
-
-  z-index: 3;
-
-  width: 100%;
-
+.lecture-source-group .lecture-draft-card {
   min-width: 0;
-
-  box-sizing: border-box;
-
-  padding: 28px;
-
-  display: flex !important;
-
-  flex-direction: column !important;
-
-  gap: 20px !important;
-
-  background: var(--paper) !important;
-
-  border: 2px solid var(--ink) !important;
-
-  border-radius: 26px !important;
-
-  box-shadow: 6px 6px 0 var(--ink) !important;
 }
 
-
-/* =========================================================
-   STEP HEADERS
-   ========================================================= */
-
-.source-workflow-heading {
-  display: flex !important;
-
-  align-items: center !important;
-
-  gap: 12px !important;
+.lecture-source-group .lecture-draft-card:last-of-type {
+  border-bottom: 0;
 }
 
-
-.source-workflow-number {
-  width: 36px !important;
-
-  height: 36px !important;
-
-  flex: 0 0 36px !important;
-
-  display: grid !important;
-
-  place-items: center !important;
-
-  background: var(--sun) !important;
-
-  border: 1.5px solid var(--ink) !important;
-
-  border-radius: 50% !important;
-
-  font-size: 14px !important;
-
-  font-weight: 900 !important;
+.lecture-source-duplicate-note {
+  margin: 0;
+  padding: 13px 17px;
+  color: #484b45;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
-
-.source-workflow-heading > div {
-  min-width: 0;
-
-  display: flex !important;
-
-  flex-direction: column !important;
-
-  gap: 3px !important;
-}
-
-
-.source-workflow-heading strong {
-  font-size: 17px !important;
-
-  font-weight: 800 !important;
-
-  line-height: 1.2 !important;
-}
-
-
-.source-workflow-heading > div > span {
-  color: var(--muted) !important;
-
-  font-size: 13px !important;
-
-  line-height: 1.35 !important;
-}
-
-
-/* =========================================================
-   UPLOAD AREA
-   ========================================================= */
-
-.source-upload-box {
-  width: 100%;
-
-  min-height: 112px;
-
-  box-sizing: border-box;
-
-  padding: 20px;
-
-  display: flex !important;
-
-  align-items: center !important;
-
-  justify-content: space-between !important;
-
-  gap: 20px;
-
-  background: var(--cream) !important;
-
-  border: 1.5px dashed var(--ink) !important;
-
-  border-radius: 18px !important;
-}
-
-
-.source-upload-copy {
-  min-width: 0;
-
-  display: flex !important;
-
-  flex-direction: column !important;
-
-  gap: 5px !important;
-}
-
-
-.source-upload-copy strong {
-  font-size: 16px !important;
-
-  font-weight: 800 !important;
-}
-
-
-.source-upload-copy span {
-  color: var(--muted) !important;
-
-  font-size: 12px !important;
-}
-
-
-.source-upload-button {
-  flex: 0 0 auto;
-
-  width: auto !important;
-
-  white-space: nowrap;
-}
-
-
-/* =========================================================
-   DIVIDER
-   ========================================================= */
-
-.source-workflow-divider {
-  width: 100% !important;
-
-  height: 1px !important;
-
-  margin: 2px 0;
-
-  background: rgba(23, 24, 22, 0.18) !important;
-}
-
-
-/* =========================================================
-   PREFERENCES GRID
-   ========================================================= */
-
-.source-config-grid {
-  width: 100%;
-
-  display: grid !important;
-
-  grid-template-columns:
-    minmax(0, 0.9fr)
-    minmax(0, 1.1fr) !important;
-
-  gap: 18px !important;
-
-  align-items: start;
-}
-
-
-.source-config-field {
-  min-width: 0;
-
-  display: flex !important;
-
-  flex-direction: column !important;
-
-  gap: 8px !important;
-}
-
-
-.source-config-label {
-  font-size: 13px !important;
-
-  font-weight: 800 !important;
-}
-
-
-.source-config-field small {
-  color: var(--muted) !important;
-
-  font-size: 11px !important;
-
-  line-height: 1.4 !important;
-}
-
-
-/* =========================================================
-   MATERIAL TYPE
-   ========================================================= */
-
-.source-config-field .source-kind-picker {
-  width: 100% !important;
-
-  min-width: 0 !important;
-}
-
-
-.source-config-field .source-kind-trigger {
-  width: 100% !important;
-
-  min-height: 56px !important;
-
-  box-sizing: border-box;
-
-  padding: 0 16px !important;
-
-  border-radius: 15px !important;
-}
-
-
-/* =========================================================
-   BALANCED RECALL
-   ========================================================= */
-
-.card-style-display {
-  width: 100% !important;
-
-  min-height: 56px !important;
-
-  box-sizing: border-box;
-
-  padding: 9px 12px 9px 15px !important;
-
-  display: flex !important;
-
-  align-items: center !important;
-
-  justify-content: space-between !important;
-
-  gap: 12px !important;
-
-  background: var(--paper) !important;
-
-  border: 1.5px solid var(--ink) !important;
-
-  border-radius: 15px !important;
-
-  box-shadow: 3px 3px 0 var(--ink) !important;
-}
-
-
-.card-style-display-copy {
-  min-width: 0;
-
-  display: flex !important;
-
-  flex-direction: column !important;
-
-  gap: 2px !important;
-}
-
-
-.card-style-display-copy strong {
-  color: var(--ink) !important;
-
-  font-size: 14px !important;
-
-  font-weight: 800 !important;
-
-  line-height: 1.2 !important;
-}
-
-
-.card-style-display-copy span {
-  color: var(--muted) !important;
-
-  font-size: 10px !important;
-
-  line-height: 1.2 !important;
-}
-
-
-.card-style-check {
-  width: 28px !important;
-
-  height: 28px !important;
-
-  flex: 0 0 28px !important;
-
-  display: grid !important;
-
-  place-items: center !important;
-
-  background: var(--sun) !important;
-
-  border: 1.5px solid var(--ink) !important;
-
-  border-radius: 50% !important;
-
-  color: var(--ink) !important;
-
-  font-size: 14px !important;
-
-  font-weight: 900 !important;
-}
-
-
-/* =========================================================
-   TABLET
-   ========================================================= */
-
-@media (max-width: 1100px) {
-
-  .materials-story-panel {
-    padding: 38px !important;
-
-    grid-template-columns:
-      minmax(250px, 0.75fr)
-      minmax(430px, 1.25fr) !important;
-
-    gap: 34px !important;
-  }
-
-
-  .materials-mascot {
-    width: 135px !important;
-
-    left: 22px !important;
-
-    bottom: 18px !important;
-  }
-
-
-  .source-import-intro {
-    padding-bottom: 115px;
-  }
-
-}
-
-
-/* =========================================================
-   MOBILE
-   ========================================================= */
-
-@media (max-width: 800px) {
-
-  .materials-story-panel {
-    min-height: 0 !important;
-
-    padding: 28px 20px 150px !important;
-
-    grid-template-columns: 1fr !important;
-
-    gap: 28px !important;
-  }
-
-
-  .materials-mascot {
-    width: 135px !important;
-
-    left: 20px !important;
-
-    bottom: 8px !important;
-  }
-
-
-  .source-import-intro {
-    padding-bottom: 0;
-  }
-
-
-  .source-import-intro h2 {
-    max-width: 12ch;
-
-    font-size: 38px !important;
-  }
-
-
-  .source-import-workflow {
-    padding: 21px !important;
-
-    border-radius: 22px !important;
-  }
-
-
-  .source-upload-box {
-    flex-direction: column !important;
-
-    align-items: stretch !important;
-  }
-
-
-  .source-upload-button {
-    width: 100% !important;
-
-    box-sizing: border-box;
-
-    text-align: center;
-  }
-
-
-  .source-config-grid {
-    grid-template-columns: 1fr !important;
-  }
-
+@media (max-width: 620px) {
+  .lecture-draft-queue { gap: 13px; padding: 12px; }
+  .lecture-source-group-heading { align-items: flex-start; padding: 13px 14px; }
+  .lecture-source-group-heading h3 { flex-basis: 100%; }
+  .lecture-source-group-heading > span { text-align: left; }
 }

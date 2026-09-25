@@ -2,6 +2,10 @@
   const URL_RE = /\b(?:https?:\/\/|www\.)\S+/gi;
   const PAGE_RE = /^page\s+\d+(?:\s+of\s+\d+)?\.?$/i;
   const TIMESTAMP_HEADING_RE = /^.{2,120}\s+\d{1,2}[/-]\d{1,2}[/-]\d{2,4},?\s+\d{1,2}:\d{2}\s*(?:am|pm)$/i;
+  const META_QUESTION_RE = /^(?:what is (?:the )?following question|what question (?:follows|comes next)|what is asked next)\b/i;
+  const BROAD_SUMMARY_QUESTION_RE = /^what are the (?:key|main) (?:ideas|points)\s+(?:about|in|of)\b/i;
+  const MULTI_TASK_QUESTION_RE = /\b(?:and\s+(?:what|why|how|when|where|which)|also\s+(?:what|why|how))\b/i;
+  const ADMIN_INSTRUCTION_RE = /\b(?:due date|late penalty|autograder|grader|assignment requirements|project requirements|identical set of public methods and signatures|public methods and signatures.{0,30}exactly as (?:the )?specification requires|implement(?:ation)?\s+(?:the\s+)?API\s+exactly\s+as\s+specified|submit\b.{0,60}\b(?:code|program|assignment|solution|project))\b/i;
 
   function normalize(value) {
     return String(value || '')
@@ -85,11 +89,12 @@
     URL_RE.lastIndex = 0;
     const front = cleanLine(rawFront);
     const back = cleanLine(rawBack);
-    if (!front || !back || hasLink) {
+    if (!front || !back || hasLink || back.endsWith('?') || ADMIN_INSTRUCTION_RE.test(`${front} ${back}`)) {
       URL_RE.lastIndex = 0;
       return false;
     }
     if (PAGE_RE.test(front) || PAGE_RE.test(back) || TIMESTAMP_HEADING_RE.test(front) || TIMESTAMP_HEADING_RE.test(back)) return false;
+    if (META_QUESTION_RE.test(front) || BROAD_SUMMARY_QUESTION_RE.test(front) || MULTI_TASK_QUESTION_RE.test(front)) return false;
     if (front.length < 12 || back.length < 8) return false;
     return !/^what\s+is\s+(?:https?|www\.)\b/i.test(front);
   }
