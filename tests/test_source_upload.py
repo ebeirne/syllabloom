@@ -1,5 +1,5 @@
 import io
-
+from urllib.parse import quote
 import pytest
 
 import api.source as source_api
@@ -34,6 +34,22 @@ def test_signed_blob_links_must_be_private_and_bound_to_the_upload_path():
         with pytest.raises(ValueError):
             source_api._private_blob_url(unsafe, path)
 
+def test_delete_links_use_the_blob_control_api_shape():
+    path = "source-uploads/user_beta123/12345678-abcd-1234-abcd-123456789abc.pdf"
+    signed = (
+        "https://vercel.com/api/blob/?pathname=" + quote(path, safe="")
+        + "&vercel-blob-delegation=token&vercel-blob-signature=sig"
+    )
+
+    assert source_api._blob_api_delete_url(signed, path) == signed
+    for unsafe in (
+        f"https://store_abc.private.blob.vercel-storage.com/{path}?signature=x",
+        "http://vercel.com/api/blob/?pathname=" + quote(path, safe="") + "&vercel-blob-delegation=t&vercel-blob-signature=s",
+        "https://vercel.com/api/blob/?pathname=" + quote("source-uploads/user_beta123/other.pdf", safe="") + "&vercel-blob-delegation=t&vercel-blob-signature=s",
+        "https://vercel.com/api/blob/?pathname=" + quote(path, safe=""),
+    ):
+        with pytest.raises(ValueError):
+            source_api._blob_api_delete_url(unsafe, path)
 
 class FakeBlobResponse:
     status = 200

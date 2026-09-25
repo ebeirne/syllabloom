@@ -7,7 +7,7 @@ import re
 import tempfile
 from http import HTTPStatus
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 from urllib.request import Request, urlopen
 
 from api.ai_card_generation import CardGenerationError
@@ -48,6 +48,23 @@ def _private_blob_url(value: object, pathname: str) -> str:
         raise ValueError("The temporary upload link is invalid.")
     return url
 
+def _blob_api_delete_url(value: object, pathname: str) -> str:
+    url = str(value or "")
+    parsed = urlsplit(url)
+    query = parse_qs(parsed.query)
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname != "vercel.com"
+        or parsed.username
+        or parsed.password
+        or parsed.port
+        or parsed.path.rstrip("/") != "/api/blob"
+        or query.get("pathname") != [pathname]
+        or not query.get("vercel-blob-delegation")
+        or not query.get("vercel-blob-signature")
+    ):
+        raise ValueError("The temporary upload link is invalid.")
+    return url
 
 def _source_path(value: object, user_id: str) -> str:
     pathname = str(value or "")
@@ -114,7 +131,7 @@ class handler(JsonHandler):
                 body = json.loads(self.rfile.read(content_length).decode("utf-8"))
                 pathname = _source_path(body.get("pathname"), user_id or "")
                 source_url = _private_blob_url(body.get("sourceUrl"), pathname)
-                delete_url = _private_blob_url(body.get("deleteUrl"), pathname)
+                delete_url = _blob_api_delete_url(body.get("deleteUrl"), pathname)
                 filename = Path(str(body.get("filename") or "source.txt")).name
                 suffix = Path(filename).suffix.lower()
                 if suffix not in SOURCE_SUFFIXES or not pathname.endswith(suffix):
