@@ -3541,8 +3541,15 @@
       .source-reference dd { margin: 4px 0 0; font-size: 15px; line-height: 1.5; }
     }
   </style>
-  <link rel="stylesheet" href="redesign.css?v=20260925-question-style-1">
-  <link rel="stylesheet" href="memphis.css?v=20260923-large-source-card-groups">
+<link
+  rel="stylesheet"
+  href="redesign.css?v=20260925-question-style-1"
+/>
+
+<link
+  rel="stylesheet"
+  href="memphis.css?v=20260925-source-upload-v4"
+/>
   <link rel="stylesheet" href="seo-pages.css?v=20260923-seo-guides-1">
 </head>
 <body>
@@ -4279,51 +4286,412 @@
           <button id="addClassFromSource" class="button">Add another class</button>
         </div>
 
-        <section class="source-import surface character-story-panel materials-story-panel">
-          <img class="materials-mascot character-cutout" src="assets/syllabloom-mascot-materials.webp" width="1200" height="1200" alt="The Syllabloom companion checking a course source with a magnifying glass" />
-          <div>
-            <h2>Add a source</h2>
-            <p>Add a syllabus, slide deck, reading, or assessment you're allowed to use. Syllabloom reads its structure before drafting cards.</p>
-            <p class="source-kind-hint">Syllabloom identifies each file as a syllabus, class material, or past assessment. Choose a type to override detection for the batch, or change individual files before adding them.</p>
-            <p class="source-kind-hint">There is no per-account file-count cap. Each source can be up to 100 MB and 192,000 readable characters. Larger sources are prepared in visible batches of up to four sections, subject to daily limits and the shared beta budget.</p>
-            <p class="source-kind-hint">Syllabloom checks what text it can read before generating anything. Scanned PDF pages can be read on this device; image-only slides may need speaker notes or descriptions to make useful cards.</p>
-            <p class="source-kind-hint">For card generation, extracted course text—not the uploaded file—is sent to OpenAI. Each draft includes its matching source passage for review. Avoid uploading sensitive personal details.</p>
-            <div class="question-style-control">
-              <label for="questionStyleMaterials">Front question style</label>
-              <select id="questionStyleMaterials" class="text-input question-style-select">
-                <option value="balanced">Balanced recall (recommended)</option>
-                <option value="direct">Direct recall</option>
-                <option value="explain">Explain why or how</option>
-                <option value="compare">Compare concepts</option>
-                <option value="apply">Apply a course example</option>
-              </select>
-              <p class="question-style-description" data-question-style-description="questionStyleMaterials" aria-live="polite">Focused retrieval questions with a source-supported mix of definitions, mechanisms, and cause/effect.</p>
-              <small>Applies to new cards only. Basic/Cloze is a separate Anki note format.</small>
-            </div>
+<section class="source-import surface character-story-panel materials-story-panel">
+
+  <img
+    class="materials-mascot character-cutout"
+    src="assets/syllabloom-mascot-materials.webp"
+    width="1200"
+    height="1200"
+    alt="The Syllabloom companion checking course material with a magnifying glass"
+  />
+
+
+  <!-- ==========================================
+       LEFT SIDE
+       ========================================== -->
+
+  <div class="source-import-intro">
+
+    <span class="source-import-kicker">
+      CREATE A DECK
+    </span>
+
+    <h2>
+      Create cards from your material
+    </h2>
+
+    <p class="source-import-lede">
+      Upload notes, slides, readings, or assignments.
+      Syllabloom finds the important concepts and turns them into study cards.
+    </p>
+
+
+    <details class="source-import-details">
+
+      <summary>
+        File limits &amp; privacy
+      </summary>
+
+      <div class="source-import-details-body">
+
+        <p>
+          Each source can be up to 100 MB and 192,000 readable characters.
+          Larger sources are prepared in visible batches of up to four sections,
+          subject to daily limits and the shared beta budget.
+        </p>
+
+        <p>
+          Syllabloom identifies each file as a syllabus, class material,
+          or past assessment. Choose a type to override detection for the
+          batch, or change individual files before adding them.
+        </p>
+
+        <p>
+          Syllabloom checks what text it can read before generating anything.
+          Scanned PDF pages can be read on this device; image-only slides may
+          need speaker notes or descriptions to make useful cards.
+        </p>
+
+        <p>
+          For card generation, extracted course text—not the uploaded file—is
+          sent to OpenAI. Each draft includes its matching source passage for
+          review. Avoid uploading sensitive personal details.
+        </p>
+
+      </div>
+
+    </details>
+
+  </div>
+
+
+
+  <!-- ==========================================
+       RIGHT SIDE
+       ========================================== -->
+
+  <div class="source-import-workflow">
+
+
+    <!-- ========================================
+         STEP 1 — ADD MATERIAL
+         ======================================== -->
+
+    <div class="source-workflow-heading">
+
+      <span class="source-workflow-number">
+        1
+      </span>
+
+      <div>
+
+        <strong>
+          Add material
+        </strong>
+
+        <span>
+          Choose the course material you want cards from.
+        </span>
+
+      </div>
+
+    </div>
+
+
+    <div class="source-upload-box">
+
+      <div class="source-upload-copy">
+
+        <strong>
+          Upload course material
+        </strong>
+
+        <span>
+          PDF · PPTX · DOCX · TXT
+        </span>
+
+      </div>
+
+
+      <label
+        id="sourceUploadLabel"
+        for="sourceUpload"
+        class="button primary source-upload-button"
+        role="button"
+        tabindex="0"
+      >
+        Choose documents
+      </label>
+
+
+      <input
+        id="sourceUpload"
+        type="file"
+        accept=".docx,.pptx,.pdf,.txt"
+        multiple
+        hidden
+      />
+
+    </div>
+
+
+
+    <div class="source-workflow-divider"></div>
+
+
+
+    <!-- ========================================
+         STEP 2 — PREFERENCES
+         ======================================== -->
+
+    <div class="source-workflow-heading source-workflow-heading--compact">
+
+      <span class="source-workflow-number">
+        2
+      </span>
+
+      <div>
+
+        <strong>
+          Set preferences
+        </strong>
+
+        <span>
+          Auto-detect and Balanced Recall work well for most material.
+        </span>
+
+      </div>
+
+    </div>
+
+
+
+    <!-- ========================================
+         SETTINGS GRID
+         ======================================== -->
+
+    <div class="source-config-grid">
+
+
+      <!-- ======================================
+           MATERIAL TYPE
+           ====================================== -->
+
+      <div class="source-config-field">
+
+        <span class="source-config-label">
+          Material type
+        </span>
+
+
+        <div
+          id="sourceKindPicker"
+          class="source-kind-picker"
+        >
+
+          <select
+            id="sourceKind"
+            class="source-kind source-kind-native"
+            aria-hidden="true"
+            tabindex="-1"
+          >
+
+            <option value="auto" selected>
+              Auto-detect
+            </option>
+
+            <option value="material">
+              Class material
+            </option>
+
+            <option value="syllabus">
+              Syllabus
+            </option>
+
+            <option value="assessment">
+              Past assessment
+            </option>
+
+          </select>
+
+
+          <button
+            id="sourceKindTrigger"
+            class="source-kind-trigger"
+            type="button"
+            aria-label="Source type"
+            aria-haspopup="listbox"
+            aria-expanded="false"
+            aria-controls="sourceKindMenu"
+          >
+
+            <span id="sourceKindLabel">
+              Auto-detect
+            </span>
+
+            <span
+              class="source-kind-trigger-arrow"
+              aria-hidden="true"
+            ></span>
+
+          </button>
+
+
+          <div
+            id="sourceKindMenu"
+            class="source-kind-menu"
+            role="listbox"
+            aria-label="Source type"
+            popover="auto"
+          >
+
+            <button
+              class="source-kind-option"
+              type="button"
+              role="option"
+              data-source-kind-value="auto"
+              aria-selected="true"
+            >
+              Auto-detect
+            </button>
+
+            <button
+              class="source-kind-option"
+              type="button"
+              role="option"
+              data-source-kind-value="material"
+              aria-selected="false"
+            >
+              Class material
+            </button>
+
+            <button
+              class="source-kind-option"
+              type="button"
+              role="option"
+              data-source-kind-value="syllabus"
+              aria-selected="false"
+            >
+              Syllabus
+            </button>
+
+            <button
+              class="source-kind-option"
+              type="button"
+              role="option"
+              data-source-kind-value="assessment"
+              aria-selected="false"
+            >
+              Past assessment
+            </button>
+
           </div>
-          <div class="source-import-controls">
-            <div id="sourceKindPicker" class="source-kind-picker">
-              <select id="sourceKind" class="source-kind source-kind-native" aria-hidden="true" tabindex="-1">
-                <option value="auto" selected>Auto-detect</option>
-                <option value="material">Class material</option>
-                <option value="syllabus">Syllabus</option>
-                <option value="assessment">Past assessment</option>
-              </select>
-              <button id="sourceKindTrigger" class="source-kind-trigger" type="button" aria-label="Source type" aria-haspopup="listbox" aria-expanded="false" aria-controls="sourceKindMenu">
-                <span id="sourceKindLabel">Auto-detect</span>
-                <span class="source-kind-trigger-arrow" aria-hidden="true"></span>
-              </button>
-              <div id="sourceKindMenu" class="source-kind-menu" role="listbox" aria-label="Source type" popover="auto">
-                <button class="source-kind-option" type="button" role="option" data-source-kind-value="auto" aria-selected="true">Auto-detect</button>
-                <button class="source-kind-option" type="button" role="option" data-source-kind-value="material" aria-selected="false">Class material</button>
-                <button class="source-kind-option" type="button" role="option" data-source-kind-value="syllabus" aria-selected="false">Syllabus</button>
-                <button class="source-kind-option" type="button" role="option" data-source-kind-value="assessment" aria-selected="false">Past assessment</button>
-              </div>
-            </div>
-            <label id="sourceUploadLabel" for="sourceUpload" class="button primary" role="button" tabindex="0">Choose documents</label>
-            <input id="sourceUpload" type="file" accept=".docx,.pptx,.pdf,.txt" multiple hidden />
+
+        </div>
+
+
+        <small>
+          Usually, you can leave this on Auto-detect.
+        </small>
+
+      </div>
+
+
+
+      <!-- ======================================
+           CARD STYLE
+           Keep functionality from MAIN
+           ====================================== -->
+
+      <div class="source-config-field source-card-style-field">
+
+        <label
+          class="source-config-label"
+          for="questionStyleMaterials"
+        >
+          Card style
+        </label>
+
+
+        <select
+          id="questionStyleMaterials"
+          class="text-input question-style-select"
+        >
+
+          <option value="balanced">
+            Balanced recall (recommended)
+          </option>
+
+          <option value="direct">
+            Direct recall
+          </option>
+
+          <option value="explain">
+            Explain why or how
+          </option>
+
+          <option value="compare">
+            Compare concepts
+          </option>
+
+          <option value="apply">
+            Apply a course example
+          </option>
+
+        </select>
+
+
+        <p
+          class="question-style-description"
+          data-question-style-description="questionStyleMaterials"
+          aria-live="polite"
+        >
+          Focused retrieval questions with a source-supported mix of
+          definitions, mechanisms, and cause/effect.
+        </p>
+
+
+        <small>
+          Applies to new cards only. Basic/Cloze is a separate Anki note format.
+        </small>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
           </div>
-        </section>
+        </div>
+
+        <small>Usually, you can leave this on Auto-detect.</small>
+      </div>
+
+<!-- CARD STYLE -->
+<div class="source-config-field source-card-style-field">
+
+  <span class="source-config-label">
+    Card style
+  </span>
+
+  <div class="card-style-display">
+
+    <div class="card-style-display-copy">
+      <strong>Balanced recall</strong>
+      <span>Recommended</span>
+    </div>
+
+    <div
+      class="card-style-check"
+      aria-hidden="true"
+    >
+      ✓
+    </div>
+
+  </div>
+
+  <small>
+    Definitions, concepts, relationships, mechanisms,
+    and cause/effect.
+  </small>
+
+</div>
+
+    </div>
+  </div>
+</section>
 
         <section id="sourceQueue" class="source-batch-queue surface" aria-labelledby="sourceQueueTitle" hidden>
           <header class="source-batch-heading">
