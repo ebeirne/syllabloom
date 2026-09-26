@@ -133,15 +133,20 @@
     return rotated.slice(0, Math.max(0, limit)).map(({ card }) => {
       const rawSourceName = card.source || (card.slideNumber ? `slide ${card.slideNumber}` : 'your uploaded material');
       URL_RE.lastIndex = 0;
-      const sourceName = URL_RE.test(rawSourceName) ? 'your uploaded material' : rawSourceName;
+      const sourceName = URL_RE.test(rawSourceName)
+        ? 'your uploaded material'
+        : rawSourceName.replace(/\s*[·–-]\s*(?:page|slide)\s+\d+\s*$/i, '');
       URL_RE.lastIndex = 0;
+      const locatorMatch = String(rawSourceName).match(/\s*[·–-]\s*((?:page|slide)\s+\d+)\s*$/i);
       return {
         mode: 'recall',
         question: card.front,
         answer: card.back,
         cardId: `lecture-${card.id}`,
         concept: card.section || card.concept || '',
-        sourceName
+        sourceName,
+        sourceLocation: card.sourceLocation || (card.pageNumber ? `Page ${card.pageNumber}` : card.slideNumber ? `Slide ${card.slideNumber}` : locatorMatch?.[1] || ''),
+        sourceQuote: String(card.sourceQuote || '')
       };
     });
   }

@@ -1193,6 +1193,32 @@
     return [...state.calendarEvents].sort((left, right) => left.date.localeCompare(right.date));
   }
 
+  function sourceEvidenceDetailsMarkup(sourceName, location, quote, className = '') {
+    const excerpt = String(quote || '').trim();
+    if (!location && !excerpt) return '';
+    const summary = `Check source${location ? ` · ${location}` : ' passage'}`;
+    const quoteContent = excerpt
+      ? `<blockquote>${escapeHtml(excerpt)}</blockquote>`
+      : '<p class="source-evidence-note">This item keeps a source location, but no quoted passage was saved with it.</p>';
+    const locationNote = location
+      ? ''
+      : '<p class="source-evidence-note">No page or slide number is available for this source. Check the exact passage shown.</p>';
+    return `<details class="source-evidence-details ${escapeHtml(className)}"><summary>${escapeHtml(summary)}</summary><p class="source-evidence-file">From ${escapeHtml(sourceName || 'your uploaded material')}</p>${quoteContent}${locationNote}</details>`;
+  }
+
+  function sourceCardLocation(card) {
+    if (!card) return '';
+    if (card.sourceLocation) return String(card.sourceLocation);
+    if (card.pageNumber) return `Page ${card.pageNumber}`;
+    if (card.slideNumber) return `Slide ${card.slideNumber}`;
+    return String(card.source || '').match(/\s*[·–-]\s*((?:page|slide)\s+\d+)\s*$/i)?.[1] || '';
+  }
+
+  function sourceCardName(card) {
+    const name = String(card?.sourceName || card?.source || '').trim();
+    return name.replace(/\s*[·–-]\s*(?:page|slide)\s+\d+\s*$/i, '');
+  }
+
   function setCalendarImportStatus(message, isError = false) {
     const status = document.querySelector('#calendarScheduleImportStatus');
     status.textContent = message;
@@ -1298,12 +1324,15 @@
       setCalendarImportStatus('Text was read, but no reliable dated events were detected. The photo was not saved.');
       return;
     }
-    container.innerHTML = candidates.map((candidate, index) => `<fieldset class="calendar-import-candidate" data-import-candidate="${index}">
+    container.innerHTML = candidates.map((candidate, index) => {
+      const sourceExcerpt = String(candidate.sourceLine || '').slice(0, 500);
+      return `<fieldset class="calendar-import-candidate" data-import-candidate="${index}" data-source-line="${escapeHtml(sourceExcerpt)}">
       <label class="calendar-import-include"><input type="checkbox" data-import-include checked><span>Add this date</span></label>
       <label>Event name<input class="text-input" data-import-title maxlength="120" value="${escapeHtml(candidate.title)}" required></label>
       <div class="calendar-import-fields"><label>Date<input class="text-input" data-import-date type="date" value="${escapeHtml(candidate.date)}" required></label><label>Type<select class="text-input" data-import-type><option value="lecture"${candidate.type === 'lecture' ? ' selected' : ''}>Lecture</option><option value="quiz"${candidate.type === 'quiz' ? ' selected' : ''}>Quiz</option><option value="exam"${candidate.type === 'exam' ? ' selected' : ''}>Exam</option><option value="assignment"${candidate.type === 'assignment' ? ' selected' : ''}>Assignment or due date</option><option value="holiday"${candidate.type === 'holiday' ? ' selected' : ''}>School break / closure</option></select></label></div>
       <small>Read from: ${escapeHtml(candidate.sourceLine)}</small>
-    </fieldset>`).join('');
+    </fieldset>`;
+    }).join('');
     document.querySelector('#calendarScheduleImportSave').disabled = false;
     setCalendarImportStatus(`${candidates.length} possible date${candidates.length === 1 ? '' : 's'} found. Check every date and name before adding them.`);
     updateCalendarImportSaveButton();
@@ -1377,7 +1406,14 @@
       if (!title || !date || Number.isNaN(parsedDate.getTime()) || localIsoDate(parsedDate) !== date) continue;
       if (state.calendarEvents.some(item => item.date === date && item.title.trim().toLocaleLowerCase() === title.toLocaleLowerCase())) continue;
       if (additions.some(item => item.date === date && item.title.toLocaleLowerCase() === title.toLocaleLowerCase())) continue;
-      additions.push({ id: `photo-date-${Date.now()}-${additions.length}`, date, type, title });
+      additions.push({
+        id: `photo-date-${Date.now()}-${additions.length}`,
+        date,
+        type,
+        title,
+        sourceName: 'Imported schedule photo',
+        sourceText: row.dataset.sourceLine || ''
+      });
     }
     if (!additions.length) {
       setCalendarImportStatus('No new valid dates were selected. Existing matching dates were left unchanged.', true);
@@ -1421,9 +1457,12 @@
       const date = localIsoDate(new Date(monthDate.getFullYear(), monthDate.getMonth(), day, 12));
       const events = visibleEvents.filter(event => event.date === date);
       const spokenEvents = events.map(event => `${event.title}${event.federalReference ? ' (U.S. federal holiday reference; campus closure not confirmed)' : ''}`).join(', ');
-      cells.push(`<button type="button" class="calendar-day${date === today ? ' is-today' : ''}${events.length ? ' has-event' : ''}" data-calendar-date="${date}" aria-label="${date}${events.length ? `, ${escapeHtml(spokenEvents)}` : ''}"><span>${day}</span>${events.slice(0, 2).map(event => `<i class="event-${escapeHtml(event.type)}${event.federalReference ? ' is-reference-holiday' : ''}"${event.federalReference ? ' title="U.S. federal holiday reference only"' : ''}>${escapeHtml(event.title)}</i>`).join('')}</button>`);
+      cells.push(`<button type="button" class="calendar-day${date === today ? ' is-today' : ''}${events.length ? ' has-event' : ''}" data-calendar-date="${date}" aria-label="${date}${events.length ? `, ${escapeHtml(spokenEvents)}. Select to inspect an event source.` : ''}"><span>${day}</span>${events.slice(0, 2).map(event => `<i class="event-${escapeHtml(event.type)}${event.federalReference ? ' is-reference-holiday' : ''}" data-calendar-event-id="${escapeHtml(event.id || '')}"${event.federalReference ? ' title="U.S. federal holiday reference only"' : ''}>${escapeHtml(event.title)}</i>`).join('')}</button>`);
     }
     document.querySelector('#calendarGrid').innerHTML = cells.join('');
+    const selectedEventPanel = document.querySelector('#calendarSelectedEvent');
+    selectedEventPanel.hidden = true;
+    selectedEventPanel.replaceChildren();
 
     const currentYear = new Date().getFullYear();
     const upcomingHolidays = state.showFederalHolidays
@@ -1444,10 +1483,9 @@
           : event.yearSource === 'source name'
             ? ' · year from the uploaded file name'
             : '';
-        const sourceCitation = event.sourceText
-          ? `<span class="calendar-source-citation">From ${escapeHtml(event.sourceName || 'your syllabus')}: ${escapeHtml(event.sourceText)}${yearCitation}</span>`
-          : '';
-        return `<div class="upcoming-event"><span class="event-dot event-${escapeHtml(event.type)}${event.federalReference ? ' is-reference-holiday' : ''}"></span><div><strong>${escapeHtml(event.title)}</strong><small>${label} · ${escapeHtml(eventDescription)}${sourceCitation}</small></div>${event.federalReference ? '<span class="calendar-reference-badge">Reference</span>' : `<button type="button" data-remove-event="${escapeHtml(event.id)}" aria-label="Remove ${escapeHtml(event.title)}">Remove</button>`}</div>`;
+        const sourceLocation = event.sourceLocation || (Number.isInteger(Number(event.sourcePage)) && Number(event.sourcePage) > 0 ? `PDF page ${event.sourcePage}` : '');
+        const sourceDetails = sourceEvidenceDetailsMarkup(event.sourceName || 'your syllabus', sourceLocation, event.sourceText, 'calendar-source-evidence');
+        return `<div class="upcoming-event"><span class="event-dot event-${escapeHtml(event.type)}${event.federalReference ? ' is-reference-holiday' : ''}"></span><div class="upcoming-event-copy"><strong>${escapeHtml(event.title)}</strong><small>${label} · ${escapeHtml(eventDescription)}${yearCitation}</small>${sourceDetails}</div>${event.federalReference ? '<span class="calendar-reference-badge">Reference</span>' : `<button type="button" data-remove-event="${escapeHtml(event.id)}" aria-label="Remove ${escapeHtml(event.title)}">Remove</button>`}</div>`;
       }).join('')
       : '<p>No upcoming class dates. Add the next lecture or exam.</p>';
 
@@ -1529,6 +1567,23 @@
     document.querySelector('#releasePlanSummary').textContent = `${nextLabel}. Up to ${availableNew} new card${availableNew === 1 ? '' : 's'} a day${exam ? `, paced against ${exam.title}` : ''}; ${orderSummary}. Anki schedules due reviews after export.`;
     renderKnowledgeModel();
     renderProfileSchedule();
+  }
+
+  function renderCalendarEventEvidence(eventItem) {
+    const panel = document.querySelector('#calendarSelectedEvent');
+    const date = new Date(`${eventItem.date}T12:00:00`);
+    const dateLabel = new Intl.DateTimeFormat(undefined, { dateStyle: 'long' }).format(date);
+    const location = eventItem.sourceLocation || (Number.isInteger(Number(eventItem.sourcePage)) && Number(eventItem.sourcePage) > 0 ? `PDF page ${eventItem.sourcePage}` : '');
+    const evidence = sourceEvidenceDetailsMarkup(eventItem.sourceName, location, eventItem.sourceText, 'calendar-selected-source');
+    const context = eventItem.federalReference
+      ? '<p class="calendar-event-source-empty">U.S. federal reference date only; check your school calendar to confirm any closure.</p>'
+      : evidence
+        ? evidence
+        : '<p class="calendar-event-source-empty">No source passage is attached to this event.</p>';
+    panel.innerHTML = `<div class="calendar-selected-event-card"><span class="account-kicker">Selected calendar event</span><h3>${escapeHtml(eventItem.title)}</h3><p>${escapeHtml(dateLabel)} · ${escapeHtml(labelCase(eventItem.type))}</p>${context}</div>`;
+    const details = panel.querySelector('details');
+    if (details) details.open = true;
+    panel.hidden = false;
   }
 
   function courseTopicActionMarkup(topic, compact = false) {
@@ -1623,11 +1678,17 @@
       const dateLabel = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(eventDate);
       milestoneTitle.textContent = milestone.title;
       milestoneDetail.textContent = `${dateLabel} · ${daysAway === 0 ? 'today' : `in ${daysAway} day${daysAway === 1 ? '' : 's'}`} · ${labelCase(milestone.type)}`;
-      if (milestone.sourceText) milestoneDetail.textContent += ` · From ${milestone.sourceName || 'your syllabus'}: ${milestone.sourceText}`;
+      document.querySelector('#courseMilestoneEvidence').innerHTML = sourceEvidenceDetailsMarkup(
+        milestone.sourceName || 'your syllabus',
+        milestone.sourceLocation || (Number.isInteger(Number(milestone.sourcePage)) && Number(milestone.sourcePage) > 0 ? `PDF page ${milestone.sourcePage}` : ''),
+        milestone.sourceText,
+        'milestone-source-evidence'
+      );
       milestoneAction.hidden = true;
     } else {
       milestoneTitle.textContent = 'No class date added yet';
       milestoneDetail.textContent = 'Add an exam or class milestone to pace new cards against the real course calendar.';
+      document.querySelector('#courseMilestoneEvidence').replaceChildren();
       milestoneAction.hidden = false;
     }
 
@@ -1696,7 +1757,9 @@
         const date = new Date(`${event.date}T12:00:00`);
         const weekday = new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(date);
         const day = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date);
-        return `<article class="profile-event"><time datetime="${escapeHtml(event.date)}"><strong>${escapeHtml(day)}</strong><span>${escapeHtml(weekday)}</span></time><div><strong>${escapeHtml(event.title)}</strong><span>${escapeHtml(labelCase(event.type))}</span></div><button type="button" data-profile-remove-event="${escapeHtml(event.id)}" aria-label="Remove ${escapeHtml(event.title)}">Remove</button></article>`;
+        const location = event.sourceLocation || (Number.isInteger(Number(event.sourcePage)) && Number(event.sourcePage) > 0 ? `PDF page ${event.sourcePage}` : '');
+        const evidence = sourceEvidenceDetailsMarkup(event.sourceName || 'your syllabus', location, event.sourceText, 'profile-source-evidence');
+        return `<article class="profile-event"><time datetime="${escapeHtml(event.date)}"><strong>${escapeHtml(day)}</strong><span>${escapeHtml(weekday)}</span></time><div><strong>${escapeHtml(event.title)}</strong><span>${escapeHtml(labelCase(event.type))}</span>${evidence}</div><button type="button" data-profile-remove-event="${escapeHtml(event.id)}" aria-label="Remove ${escapeHtml(event.title)}">Remove</button></article>`;
       }).join('')
       : '<div class="profile-schedule-empty"><strong>No dates yet</strong><span>Add the first exam, quiz, or lecture below.</span></div>';
   }
@@ -2720,6 +2783,8 @@
         const sourceLabel = document.createElement('small');
         sourceLabel.textContent = item.sourceName ? `Source: ${item.sourceName}` : '';
         answer.append(label, text, sourceLabel);
+        const sourceEvidence = sourceEvidenceDetailsMarkup(item.sourceName, item.sourceLocation, item.sourceQuote, 'quick-check-source-evidence');
+        if (sourceEvidence) answer.insertAdjacentHTML('beforeend', sourceEvidence);
         result.append(answer);
         options.innerHTML = `
           <span class="quick-check-rating-label">How well did you know it?</span>
@@ -2885,6 +2950,20 @@
       : fieldLabels[item.field];
     document.querySelector('#studyAnswer').textContent = directCard?.back || edit.back || answerFor(item.record, item.field);
     document.querySelector('#studyAnswer').classList.remove('open');
+    const sourceEvidence = document.querySelector('#studySourceEvidence');
+    const sourceLocation = sourceCardLocation(directCard);
+    const sourceName = sourceCardName(directCard);
+    const sourceQuote = String(directCard?.sourceQuote || '').trim();
+    sourceEvidence.hidden = true;
+    sourceEvidence.dataset.available = String(Boolean(directCard && (sourceName || sourceLocation || sourceQuote)));
+    document.querySelector('#studySourceSummary').textContent = sourceLocation ? `Check source · ${sourceLocation}` : 'Check source passage';
+    document.querySelector('#studySourceName').textContent = sourceName ? `From ${sourceName}` : 'From your uploaded course material';
+    document.querySelector('#studySourceQuote').textContent = sourceQuote;
+    document.querySelector('#studySourceQuote').hidden = !sourceQuote;
+    document.querySelector('#studySourceNote').hidden = Boolean(sourceQuote && sourceLocation);
+    document.querySelector('#studySourceNote').textContent = sourceLocation
+      ? 'The source passage was not saved with this card.'
+      : 'No page or slide number is available for this source. Check the exact passage shown.';
     document.querySelector('#showAnswer').hidden = false;
     document.querySelector('#ratingControls').classList.remove('open');
   }
@@ -4773,6 +4852,20 @@
   document.querySelector('#calendarGrid').addEventListener('click', event => {
     const day = event.target.closest('[data-calendar-date]');
     if (!day) return;
+    const clickedEventId = event.target.closest('[data-calendar-event-id]')?.dataset.calendarEventId;
+    const calendarEvent = clickedEventId
+      ? state.calendarEvents.find(item => item.id === clickedEventId)
+      : state.calendarEvents.find(item => item.date === day.dataset.calendarDate);
+    const referenceEvent = state.showFederalHolidays
+      ? [state.calendarCursor.getFullYear() - 1, state.calendarCursor.getFullYear(), state.calendarCursor.getFullYear() + 1]
+        .flatMap(year => window.SyllabloomCalendarFeatures.getUsFederalHolidays(year))
+        .find(item => clickedEventId ? item.id === clickedEventId : item.date === day.dataset.calendarDate)
+      : null;
+    const eventItem = calendarEvent || referenceEvent;
+    if (eventItem) {
+      renderCalendarEventEvidence(eventItem);
+      return;
+    }
     document.querySelector('#calendarEventDate').value = day.dataset.calendarDate;
     document.querySelector('#calendarEventTitle').focus();
   });
@@ -5311,6 +5404,7 @@
     hideRatingReceipt();
     resetRatingControls();
     document.querySelector('#studyAnswer').classList.add('open');
+    document.querySelector('#studySourceEvidence').hidden = document.querySelector('#studySourceEvidence').dataset.available !== 'true';
     document.querySelector('#showAnswer').hidden = true;
     document.querySelector('#ratingControls').classList.add('open');
   });

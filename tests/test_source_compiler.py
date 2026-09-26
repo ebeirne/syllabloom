@@ -166,6 +166,37 @@ Oct 8       Midterm 1
         })
         self.assertEqual(next(event for event in events if event["date"] == "2026-10-08")["type"], "exam")
 
+    def test_syllabus_calendar_records_unique_physical_pdf_page_for_source_row(self) -> None:
+        page_one = """Course | PSY 241: Memory and Attention
+Term | Fall 2026 | August to December
+Week | Dates | Topics
+"""
+        page_two = """1 | Aug 25 | Cognitive evidence and operational definitions
+Date | Milestone
+Oct 8 | Midterm 1
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "course-schedule.pdf"
+            write_text_pdf(path, [page_one, page_two])
+            summary = source_summary(path, path.name, "syllabus")
+
+        event = next(event for event in summary["calendarEvents"] if event["title"] == "Midterm 1")
+        self.assertEqual(event["sourceText"], "Oct 8 | Midterm 1")
+        self.assertEqual(event["sourcePage"], 2)
+
+    def test_syllabus_calendar_with_duplicate_schedule_rows_does_not_guess_page(self) -> None:
+        repeated_row = "Oct 8 | Midterm 1"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "course-schedule.pdf"
+            write_text_pdf(path, [
+                "Course | PSY 241: Memory and Attention\nTerm | Fall 2026\nDate | Milestone\n" + repeated_row,
+                "Date | Milestone\n" + repeated_row,
+            ])
+            summary = source_summary(path, path.name, "syllabus")
+
+        event = next(event for event in summary["calendarEvents"] if event["title"] == "Midterm 1")
+        self.assertIsNone(event["sourcePage"])
+
     def test_calendar_does_not_borrow_unrelated_year_and_flags_ambiguous_schedule_rows(self) -> None:
         content = """Course Syllabus
 Copyright 2026 Example Publisher

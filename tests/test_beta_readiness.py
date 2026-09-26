@@ -370,7 +370,8 @@ class BetaReadinessContractTests(unittest.TestCase):
         self.assertIn("tesseract.js@7.0.0", app)
         self.assertIn("parseDatedSchedule", app)
         self.assertIn("federalReference", features)
-        self.assertIn("image and extracted text are not uploaded or saved", page)
+        self.assertIn("photo and full extracted text stay on this device and are discarded after review", page)
+        self.assertIn("each date’s matching text excerpt are saved to your calendar", page)
         self.assertIn("Tesseract.js OCR library", privacy)
         self.assertIn("English-language model on demand from jsDelivr", privacy)
 

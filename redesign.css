@@ -1724,6 +1724,35 @@
   background: transparent;
 }
 
+.calendar-selected-event {
+  margin-top: 14px;
+}
+
+.calendar-selected-event-card {
+  padding: 16px 18px;
+  background: var(--work-blue);
+  border: 1px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+.calendar-selected-event-card h3 {
+  margin: 3px 0 4px;
+  font-size: 17px;
+}
+
+.calendar-selected-event-card > p {
+  margin: 0 0 9px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.calendar-event-source-empty {
+  margin: 8px 0 0 !important;
+  color: var(--ink) !important;
+  font-size: 12px !important;
+}
+
 .event-lecture { background: #d9eefb; }
 .event-quiz { background: #fff0b6; }
 .event-exam { background: #ffd5cc; }
@@ -1785,6 +1814,8 @@
   border-bottom: var(--hairline);
 }
 
+.upcoming-event-copy { min-width: 0; padding: 10px 0; }
+
 .event-dot {
   width: 8px;
   height: 8px;
@@ -1799,6 +1830,50 @@
 .upcoming-event strong { font-size: 13px; }
 .upcoming-event small { color: var(--muted); font-size: 11px; }
 .upcoming-event button { padding: 4px 0; background: transparent; border: 0; color: var(--muted); font-size: 11px; text-decoration: underline; }
+
+.source-evidence-details {
+  margin-top: 7px;
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.source-evidence-details summary {
+  width: fit-content;
+  color: #176a46;
+  cursor: pointer;
+  font-weight: 750;
+  text-underline-offset: 2px;
+}
+
+.source-evidence-details summary:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+.source-evidence-file,
+.source-evidence-note {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.source-evidence-details blockquote {
+  margin: 7px 0 0;
+  padding: 10px 12px;
+  border-left: 3px solid #176a46;
+  background: #e8f5f2;
+  color: var(--ink);
+  font: 13px/1.5 ui-sans-serif, sans-serif;
+  overflow-wrap: anywhere;
+}
+
+.study-source-evidence { width: min(100%, 620px); margin: 18px auto 0; text-align: left; }
+.quick-check-source-evidence { margin-top: 12px; text-align: left; }
+.calendar-source-evidence,
+.milestone-source-evidence { margin-top: 6px; }
+.profile-source-evidence { grid-column: 1 / -1; }
 
 .release-plan {
   margin-bottom: 34px;

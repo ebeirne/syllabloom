@@ -87,8 +87,21 @@ test('AI-generated quick-check prompts reuse the reviewed card and preserve its 
   assert.equal(items.length, 1);
   assert.equal(items[0].question, card.front);
   assert.equal(items[0].answer, card.back);
-  assert.equal(items[0].sourceName, card.source);
-  assert.ok(card.sourceQuote.includes('systems consolidation'));
+  assert.equal(items[0].sourceName, 'Cognition lecture.pdf');
+  assert.equal(items[0].sourceLocation, 'Page 1');
+  assert.equal(items[0].sourceQuote, sourceQuote);
+});
+
+test('quick checks retain slide locations parsed from the card source when no explicit locator exists', () => {
+  const [item] = quickCheckItems([{
+    id: 'slide-card',
+    front: 'What does working memory temporarily maintain?',
+    back: 'It temporarily maintains information for active processing.',
+    source: 'Cognition lecture.pptx · Slide 4'
+  }]);
+
+  assert.equal(item.sourceLocation, 'Slide 4');
+  assert.equal(item.sourceQuote, '');
 });
 
 test('quick checks rotate prompts and prioritize repeatedly missed cards', () => {

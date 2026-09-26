@@ -1970,9 +1970,22 @@ def _without_date_references(value: str) -> str:
     return re.sub(r"[\s|,;:–-]+", " ", value).strip()
 
 
-def syllabus_calendar(filename: str, text: str, source_id: str) -> dict:
+def syllabus_calendar(
+    filename: str, text: str, source_id: str, page_texts: list[str] | None = None
+) -> dict:
     """Extract dated class meetings and deadlines from clearly structured syllabus rows."""
     lines = [re.sub(r"\s+", " ", line).strip() for line in text.splitlines() if line.strip()]
+    page_hits: dict[str, set[int]] = {}
+    for page_number, page_text in enumerate(page_texts or [], start=1):
+        for page_line in page_text.splitlines():
+            key = re.sub(r"\s+", " ", page_line).strip().casefold()
+            if key:
+                page_hits.setdefault(key, set()).add(page_number)
+
+    def source_page(line: str) -> int | None:
+        pages = page_hits.get(re.sub(r"\s+", " ", line).strip().casefold(), set())
+        return next(iter(pages)) if len(pages) == 1 else None
+
     course_name = ""
     course_code = ""
     term = ""
@@ -2078,6 +2091,7 @@ def syllabus_calendar(filename: str, text: str, source_id: str) -> dict:
                         "type": "lecture",
                         "title": title,
                         "sourceText": line,
+                        "sourcePage": source_page(line),
                         "yearSource": _date_year_source(dates_text, year_fallback_source),
                     })
             if len(fields) >= 5:
@@ -2093,6 +2107,7 @@ def syllabus_calendar(filename: str, text: str, source_id: str) -> dict:
                         "type": _milestone_type(due_title),
                         "title": due_title[:120],
                         "sourceText": line,
+                        "sourcePage": source_page(line),
                         "yearSource": _date_year_source(fields[-1], year_fallback_source),
                     } for iso_date in due_dates)
             processed_schedule_lines.add(line)
@@ -2122,6 +2137,7 @@ def syllabus_calendar(filename: str, text: str, source_id: str) -> dict:
                     "type": _milestone_type(title),
                     "title": title,
                     "sourceText": line,
+                    "sourcePage": source_page(line),
                     "yearSource": _date_year_source(date_text, year_fallback_source),
                 })
             processed_schedule_lines.add(line)
@@ -2161,6 +2177,7 @@ def syllabus_calendar(filename: str, text: str, source_id: str) -> dict:
             "type": _milestone_type(title),
             "title": title,
             "sourceText": line,
+            "sourcePage": source_page(line),
             "yearSource": _date_year_source(line, year_fallback_source),
         } for iso_date in milestone_dates)
 
@@ -2261,7 +2278,12 @@ def source_summary(
     structured_cards = draft_cards_from_structured_slides(text, filename) if suffix == ".pptx" and not is_syllabus else []
     draft_cards = generated["cards"] if generated is not None else (structured_cards or compiled["cards"])
     concepts = generated["concepts"] if generated is not None else compiled["concepts"]
-    calendar = syllabus_calendar(filename, text, hashlib.sha256(text.encode("utf-8", errors="ignore")).hexdigest()[:12]) if is_syllabus else {"events": [], "courseName": "", "term": "", "termRange": "", "warnings": []}
+    calendar = syllabus_calendar(
+        filename,
+        text,
+        hashlib.sha256(text.encode("utf-8", errors="ignore")).hexdigest()[:12],
+        units.get("pageTexts") if suffix == ".pdf" else None,
+    ) if is_syllabus else {"events": [], "courseName": "", "term": "", "termRange": "", "warnings": []}
     return {
         "id": fingerprint[:12],
         "name": filename,

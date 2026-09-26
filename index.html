@@ -4407,6 +4407,7 @@
             </div>
             <div class="calendar-weekdays" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
             <div id="calendarGrid" class="calendar-grid" aria-label="Monthly class calendar"></div>
+            <div id="calendarSelectedEvent" class="calendar-selected-event" aria-live="polite" hidden></div>
           </section>
 
           <aside class="deadline-editor surface">
@@ -4464,6 +4465,7 @@
             <span>NEXT COURSE DATE</span>
             <strong id="courseMilestoneTitle">No class date added yet</strong>
             <p id="courseMilestoneDetail">Add an exam or class milestone to pace new cards against the real course calendar.</p>
+            <div id="courseMilestoneEvidence"></div>
             <button id="courseMilestoneAction" class="text-button" type="button" data-focus-calendar>＋ Add a course date</button>
           </aside>
         </section>
@@ -4719,6 +4721,12 @@
               <h2 id="studyQuestion"></h2>
               <p id="studyMuscle"></p>
               <div id="studyAnswer" class="study-answer"></div>
+              <details id="studySourceEvidence" class="source-evidence-details study-source-evidence" hidden>
+                <summary id="studySourceSummary">Check source passage</summary>
+                <p id="studySourceName" class="source-evidence-file"></p>
+                <blockquote id="studySourceQuote"></blockquote>
+                <p id="studySourceNote" class="source-evidence-note" hidden></p>
+              </details>
             </article>
           </div>
 
@@ -4814,7 +4822,7 @@
       </header>
       <div id="calendarScheduleImportStatus" class="calendar-import-status" role="status" aria-live="polite">Choose a photo of a dated schedule or syllabus.</div>
       <label class="calendar-import-year" for="calendarScheduleImportYear">Year to use when a date has no year<input id="calendarScheduleImportYear" class="text-input" type="number" min="2020" max="2120" inputmode="numeric"></label>
-      <p class="calendar-import-privacy">The image and extracted text are not uploaded or saved. Only the dates you confirm are added to your calendar and, when signed in, synced with your workspace.</p>
+      <p class="calendar-import-privacy">The photo and full extracted text stay on this device and are discarded after review. Confirmed dates and each date’s matching text excerpt are saved to your calendar and, when signed in, synced with your workspace.</p>
       <div id="calendarScheduleImportCandidates" class="calendar-import-candidates"></div>
       <footer class="calendar-import-actions"><button id="cancelCalendarScheduleImport" class="button" type="button">Cancel</button><button id="calendarScheduleImportSave" class="button primary" type="submit" disabled>Add checked dates</button></footer>
     </form>
