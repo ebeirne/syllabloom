@@ -453,6 +453,53 @@ def _validated_card(raw: dict, chunk: dict, filename: str) -> dict | None:
     }
 
 
+def _preserve_explicit_slide_facts(cards: list[dict], chunks: list[dict], filename: str, kind: str) -> list[dict]:
+    """Keep explicit anatomy fields even when the model omits a retrieval dimension.
+
+    Only the selected batch is inspected; unanswered assessment questions are never
+    filled in. Reuse the source parser, not model knowledge, for these exact facts.
+    """
+    if kind != "material" or Path(filename).suffix.lower() != ".pptx":
+        return cards
+    from server import draft_cards_from_structured_slides
+
+    field_patterns = {
+        "attachment": r"attach|origin|insert",
+        "action": r"action|movement|function|\bdo\b",
+        "innervation": r"innerv|nerve",
+    }
+    for chunk in chunks:
+        sections = re.findall(r"(?ms)^\[(Slide \d+)\]\s*\n(.*?)(?=^\[|\Z)", chunk["text"])
+        for locator, section in sections:
+            for fact in draft_cards_from_structured_slides(f"{locator}\n{section}", filename):
+                answer = fact["back"]
+                # Reject missing values or values that are actually the next label.
+                if answer.upper() in {"ATTACHMENT", "ACTION", "INNERVATION"} or len(answer) < 3:
+                    continue
+                subject = fact["front"]
+                subject_terms = _terms(subject) - _terms("Where does attach What is the action innervates")
+                covered = any(
+                    card.get("sourceLocation") == locator
+                    and re.search(field_patterns[fact["field"]], card["front"], re.I)
+                    and subject_terms <= _terms(card["front"] + " " + card.get("concept", ""))
+                    and _terms(answer) <= _terms(card["back"])
+                    for card in cards
+                )
+                if covered:
+                    continue
+                # Copy the contiguous label/value passage verbatim from this slide.
+                passage = re.search(rf"(?im)^\s*{fact['field']}\s*\n\s*([^\n]+)", section)
+                if not passage or _normalize(passage.group(1)) != _normalize(answer):
+                    continue
+                identity = hashlib.sha256(f"{filename}\0{locator}\0{subject}\0{answer}".encode()).hexdigest()[:16]
+                cards.append({
+                    **fact, "id": f"source-{identity}", "concept": fact["section"],
+                    "sourceLocation": locator, "sourceQuote": passage.group(0).strip(),
+                    "generatedBy": "source-extraction", "status": "source-extracted",
+                })
+    return cards
+
+
 def generate_ai_cards(
     text: str,
     filename: str,
@@ -510,6 +557,7 @@ def generate_ai_cards(
             seen.add(key_pair)
             cards.append(card)
 
+    cards = _preserve_explicit_slide_facts(cards, chunks, filename, kind)
     concepts = []
     concept_keys = set()
     for card in cards:

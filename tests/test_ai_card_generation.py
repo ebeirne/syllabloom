@@ -78,6 +78,25 @@ class FakeOpener:
 
 
 class AICardGenerationTests(unittest.TestCase):
+    def test_explicit_slide_facts_survive_model_omissions(self) -> None:
+        text = "Slide 2\nANTERIOR LEG\nTibialis anterior\nATTACHMENT\nTibia to medial cuneiform\nACTION\nDorsiflexes and inverts foot\nINNERVATION\nDeep fibular (peroneal)"
+        result = generate_ai_cards(text, "lecture.pptx", "material", {}, api_key="test", opener=FakeOpener([]))
+        self.assertEqual(len(result["cards"]), 3)
+        nerve = next(card for card in result["cards"] if card["field"] == "innervation")
+        self.assertEqual(nerve["back"], "Deep fibular (peroneal)")
+        self.assertEqual(nerve["sourceLocation"], "Slide 2")
+        self.assertIn(nerve["sourceQuote"], text)
+        self.assertEqual(nerve["generatedBy"], "source-extraction")
+        assessment = generate_ai_cards(text, "exam.pptx", "assessment", {}, api_key="test", opener=FakeOpener([]))
+        self.assertEqual(assessment["cards"], [])
+
+    def test_explicit_facts_do_not_duplicate_a_complete_ai_card(self) -> None:
+        text = "Slide 2\nANTERIOR LEG\nTibialis anterior\nATTACHMENT\nTibia to medial cuneiform\nACTION\nDorsiflexes and inverts foot\nINNERVATION\nDeep fibular (peroneal)"
+        raw = {"concept": "Tibialis anterior", "question": "What innervates Tibialis anterior?", "answer": "Deep fibular (peroneal)", "card_type": "other", "source_locator": "Slide 2", "source_quote": "INNERVATION\nDeep fibular (peroneal)"}
+        result = generate_ai_cards(text, "lecture.pptx", "material", {}, api_key="test", opener=FakeOpener([raw]))
+        self.assertEqual(len(result["cards"]), 3)
+        self.assertEqual(sum("innervates" in card["front"] for card in result["cards"]), 1)
+
     def test_later_generation_batch_only_sends_its_four_source_chunks(self) -> None:
         page_texts = [f"Page concept {index}. " + ("distinct concept evidence " * 300) for index in range(1, 9)]
         text = "\n".join(page_texts)

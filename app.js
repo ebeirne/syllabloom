@@ -4,12 +4,12 @@
   const savedAccount = storedJson('syllabloom-account', {});
   const cachedAccountUserId = savedAccount.userId || '';
   const savedClassProfile = storedJson('syllabloom-class-profile', {
-    mode: 'sample',
-    className: 'Human Anatomy',
-    term: 'Fall 2023',
-    syllabusName: 'Anatomy syllabus example',
-    useDemoSyllabus: true,
-    includeSampleMaterial: true
+    mode: 'custom',
+    className: 'Untitled class',
+    term: 'Term not set',
+    syllabusName: 'No syllabus added',
+    useDemoSyllabus: false,
+    includeSampleMaterial: false
   });
   const savedSources = storedJson('syllabloom-sources', []);
   let classProfileOwnerId = savedClassProfile.ownerUserId || cachedAccountUserId;
@@ -160,12 +160,12 @@
     reviewHistory: savedReviewHistory,
     planCorrections: 0,
     setupStep: 1,
-    className: savedClassProfile.className || 'Human Anatomy',
-    classTerm: savedClassProfile.term || 'Fall 2023',
-    classMode: savedClassProfile.mode || 'sample',
+    className: savedClassProfile.className || 'Untitled class',
+    classTerm: savedClassProfile.term || 'Term not set',
+    classMode: savedClassProfile.mode || 'custom',
     syllabusName: savedClassProfile.syllabusName || 'No syllabus added',
     useDemoSyllabus: Boolean(savedClassProfile.useDemoSyllabus),
-    includeSampleMaterial: savedClassProfile.includeSampleMaterial !== false,
+    includeSampleMaterial: savedClassProfile.includeSampleMaterial === true,
     assessmentIndex: 0,
     assessmentScore: 0,
     quickCheckQuestions: [],
@@ -180,7 +180,7 @@
     sources: Array.isArray(savedSources) ? savedSources : [],
     latestSessionId: null,
     anki: { ...defaultAnkiPreferences, ...storedJson('syllabloom-anki-preferences', {}) },
-    calendarEvents: storedJson('syllabloom-calendar-events', initialCalendarEvents),
+    calendarEvents: storedJson('syllabloom-calendar-events', savedClassProfile.mode === 'sample' ? initialCalendarEvents : []),
     calendarCursor: new Date(),
     showFederalHolidays: localStorage.getItem('syllabloom-show-federal-holidays') !== 'false',
     dailyStudyMinutes: Number(savedCourseState.dailyStudyMinutes) || 35,
@@ -293,12 +293,12 @@
     if (!data || data.schemaVersion !== 1) return false;
     cloudSyncApplying = true;
     cloudSyncDirty = false;
-    state.classMode = data.classProfile?.mode || 'sample';
-    state.className = data.classProfile?.className || 'Human Anatomy';
-    state.classTerm = data.classProfile?.term || 'Fall 2023';
+    state.classMode = data.classProfile?.mode || 'custom';
+    state.className = data.classProfile?.className || 'Untitled class';
+    state.classTerm = data.classProfile?.term || 'Term not set';
     state.syllabusName = data.classProfile?.syllabusName || 'No syllabus added';
     state.useDemoSyllabus = Boolean(data.classProfile?.useDemoSyllabus);
-    state.includeSampleMaterial = data.classProfile?.includeSampleMaterial !== false;
+    state.includeSampleMaterial = data.classProfile?.includeSampleMaterial === true;
     classProfileOwnerId = cloudSyncUserId;
     state.sources = Array.isArray(data.sources) ? data.sources : [];
     state.lectureCards = [];
@@ -1969,6 +1969,7 @@
     const savedUsage = Math.max(0, Number(state.account.classesUsed) || 0);
     const hasActiveCustomClass = state.classMode === 'custom'
       && !state.includeSampleMaterial
+      && (state.sources.length > 0 || state.className !== 'Untitled class')
       && (!state.account.signedIn || !classProfileOwnerId || classProfileOwnerId === state.account.userId);
     return Math.max(savedUsage, hasActiveCustomClass ? 1 : 0);
   }
@@ -2004,6 +2005,9 @@
     const cardCount = approvedLectureCards().length;
     const quickCheckCount = custom ? rotatingQuickCheckQuestions().length : assessmentQuestions.length;
     const approved = approvedLectureCards().length;
+    document.querySelectorAll('[data-start-quick-check]').forEach(button => {
+      button.textContent = custom && !cardCount ? 'Add your first lecture' : 'Start quick check';
+    });
     const firstConcept = concepts[0] || 'your new material';
     const sourceTotal = state.includeSampleMaterial ? 3 : state.sources.length;
     const next = nextExamEvent();
@@ -3881,7 +3885,7 @@
     panel.hidden = false;
     document.querySelector('#sourceStudyOutputEyebrow').textContent = sourceItem.name;
     document.querySelector('#sourceStudyOutputTitle').textContent = `${cards.length} ready card${cards.length === 1 ? '' : 's'} from this source`;
-    document.querySelector('#sourceStudyOutputSummary').textContent = `${concepts.length} concept${concepts.length === 1 ? '' : 's'} and ${notes.length} note section${notes.length === 1 ? '' : 's'} were traced back to the uploaded file.`;
+    document.querySelector('#sourceStudyOutputSummary').textContent = `${concepts.length} concept${concepts.length === 1 ? '' : 's'} and ${notes.length} note section${notes.length === 1 ? '' : 's'} were traced back to the uploaded file. Check these cards against your learning objectives: this set may not cover every exam topic.`;
     document.querySelector('#sourceStudyConcepts').innerHTML = concepts.length
       ? concepts.slice(0, 12).map(concept => `<span>${escapeHtml(concept.name || concept)}</span>`).join('')
       : '<p>No named concepts were found.</p>';
@@ -4005,7 +4009,7 @@
     const cards = sourceCardsFromLibrary();
     if (cards.length) {
       const latestSource = cardSources[cardSources.length - 1];
-      const hadSampleIdentity = state.classMode === 'sample' || (state.className === 'Human Anatomy' && state.classTerm === 'Fall 2023');
+      const hadSampleIdentity = state.className === 'Untitled class' || state.classMode === 'sample' || (state.className === 'Human Anatomy' && state.classTerm === 'Fall 2023');
       state.includeSampleMaterial = false;
       state.classMode = 'custom';
       state.useDemoSyllabus = false;
@@ -4477,7 +4481,7 @@
         state.syllabusName = payload.source.name;
       }
       const wasUsingSample = state.includeSampleMaterial;
-      const wasSampleClass = state.classMode === 'sample';
+      const wasSampleClass = state.classMode === 'sample' || state.className === 'Untitled class';
       state.includeSampleMaterial = false;
       state.classMode = 'custom';
       state.useDemoSyllabus = false;
@@ -4786,6 +4790,11 @@
   });
   document.querySelectorAll('[data-go]').forEach(button => button.addEventListener('click', () => navigate(button.dataset.go)));
   document.querySelectorAll('[data-start-quick-check]').forEach(button => button.addEventListener('click', () => {
+    if (!state.includeSampleMaterial && !approvedLectureCards().length) {
+      navigate('source');
+      document.querySelector('#sourceUploadLabel')?.focus();
+      return;
+    }
     navigate('quick-check');
     startQuickCheck();
   }));
@@ -5284,6 +5293,7 @@
     card.reviewStatus = action === 'approve' ? 'approved' : 'skipped';
     saveLectureReview();
     renderLectureDraftQueue();
+    renderHomeForActiveClass();
     showToast(action === 'approve' ? 'Card added to the ready set' : 'Card left out');
     if (action === 'approve' && ankiDesktopSettings.autoSync && ankiDesktopSettings.ownerId === state.account.userId) {
       sendReadyCardsToDesktop({ automatic: true });
