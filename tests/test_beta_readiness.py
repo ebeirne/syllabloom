@@ -14,7 +14,8 @@ class BetaReadinessContractTests(unittest.TestCase):
     def test_hosted_copy_is_honest_about_transcription(self) -> None:
         page = (ROOT / "index.html").read_text(encoding="utf-8")
         self.assertIn("lecture transcription is not included yet", page)
-        self.assertIn("Local audio/video library; no hosted transcription or cross-device media sync", page)
+        self.assertIn("Audio and video stay on this device", page)
+        self.assertIn("They do not sync across devices", page)
         self.assertNotIn("Syllabloom listens to the lecture", page)
         self.assertNotIn("60 live lecture minutes", page)
         self.assertNotIn("20 live lecture hours", page)
@@ -108,37 +109,15 @@ class BetaReadinessContractTests(unittest.TestCase):
         self.assertIn("await window.SyllabloomAuth?.signOutCurrentSession?.();", app)
         self.assertIn("document.querySelector('#signOutAccount').hidden = !state.account.signedIn;", app)
 
-    def test_public_beta_is_free_one_class_and_has_no_checkout_path(self) -> None:
+    def test_beta_pricing_preserves_class_scope_and_shows_real_annual_charge(self):
         page = (ROOT / "index.html").read_text(encoding="utf-8")
-        auth = (ROOT / "auth.js").read_text(encoding="utf-8")
         app = (ROOT / "app.js").read_text(encoding="utf-8")
-        styles = (ROOT / "redesign.css").read_text(encoding="utf-8")
-
-        self.assertIn("Free student beta", page)
-        self.assertIn("There is no subscription or checkout in this beta.", page)
+        self.assertIn("$108 billed annually", page)
+        self.assertIn("$12 billed each month", page)
+        self.assertIn("first 10 new members", page)
         self.assertIn("const betaClassLimit = 1;", app)
-        self.assertIn("if (accountClassUsage() >= betaClassLimit)", app)
-        self.assertIn("state.account.plan = 'free';", app)
-        class_setup = app.split("function startClassSetup()", 1)[1].split("function classIsReadyForCurrentUser()", 1)[0]
-        self.assertLess(class_setup.index("if (accountClassUsage() >= betaClassLimit)"), class_setup.index("if (!state.account.signedIn)"))
-        self.assertNotIn("Student", page)
-        self.assertNotIn("$9", page)
-        self.assertNotIn("mountBilling", app + auth)
-        self.assertNotIn('id="billingCheckoutDialog"', page)
-        self.assertNotIn(".billing-page .cl-pricingTableCard", styles)
-
-    def test_free_beta_offer_and_course_to_anki_value_are_clear_at_first_glance(self) -> None:
-        page = (ROOT / "index.html").read_text(encoding="utf-8")
-        hero = page.split('<section class="marketing-hero">', 1)[1].split("</section>", 1)[0]
-
-        self.assertIn("Free student beta", hero)
-        self.assertIn("one class", hero)
-        self.assertIn("$0", hero)
-        self.assertIn("No payment details", hero)
-        self.assertIn("Turn your course files into editable study cards.", hero)
-        self.assertIn("creates source-linked cards you can check, edit, study here, or export to Anki", hero)
-        self.assertIn("Start my free class", hero)
-        self.assertNotIn("Cards arrive ready to use", hero)
+        self.assertIn('data-subscribe="yearly"', page)
+        self.assertNotIn("There is no subscription or checkout", page)
 
     def test_media_copy_distinguishes_device_storage_from_account_sync(self) -> None:
         page = (ROOT / "index.html").read_text(encoding="utf-8")
@@ -335,7 +314,7 @@ class BetaReadinessContractTests(unittest.TestCase):
         self.assertIn("browser storage on the device", privacy)
         self.assertIn("Hosted transcription is currently disabled", privacy)
         self.assertIn("ethan.g.beirne@gmail.com", privacy)
-        self.assertIn("live payment checkout is not enabled", terms)
+        self.assertIn("$108 USD billed annually", terms)
         self.assertIn("governing-law location", terms)
         self.assertIn("ethan.g.beirne@gmail.com", terms)
         self.assertIn('href="/privacy.html"', app)

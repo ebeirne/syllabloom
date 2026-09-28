@@ -1775,8 +1775,8 @@
     avatar.alt = state.account.imageUrl ? `${signedInName} profile photo` : 'Syllabloom account mark';
     document.querySelector('#profileIdentityHeading').textContent = signedInName;
     document.querySelector('#profileEmail').textContent = emailText;
-    document.querySelector('#profileTierBadge').textContent = 'Free beta';
-    document.querySelector('#profileTierName').textContent = 'Free beta';
+    window.SyllabloomBilling?.render();
+    // Plan labels are supplied by the server-owned billing state.
     document.querySelector('#profileTierDescription').textContent = '1 active class, course-source imports, lecture storage, and Anki export.';
     document.querySelector('#profileClassUsage').textContent = `${used} of ${betaClassLimit}`;
     document.querySelector('#manageClerkProfile').textContent = state.account.signedIn ? 'Account & security' : 'Sign in';
@@ -1793,17 +1793,11 @@
   }
 
   function syncBillingSummary() {
-    document.querySelector('#billingTierBadge').textContent = 'Free beta';
-    document.querySelector('#billingCurrentDescription').textContent = 'One active class, with ready cards you can study here or export to Anki.';
-    document.querySelector('#billingCurrentPrice').textContent = '$0';
-    document.querySelector('#billingCurrentCadence').textContent = 'during beta';
-    document.querySelector('#billingManageAccount').textContent = state.account.signedIn ? 'Account & security' : 'Sign in';
+    window.SyllabloomBilling?.render();
   }
 
   function renderBillingPage() {
-    syncBillingSummary();
-    document.querySelector('#billingConnectionStatus').textContent = 'Free beta · 1 class';
-    document.querySelector('#billingFinePrint').textContent = 'There is no paid plan or checkout during this beta. You can join without payment details.';
+    window.SyllabloomBilling?.refresh();
   }
 
   async function detectRuntimeCapabilities() {
@@ -2895,9 +2889,10 @@
     exportButton.disabled = true;
     exportButton.textContent = 'Building package…';
     try {
+      const exportToken = await window.SyllabloomAuth?.getToken?.();
       const response = await fetch('/api/export-anki', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(exportToken ? { Authorization: `Bearer ${exportToken}` } : {}) },
         body: JSON.stringify({ cards: approved, preferences: state.anki })
       });
       if (!response.ok) {
@@ -4242,7 +4237,11 @@
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       const error = new Error(payload.error || fallback);
-      error.code = payload.errorCode || '';
+      error.code = payload.code || payload.errorCode || '';
+      if (response.status === 402 && error.code === 'subscription_required') {
+        location.hash = '#billing';
+        window.SyllabloomBilling?.refresh();
+      }
       error.retryable = payload.retryable === undefined
         ? response.status < 500
         : payload.retryable !== false;
@@ -4258,8 +4257,7 @@
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ filename: file.name, size: file.size })
     });
-    const ticket = await ticketResponse.json();
-    if (!ticketResponse.ok) throw new Error(ticket.error || 'The secure upload could not be prepared.');
+    const ticket = await checkedSourceResponse(ticketResponse, 'The secure upload could not be prepared.');
     try {
       await uploadLargeSourceFile(ticket.uploadUrl, file, ticket.contentType, onProgress);
       const response = await fetch('/api/source', {

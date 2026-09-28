@@ -30,12 +30,12 @@
       "description": "A one-class study workspace that turns course materials into editable, source-linked cards for study or Anki export.",
       "applicationCategory": "EducationalApplication",
       "operatingSystem": "Web",
-      "isAccessibleForFree": true,
+      "isAccessibleForFree": false,
       "offers": {
         "@type": "Offer",
-        "price": "0",
+        "price": "12",
         "priceCurrency": "USD",
-        "description": "Free student beta for one active class. No paid plan or checkout during beta."
+        "description": "One active class. $12 monthly or $108 billed annually. Ten new members receive free lifetime access."
       }
     }
   </script>
@@ -3568,16 +3568,16 @@
     <main>
       <section class="marketing-hero">
         <div class="marketing-hero-copy">
-          <p class="marketing-beta-kicker">Free student beta <span>·</span> one class <span>·</span> $0</p>
+          <p class="marketing-beta-kicker">Class material <span>→</span> study tools</p>
           <h1>Turn your course files into editable study cards.</h1>
           <p>Add a syllabus, slides, or notes. Syllabloom creates source-linked cards you can check, edit, study here, or export to Anki.</p>
           <div class="marketing-hero-actions">
-            <button class="button primary marketing-primary-cta" data-start-onboarding>Start my free class</button>
+            <button class="button primary marketing-primary-cta" data-start-onboarding>Start my class</button>
             <button class="marketing-link-button" data-open-sample>Preview a sample class <span aria-hidden="true"></span></button>
           </div>
           <div class="marketing-trust-line">
             <span>One active class</span>
-            <span>No payment details</span>
+            <span>Check your free-access eligibility</span>
             <span>Editable Anki export</span>
           </div>
         </div>
@@ -3714,29 +3714,16 @@
       </section>
 
       <section id="pricing" class="pricing-section" aria-labelledby="pricingTitle">
-        <div class="pricing-heading">
-          <div>
-            <h2 id="pricingTitle">Try every beta feature with one class.</h2>
-            <p>Add a syllabus and course materials, review and study your cards, then export them to Anki. The beta is free and has no checkout.</p>
-          </div>
-          <div class="pricing-note">
-            <img class="pricing-companion character-cutout" src="assets/rounds-mascot-celebrate.webp" width="900" height="900" loading="lazy" decoding="async" alt="The Syllabloom companion holding finished study cards" />
-            <span>Free during beta</span>
-          </div>
+        <div class="pricing-heading"><div><h2 id="pricingTitle">Your class material. Your study tools.</h2>
+        <p>One active class, editable flashcards, source checks, study practice, syllabus dates, and Anki export.</p></div></div>
+        <p class="pricing-footnote">The first 10 new members after our founder group receive free access for life. Sign in to check your eligibility. Existing founder and test accounts do not use these spots.</p>
+        <div class="pricing-board">
+          <article class="price-plan"><header><div><h3>Monthly</h3><p>Billed each month</p></div><strong>$12<span>/mo</span></strong></header>
+          <p>All available study tools for one active class.</p><button class="button price-action" data-open-billing>Choose monthly</button></article>
+          <article class="price-plan"><header><div><h3>Yearly</h3><p>$108 billed annually</p></div><strong>$9<span>/mo</span></strong></header>
+          <p>Save $36 per year compared with monthly billing.</p><button class="button primary price-action" data-open-billing>Choose yearly</button></article>
         </div>
-        <div class="pricing-board beta-pricing-board">
-          <article class="price-plan price-plan-free">
-            <header><div><h3>Free beta</h3><p>Use Syllabloom with one active class.</p></div><strong>$0</strong></header>
-            <ul>
-              <li>1 active class</li>
-              <li>Slides, documents, and syllabus mapping</li>
-              <li>Editable cards and Anki export</li>
-              <li>On-device lecture recording library</li>
-            </ul>
-            <button class="button price-action" data-start-onboarding>Start my free class</button>
-          </article>
-        </div>
-        <p class="pricing-footnote">One active class per account. No payment details or paid upgrade during beta. Slide and document processing, card editing, in-app study, and Anki export are available to test. Audio/video stays on this device; lecture transcription is not included yet.</p>
+        <p class="pricing-footnote">Prices in USD. Subscriptions renew until canceled. Audio/video stays on your device; hosted lecture transcription is not included yet. Review generated material before studying it.</p>
       </section>
 
       <section class="marketing-final-cta">
@@ -4492,7 +4479,7 @@
 
         <nav class="account-tabs" aria-label="Account pages">
           <button class="active" type="button" data-account-view="profile" aria-current="page">Profile</button>
-          <button type="button" data-account-view="billing">Beta access</button>
+          <button type="button" data-account-view="billing">Billing</button>
         </nav>
 
         <div class="profile-layout">
@@ -4520,7 +4507,7 @@
               <strong id="profileClassUsage">1 of 1</strong>
               <span>class used</span>
             </div>
-            <button class="button primary" type="button" data-open-billing>Beta access</button>
+            <button class="button primary" type="button" data-open-billing>Billing</button>
           </section>
 
           <section class="profile-card profile-classes" aria-labelledby="profileClassesHeading">
@@ -4554,38 +4541,38 @@
       <section id="billing" class="page account-page billing-page" aria-labelledby="billingPageTitle">
         <header class="account-page-head billing-page-head">
           <div>
-            <p class="account-page-path">Account / Beta access</p>
-            <h1 id="billingPageTitle">Your free beta access.</h1>
-            <p>Beta testing is free and limited to one active class per account. There is no subscription or checkout in this beta.</p>
+            <p class="account-page-path">Account / Billing</p>
+            <h1 id="billingPageTitle">Your plan. Your study tools.</h1>
+            <p>Founders and the next 10 new members keep free access for life. Everyone else can choose monthly or yearly billing.</p>
           </div>
           <img class="account-page-companion character-cutout" src="assets/rounds-mascot-anki.webp" width="900" height="900" alt="The Syllabloom companion packing finished study cards" />
         </header>
 
         <nav class="account-tabs" aria-label="Account pages">
           <button type="button" data-account-view="profile">Profile</button>
-          <button class="active" type="button" data-account-view="billing" aria-current="page">Beta access</button>
+          <button class="active" type="button" data-account-view="billing" aria-current="page">Billing</button>
         </nav>
 
         <section class="billing-current-card" aria-labelledby="billingCurrentHeading">
           <div>
             <span id="billingTierBadge" class="tier-badge">Free</span>
-            <h2 id="billingCurrentHeading">Your beta access</h2>
+            <h2 id="billingCurrentHeading">Your access</h2>
             <p id="billingCurrentDescription">One active class, with ready cards you can study here or export to Anki.</p>
           </div>
-          <div class="billing-current-price"><strong id="billingCurrentPrice">$0</strong><span id="billingCurrentCadence">during beta</span></div>
+          <div class="billing-current-price"><strong id="billingCurrentPrice">—</strong><span id="billingCurrentCadence"></span></div>
           <button id="billingManageAccount" class="button" type="button">Account &amp; security</button>
         </section>
 
         <section class="billing-plans-shell" aria-labelledby="billingPlansHeading">
-          <header><div><p class="profile-card-label">Included</p><h2 id="billingPlansHeading">Everything in the beta</h2></div><span id="billingConnectionStatus" class="billing-status">Free beta</span></header>
-          <div id="billingPlanFallback" class="billing-plan-fallback beta-plan-fallback">
-            <article>
-              <span>One class</span><strong>$0</strong><p>Use every available beta feature with one active class at no cost.</p>
-              <ul><li>1 active class</li><li>Slide and document processing</li><li>Local audio/video library; no hosted transcription or cross-device media sync</li><li>Editable cards from readable course material; study here or export to Anki</li></ul>
-              <button class="button" type="button" disabled>Included in beta</button>
-            </article>
+          <header><div><p class="profile-card-label">Included</p><h2 id="billingPlansHeading">Choose your plan</h2></div><span id="billingConnectionStatus" class="billing-status">Checking access</span></header>
+          <div id="billingPlanFallback" class="billing-plan-fallback">
+            <article><span>Monthly</span><strong>$12 <small>/ month</small></strong><p>$12 billed each month.</p><button class="button" type="button" data-subscribe="monthly">Choose monthly</button></article>
+            <article><span>Yearly · save 25%</span><strong>$9 <small>/ month</small></strong><p>$108 billed once a year.</p><button class="button primary" type="button" data-subscribe="yearly">Choose yearly</button></article>
           </div>
-          <p id="billingFinePrint" class="billing-fine-print">No card details, paid plan, or payment provider is needed to join this beta.</p>
+          <p>Both plans include one active class, document processing, editable cards, source checks, study practice, syllabus dates, and Anki export. Hosted transcription is not included.</p>
+          <p id="billingFinePrint" class="billing-fine-print" aria-live="polite"></p>
+          <button id="refreshBilling" class="button" type="button">Refresh access</button>
+          <button id="manageSubscription" class="button" type="button" hidden>Manage or cancel subscription</button>
         </section>
       </section>
 
@@ -4811,7 +4798,7 @@
       <button class="nav-button" data-view="knowledge"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h6"/></svg></span><span>Calendar</span></button>
       <button class="nav-button" data-view="study"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><path d="M12 3c.7 4.5 3 6.8 7 7.5-4 .7-6.3 3-7 7.5-.7-4.5-3-6.8-7-7.5 4-.7 6.3-3 7-7.5Z"/><path d="M18.5 16.5c.2 1.4.9 2.1 2.2 2.3-1.3.2-2 1-2.2 2.2-.2-1.2-.9-2-2.2-2.2 1.3-.2 2-1 2.2-2.3Z"/></svg></span><span>Study</span></button>
     </nav>
-    <footer class="app-legal-footer"><span>Free student beta · one class</span><nav aria-label="Legal information"><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></nav></footer>
+    <footer class="app-legal-footer"><span>Class material → study tools · one active class</span><nav aria-label="Legal information"><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></nav></footer>
   </div>
 
   <dialog id="calendarScheduleImportDialog" class="calendar-import-dialog" aria-labelledby="calendarScheduleImportTitle">
@@ -5029,8 +5016,8 @@
       <div class="account-dialog-copy">
         <span class="account-kicker">One class per beta account</span>
         <h1 id="classLimitTitle">Your one beta class is already in use.</h1>
-        <p>Free beta access includes one active class per account. Your current class stays available, with its materials, study tools, and Anki export.</p>
-        <div class="class-limit-meter"><span><b></b></span><strong id="classLimitReadout">1 of 1 free class used</strong></div>
+        <p>Your plan includes one active class per account. Your current class stays available, with its materials, study tools, and Anki export.</p>
+        <div class="class-limit-meter"><span><b></b></span><strong id="classLimitReadout">1 of 1 active class used</strong></div>
         <div class="account-dialog-actions">
           <button class="button primary" type="button" data-see-pricing>See beta access</button>
           <button class="button" type="button" data-close-class-limit>Keep studying this class</button>
@@ -5072,6 +5059,7 @@
   <script src="source-batch.js?v=20260922-source-batch-1"></script>
   <script src="course-map.js?v=20260923-course-map-1"></script>
   <script src="app.js?v=20260925-card-quality-guard-1"></script>
+  <script src="billing.js?v=20260928-billing-1"></script>
   <script type="module" src="motion-effects.js?v=20260921-motion-smooth-2"></script>
 </body>
 </html>

@@ -3219,6 +3219,10 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         request_path = urlparse(self.path).path
+        if request_path == "/api/billing-access":
+            from api.billing import handle_api
+            handle_api(self, self.command)
+            return
         if request_path == "/api/user-data":
             from api.user_data import handle_request
 
@@ -3269,6 +3273,14 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:
         request_path = urlparse(self.path).path
+        if request_path == "/api/billing-access":
+            from api.billing import handle_api
+            handle_api(self, "POST")
+            return
+        if request_path == "/api/stripe-webhook":
+            from api.billing import handle_webhook
+            handle_webhook(self)
+            return
         if request_path == "/api/export-anki":
             self.handle_anki_export()
             return
@@ -3348,6 +3360,9 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
                 temporary_path.unlink(missing_ok=True)
 
     def handle_anki_export(self) -> None:
+        from api.billing import require_access
+        if not require_access(self):
+            return
         try:
             content_length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
@@ -3369,6 +3384,9 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
             self.send_json({"error": "Anki package export failed locally."}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
     def handle_source_upload(self) -> None:
+        from api.billing import require_access
+        if not require_access(self):
+            return
         try:
             content_length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
@@ -3447,6 +3465,9 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
                 temporary_path.unlink(missing_ok=True)
 
     def handle_source_batch(self) -> None:
+        from api.billing import require_access
+        if not require_access(self):
+            return
         try:
             content_length = int(self.headers.get("Content-Length", "0"))
         except ValueError:

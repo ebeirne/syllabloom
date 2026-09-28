@@ -76,6 +76,19 @@ module.exports = async function sourceUploadUrl(request, response) {
   try {
     const userId = await authenticatedUser(request);
     if (!userId) return sendJson(response, 401, { error: 'Sign in before adding course materials.' });
+    if (process.env.SYLLABLOOM_BILLING_ENABLED === 'true') {
+      const origin = String(process.env.SYLLABLOOM_APP_URL || '').replace(/\/$/, '');
+      if (!origin.startsWith('https://')) throw new Error('Billing origin is not configured.');
+      const accessResponse = await fetch(`${origin}/api/billing-access`, {
+        headers: { Authorization: request.headers.authorization },
+        signal: AbortSignal.timeout(15000), redirect: 'error'
+      });
+      if (!accessResponse.ok) return sendJson(response, 503, { error: 'Could not verify your plan. Try again shortly.' });
+      const access = await accessResponse.json();
+      if (access.enabled !== true || access.access !== true) {
+        return sendJson(response, 402, { error: 'Choose a plan before adding class material.', code: 'subscription_required' });
+      }
+    }
     const body = await requestBody(request);
     const name = String(body?.filename || '').split(/[\\/]/).pop().slice(0, 255);
     const extension = name.split('.').pop().toLowerCase();
