@@ -22,7 +22,9 @@
 
       if (!allowedExtensions.has(extension)) {
         item.status = 'failed';
-        item.error = 'Use a DOCX, PPTX, PDF, or TXT file.';
+        item.error = ['ppt', 'pptw'].includes(extension)
+          ? 'Save this PowerPoint as .pptx or export it as a PDF, then upload that file. Renaming the extension will not convert it.'
+          : 'Use a DOCX, PPTX, PDF, or TXT file.';
       } else if (!item.size) {
         item.status = 'failed';
         item.error = 'This document is empty. Choose a file that contains content.';

@@ -116,8 +116,8 @@ module.exports = async function sourceUploadUrl(request, response) {
     const uploadUrl = await sign('put', now + PUT_WINDOW_MS, {
       allowedContentTypes: [contentType],
       maximumSizeInBytes: size
-    });
-    const sourceUrl = await sign('get', now + READ_WINDOW_MS, {}, {access: 'private'});
+    }, { addRandomSuffix: false });
+    const sourceUrl = await sign('get', now + READ_WINDOW_MS, {}, {access: 'private', useCache: false});
     const deleteUrl = await sign('delete', now + DELETE_WINDOW_MS);
     return sendJson(response, 200, { uploadUrl, sourceUrl, deleteUrl, pathname, contentType, maxBytes: MAX_SOURCE_BYTES });
   } catch (error) {

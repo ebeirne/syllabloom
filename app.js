@@ -1308,8 +1308,9 @@
       return { pageTexts, text };
     } finally {
       if (worker) await worker.terminate().catch(() => {});
-      if (pdf) await pdf.destroy().catch(() => {});
-      else await loadingTask.destroy().catch(() => {});
+      // PDF.js owns document/worker teardown on the loading task. The document
+      // proxy no longer exposes destroy in PDF.js 6.
+      await loadingTask.destroy().catch(() => {});
     }
   }
 

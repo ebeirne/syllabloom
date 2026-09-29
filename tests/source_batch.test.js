@@ -6,6 +6,15 @@ function file(name, size = 2048) {
   return { name, size };
 }
 
+test('legacy PowerPoint files get actionable conversion instructions', () => {
+  for (const extension of ['ppt', 'pptw']) {
+    const [item] = createQueueItems([file(`lecture.${extension}`)]);
+    assert.equal(item.status, 'failed');
+    assert.match(item.error, /Save this PowerPoint as .pptx/);
+    assert.match(item.error, /Renaming the extension will not convert/);
+  }
+});
+
 test('creates a mixed-document queue with a separately editable type per file', () => {
   const items = createQueueItems([
     file('lecture-6.pdf'),

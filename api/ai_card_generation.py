@@ -377,6 +377,8 @@ def _request_chunk(
                 raise CardGenerationError()
         payload = json.loads(raw.decode("utf-8"))
         if payload.get("status") not in {None, "completed"}:
+            reason = (payload.get("incomplete_details") or {}).get("reason")
+            print(f"Card provider incomplete: token_limit={reason == 'max_output_tokens'}", flush=True)
             raise CardGenerationError()
         parsed = json.loads(_response_text(payload))
         cards = parsed.get("cards")
@@ -385,8 +387,10 @@ def _request_chunk(
         return cards[:MAX_CARDS_PER_CHUNK]
     except HTTPError as exc:
         # Do not surface upstream response text; it can contain account or request details.
+        print(f"Card provider HTTP status: {exc.code}", flush=True)
         raise CardGenerationError() from exc
     except (URLError, TimeoutError, OSError, UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError) as exc:
+        print(f"Card provider exchange failed: {type(exc).__name__}", flush=True)
         raise CardGenerationError() from exc
 
 
