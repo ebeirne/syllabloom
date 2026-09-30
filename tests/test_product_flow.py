@@ -8,6 +8,19 @@ from api.ai_card_generation import _source_chunks, SourceTextLimitError
 from api import product_events as events
 
 
+@pytest.mark.parametrize('page', [
+    'αβγδεζηθ\nshoulder cartilage in the joint',
+    'shoulder cartilage in the joint\nαβγδεζηθ\nArticular surface',
+    '中文解剖学\nGlenoid labrum is made of fibrocartilage.',
+])
+def test_ocr_non_latin_lines_do_not_crash_source_inspection(page):
+    from api.source import _source_summary_from_ocr
+    result = _source_summary_from_ocr('anatomy.pdf', 'material', page, [page], 'a' * 64)
+    assert result['source']['preflight']['requiresCards']
+    assert result['extractedUnits']['pageTexts'] == [page]
+    assert result['source']['studySections'][0]['text'] == page
+
+
 def test_blank_pdf_pages_remain_visible_and_selected_pages_keep_original_numbers():
     sections = study_sections('First\nThird', {'pageTexts':['First','','Third']})
     assert [row['label'] for row in sections] == ['Page 1','Page 2','Page 3']

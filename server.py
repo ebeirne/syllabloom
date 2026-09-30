@@ -992,9 +992,11 @@ def _pdf_paragraphs(page_text: str) -> list[str]:
             flush()
             paragraphs.append(line.rstrip(":"))
             continue
-        last_word = re.findall(r"[A-Za-z]+", current.lower())[-1] if current else ""
-        last_token = re.findall(r"[A-Za-z]+", current)[-1] if current else ""
-        next_token = re.findall(r"[A-Za-z]+", line)[0] if line else ""
+        current_tokens = re.findall(r"[A-Za-z]+", current)
+        next_tokens = re.findall(r"[A-Za-z]+", line)
+        last_token = current_tokens[-1] if current_tokens else ""
+        last_word = last_token.lower()
+        next_token = next_tokens[0] if next_tokens else ""
         continuation = (
             bool(current)
             and not re.search(r"[.!?]$", current)
