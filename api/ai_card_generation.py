@@ -472,7 +472,7 @@ def _preserve_explicit_slide_facts(cards: list[dict], chunks: list[dict], filena
     Only the selected batch is inspected; unanswered assessment questions are never
     filled in. Reuse the source parser, not model knowledge, for these exact facts.
     """
-    if kind != "material" or Path(filename).suffix.lower() != ".pptx":
+    if kind != "material" or Path(filename).suffix.lower() not in {".ppt", ".pptw", ".pptx"}:
         return cards
     from server import draft_cards_from_structured_slides
 

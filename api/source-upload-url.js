@@ -6,6 +6,8 @@ const READ_WINDOW_MS = 15 * 60 * 1000;
 const DELETE_WINDOW_MS = 24 * 60 * 60 * 1000;
 const extensionTypes = {
   pdf: 'application/pdf',
+  ppt: 'application/vnd.ms-powerpoint',
+  pptw: 'application/vnd.ms-powerpoint',
   pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   txt: 'text/plain'
@@ -95,7 +97,7 @@ module.exports = async function sourceUploadUrl(request, response) {
     const contentType = extensionTypes[extension];
     const size = Number(body?.size);
     if (!contentType || !name) {
-      return sendJson(response, 400, { error: 'Use a DOCX, PPTX, PDF, or TXT source.' });
+      return sendJson(response, 400, { error: 'Use a DOCX, PowerPoint, PDF, or TXT source.' });
     }
     if (!Number.isSafeInteger(size) || size <= 0 || size > MAX_SOURCE_BYTES) {
       return sendJson(response, 413, { error: 'Each document can be up to 100 MB in this beta.' });

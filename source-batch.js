@@ -1,6 +1,6 @@
 (function (root) {
   const allowedKinds = new Set(['auto', 'material', 'syllabus', 'assessment']);
-  const allowedExtensions = new Set(['docx', 'pptx', 'pdf', 'txt']);
+  const allowedExtensions = new Set(['docx', 'ppt', 'pptw', 'pptx', 'pdf', 'txt']);
   const maxFileBytes = 100 * 1024 * 1024;
   let nextQueueId = 0;
 
@@ -39,9 +39,7 @@
 
       if (!allowedExtensions.has(extension)) {
         item.status = 'failed';
-        item.error = ['ppt', 'pptw'].includes(extension)
-          ? 'Save this PowerPoint as .pptx or export it as a PDF, then upload that file. Renaming the extension will not convert it.'
-          : 'Use a DOCX, PPTX, PDF, or TXT file.';
+        item.error = 'Use a DOCX, PowerPoint, PDF, or TXT file.';
       } else if (!item.size) {
         item.status = 'failed';
         item.error = 'This document is empty. Choose a file that contains content.';

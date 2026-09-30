@@ -6,12 +6,11 @@ function file(name, size = 2048) {
   return { name, size };
 }
 
-test('legacy PowerPoint files get actionable conversion instructions', () => {
+test('legacy PowerPoint files are queued without requiring conversion', () => {
   for (const extension of ['ppt', 'pptw']) {
     const [item] = createQueueItems([file(`lecture.${extension}`)]);
-    assert.equal(item.status, 'failed');
-    assert.match(item.error, /Save this PowerPoint as .pptx/);
-    assert.match(item.error, /Renaming the extension will not convert/);
+    assert.equal(item.status, 'queued');
+    assert.equal(item.error, '');
   }
 });
 
@@ -40,7 +39,7 @@ test('marks empty, unsupported, and oversized files before submission', () => {
 
   assert.deepEqual(items.map(item => item.status), ['failed', 'failed', 'failed']);
   assert.match(items[0].error, /empty/i);
-  assert.match(items[1].error, /DOCX, PPTX, PDF, or TXT/i);
+  assert.match(items[1].error, /DOCX, PowerPoint, PDF, or TXT/i);
   assert.match(items[2].error, /up to 100 MB/i);
   assert.ok(items.every(item => !item.retryable));
 });

@@ -3,6 +3,15 @@ const assert = require('node:assert/strict');
 const { IDBFactory } = require('fake-indexeddb');
 const { createStore } = require('../source-import-store.js');
 
+test('a previously rejected legacy PowerPoint queue becomes importable after upgrade', async () => {
+  const store = createStore(new IDBFactory());
+  await store.save('alice', [{ name: 'lecture.ppt', file: new Blob(['binary deck']),
+    status: 'failed', retryable: false, error: 'Save this PowerPoint as .pptx or export it as a PDF, then upload that file.' }]);
+  const [item] = await store.load('alice');
+  assert.equal(item.status, 'queued');
+  assert.equal(item.error, '');
+});
+
 test('unfinished imports survive a new store with file contents and completed batches', async () => {
   const factory = new IDBFactory();
   await createStore(factory).save('alice', [{ id: 'one', status: 'processing',

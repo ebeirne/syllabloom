@@ -135,7 +135,9 @@ class BetaReadinessContractTests(unittest.TestCase):
         source_api = (ROOT / "api/source.py").read_text(encoding="utf-8")
         auth_api = (ROOT / "api/user_data.py").read_text(encoding="utf-8")
 
-        self.assertIn("headers: token ? { Authorization: `Bearer ${token}` } : {}", app)
+        self.assertIn("window.SyllabloomSourceBatch.authenticatedRequest", app)
+        batch = (ROOT / "source-batch.js").read_text(encoding="utf-8")
+        self.assertIn("headers.Authorization = `Bearer ${token}`", batch)
         self.assertIn("require_authenticated_beta_request(self, \"adding course materials\")", source_api)
         self.assertIn("if not _runtime_auth_configured():", auth_api)
         self.assertIn("Beta sign-in is unavailable until production authentication is configured.", auth_api)
@@ -249,7 +251,7 @@ class BetaReadinessContractTests(unittest.TestCase):
         batch = (ROOT / "source-batch.js").read_text(encoding="utf-8")
         styles = (ROOT / "redesign.css").read_text(encoding="utf-8")
 
-        self.assertIn('id="sourceUpload" type="file" accept=".docx,.pptx,.pdf,.txt" multiple', page)
+        self.assertIn('id="sourceUpload" type="file" accept=".docx,.ppt,.pptw,.pptx,.pdf,.txt" multiple', page)
         self.assertIn('id="sourceQueue"', page)
         self.assertIn('id="sourceQueueList"', page)
         self.assertIn('id="sourceQueueProgress" role="status" aria-live="polite"', page)

@@ -13,6 +13,7 @@ import tempfile
 import threading
 import time
 import zipfile
+from api.legacy_powerpoint import PowerPointReadError
 from collections.abc import Callable
 from datetime import date, datetime, timezone
 from http import HTTPStatus
@@ -33,7 +34,7 @@ MODEL_PATH = Path(
 )
 MAX_UPLOAD_BYTES = 1024 * 1024 * 1024
 ALLOWED_SUFFIXES = {".wav", ".mp3", ".m4a", ".webm", ".ogg", ".flac", ".mp4", ".mov"}
-SOURCE_SUFFIXES = {".docx", ".pptx", ".pdf", ".txt"}
+SOURCE_SUFFIXES = {".docx", ".ppt", ".pptw", ".pptx", ".pdf", ".txt"}
 DATA_DIR = ROOT / "data"
 SESSIONS_DIR = DATA_DIR / "sessions"
 SOURCE_LIBRARY_PATH = DATA_DIR / "source-library.json"
@@ -88,7 +89,10 @@ def extract_source_text(path: Path, suffix: str) -> tuple[str, dict]:
                 if line:
                     lines.append(line)
         return "\n".join(lines), {"unitLabel": "paragraphs", "unitCount": len(lines)}
-    if suffix == ".pptx":
+    if suffix in {".ppt", ".pptw", ".pptx"}:
+        if not zipfile.is_zipfile(path):
+            from api.legacy_powerpoint import extract_legacy_powerpoint
+            return extract_legacy_powerpoint(path)
         namespaces = {
             "a": "http://schemas.openxmlformats.org/drawingml/2006/main",
             "p": "http://schemas.openxmlformats.org/presentationml/2006/main",
@@ -2283,7 +2287,7 @@ def source_summary(
     else:
         compiled = compile_study_material(text, filename)
     generated = card_generator(text, filename, resolved_kind, units) if card_generator and not is_syllabus and not is_admin_form else None
-    structured_cards = draft_cards_from_structured_slides(text, filename) if suffix == ".pptx" and not is_syllabus else []
+    structured_cards = draft_cards_from_structured_slides(text, filename) if suffix in {".ppt", ".pptw", ".pptx"} and not is_syllabus else []
     draft_cards = generated["cards"] if generated is not None else (structured_cards or compiled["cards"])
     concepts = generated["concepts"] if generated is not None else compiled["concepts"]
     calendar = syllabus_calendar(
@@ -3418,7 +3422,7 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
         filename = Path(upload.filename or "source.txt").name
         suffix = Path(filename).suffix.lower()
         if suffix not in SOURCE_SUFFIXES:
-            self.send_json({"error": "Use a DOCX, PPTX, PDF, or TXT source."}, HTTPStatus.BAD_REQUEST)
+            self.send_json({"error": "Use a DOCX, PowerPoint, PDF, or TXT source."}, HTTPStatus.BAD_REQUEST)
             return
         kind_value = form.getfirst("kind", "auto")
         temporary_path = None
@@ -3463,6 +3467,8 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
                 "errorCode": "NO_SELECTABLE_TEXT",
                 "fileFingerprint": getattr(exc, "file_fingerprint", ""),
             }, HTTPStatus.UNPROCESSABLE_ENTITY)
+        except PowerPointReadError as exc:
+            self.send_json({"error": str(exc), "retryable": False}, HTTPStatus.UNPROCESSABLE_ENTITY)
         except CardGenerationError as exc:
             self.send_json({"error": exc.public_message}, exc.status)
         except Exception as exc:

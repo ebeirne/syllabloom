@@ -20,6 +20,7 @@ from api.ai_card_generation import (
     _source_chunks,
 )
 from api.ai_source_cards import generate_source_cards, generate_source_cards_batch
+from api.legacy_powerpoint import PowerPointReadError
 from api._common import JsonHandler
 from api.user_data import authenticated_user, require_authenticated_beta_request
 from server import NoSelectableTextError, SOURCE_SUFFIXES, extract_source_text, source_summary
@@ -97,7 +98,7 @@ def _source_preflight(path: Path, filename: str, kind: str) -> dict:
         "requiresCards": True,
         "unitLabel": units.get("unitLabel", "sections"),
         "unitCount": units.get("unitCount", 0),
-        "unitsWithText": len(slide_numbers) if suffix == ".pptx" else sum(
+        "unitsWithText": len(slide_numbers) if suffix in {".ppt", ".pptw", ".pptx"} else sum(
             1 for page in (units.get("pageTexts") or []) if str(page).strip()
         ) if suffix == ".pdf" else units.get("unitCount", 0),
         "lowTextPages": low_text_pages,
@@ -235,7 +236,7 @@ def _blob_api_delete_url(value: object, pathname: str) -> str:
 
 def _source_path(value: object, user_id: str) -> str:
     pathname = str(value or "")
-    pattern = rf"source-uploads/{re.escape(user_id)}/[a-f0-9-]{{36}}\.(?:pdf|pptx|docx|txt)"
+    pattern = rf"source-uploads/{re.escape(user_id)}/[a-f0-9-]{{36}}\.(?:pdf|ppt|pptw|pptx|docx|txt)"
     if not re.fullmatch(pattern, pathname):
         raise ValueError("The temporary upload path is invalid.")
     return pathname
@@ -339,7 +340,7 @@ class handler(JsonHandler):
                 filename = Path(str(body.get("filename") or "source.txt")).name
                 suffix = Path(filename).suffix.lower()
                 if suffix not in SOURCE_SUFFIXES or not pathname.endswith(suffix):
-                    raise ValueError("Use a DOCX, PPTX, PDF, or TXT source.")
+                    raise ValueError("Use a DOCX, PowerPoint, PDF, or TXT source.")
                 kind = str(body.get("kind") or "auto")
                 if kind not in {"auto", "material", "syllabus", "assessment"}:
                     kind = "auto"
@@ -363,6 +364,8 @@ class handler(JsonHandler):
                     "errorCode": "NO_SELECTABLE_TEXT",
                     "fileFingerprint": getattr(exc, "file_fingerprint", ""),
                 }, HTTPStatus.UNPROCESSABLE_ENTITY)
+            except PowerPointReadError as exc:
+                self.send_json({"error": str(exc), "retryable": False}, HTTPStatus.UNPROCESSABLE_ENTITY)
             except CardGenerationError as exc:
                 self.send_json({"error": exc.public_message}, exc.status)
             except (ValueError, json.JSONDecodeError, UnicodeDecodeError) as exc:
@@ -402,7 +405,7 @@ class handler(JsonHandler):
         filename = Path(upload.filename or "source.txt").name
         suffix = Path(filename).suffix.lower()
         if suffix not in SOURCE_SUFFIXES:
-            self.send_json({"error": "Use a DOCX, PPTX, PDF, or TXT source."}, HTTPStatus.BAD_REQUEST)
+            self.send_json({"error": "Use a DOCX, PowerPoint, PDF, or TXT source."}, HTTPStatus.BAD_REQUEST)
             return
 
         try:
@@ -435,6 +438,8 @@ class handler(JsonHandler):
                 "errorCode": "NO_SELECTABLE_TEXT",
                 "fileFingerprint": getattr(exc, "file_fingerprint", ""),
             }, HTTPStatus.UNPROCESSABLE_ENTITY)
+        except PowerPointReadError as exc:
+            self.send_json({"error": str(exc), "retryable": False}, HTTPStatus.UNPROCESSABLE_ENTITY)
         except CardGenerationError as exc:
             self.send_json({"error": exc.public_message}, exc.status)
         except Exception as exc:

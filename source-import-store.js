@@ -3,6 +3,10 @@
   function restoredItems(items) {
     return (items || []).filter(item => item.status !== 'done').map(item => ({
       ...item,
+      ...(item.status === 'failed' && /\.(ppt|pptw)$/i.test(item.name || '')
+        && /Save this PowerPoint as \.pptx/.test(item.error || '')
+        && item.file?.size > 0 && item.file.size <= 100 * 1024 * 1024
+        ? { status: 'queued', retryable: false, error: '' } : {}),
       ...(item.status === 'processing' ? {
         status: 'failed', retryable: true,
         error: 'Import paused. Choose Resume import to recover completed work.'
