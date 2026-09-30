@@ -17,6 +17,7 @@
     return result;
   }
   function render() {
+    window.dispatchEvent(new CustomEvent('syllabloom:billing-change', {detail:current}));
     const plan = current?.plan;
     const label = plan === 'founder' ? 'Founder access' : plan === 'early' ? 'Early member' : plan === 'student' ? 'Student' : plan === 'beta' ? 'Beta access' : 'Choose a plan';
     for (const id of ['billingTierBadge', 'profileTierBadge', 'profileTierName']) text(id, label);
@@ -62,6 +63,7 @@
       if (result.url) {
         const url = new URL(result.url);
         if (url.protocol !== 'https:' || !['checkout.stripe.com', 'billing.stripe.com'].includes(url.hostname)) throw new Error('Invalid checkout destination.');
+        if (body.action === 'checkout') { window.SyllabloomEvents?.track('checkout_started', {cadence:body.cadence}); await Promise.race([window.SyllabloomEvents?.flush(), new Promise(resolve=>setTimeout(resolve,1000))]); }
         location.assign(url.href);
       } else throw new Error('Checkout is not enabled yet.');
     } catch (error) { if (revision === authRevision) text('billingConnectionStatus', error.message); }
@@ -77,6 +79,16 @@
   document.querySelector('#refreshBilling')?.addEventListener('click', refresh);
   window.addEventListener('syllabloom:auth-change', () => { authRevision++; refresh(); });
   window.addEventListener('hashchange', () => { if (location.hash === '#billing') refresh(); });
-  window.SyllabloomBilling = { refresh, render, get current() { return current; } };
+  document.querySelector('#checkBillingConfiguration')?.addEventListener('click', async event => {
+    const button=event.currentTarget;button.disabled=true;const revision=authRevision;
+    text('billingConfigurationResult','Checking configured prices in Stripe...');
+    try { const result=await request({action:'verify-config'}); if(revision!==authRevision) return;
+      text('billingConfigurationResult',result.pricesVerified?.monthly && result.pricesVerified?.yearly
+        ? `Stripe ${result.mode} prices verified: $12 monthly and $108 yearly. Webhook secret ${result.webhookConfigured ? 'configured' : 'missing'}; portal ${result.portalConfigured ? 'configured' : 'missing'}. This does not test a charge, cancellation or refund.`
+        : 'Payment configuration needs review. At least one configured price did not match the advertised plan.');
+    } catch(error) { if(revision===authRevision) text('billingConfigurationResult',error.message); }
+    finally {button.disabled=false;}
+  });
+  window.SyllabloomBilling = { refresh, render, async ensureAccess() { const revision=authRevision; const result=await request(); if(revision!==authRevision) throw new Error('Account changed. Try again.'); current=result; render(); return result; }, get current() { return current; } };
   refresh();
 })();

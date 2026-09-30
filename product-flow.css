@@ -1,0 +1,35 @@
+.source-card-previews { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin:24px 0; }
+.source-card-preview { border:1px solid currentColor; border-radius:16px; padding:20px; min-width:0; background:#fffdf6; }
+.source-card-preview h3 { font-size:18px; line-height:1.45; margin:8px 0 18px; overflow-wrap:anywhere; }
+.source-card-preview p,.source-card-preview blockquote { overflow-wrap:anywhere; }
+.source-card-preview blockquote { margin:16px 0 0; padding-left:12px; border-left:3px solid #b5c990; font-size:13px; }
+.source-card-preview summary,.upload-options summary,.source-coverage summary,.source-notes-details summary { cursor:pointer; font-weight:650; padding:10px 0; }
+.flow-actions { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin:16px 0; }
+.source-coverage,.source-notes-details { border-top:1px solid #d8dacd; padding:14px 0; }
+.coverage-row { display:flex; align-items:flex-start; gap:12px; padding:14px 0; border-bottom:1px solid #d8dacd; }
+.coverage-row input { flex-shrink:0; margin-top:5px; width:20px; height:20px; }
+.coverage-row small { display:block; margin-top:5px; }
+.coverage-row span { overflow-wrap:anywhere; min-width:0; }
+.return-study { margin-bottom:24px; }
+.return-study h2 { margin-top:8px; }
+.usage-preferences { margin-bottom:24px; }
+.usage-preferences label { display:flex; gap:12px; align-items:center; }
+.upload-options { margin-top:14px; max-width:640px; }
+.source-study-output [hidden],#shortStudyComplete[hidden],#returnStudyPanel[hidden],#productReportPanel[hidden] { display:none !important; }
+@media(max-width:760px) { .source-card-previews { grid-template-columns:1fr; } .source-import-controls { flex-wrap:wrap; } .flow-actions .button { min-height:44px; } .source-study-output>header { flex-wrap:wrap; gap:16px; } .source-study-output { padding:20px; } }
+/* Keep the upload action ahead of optional setup and long disclosures. */
+#source .source-import { display:block !important; }
+#source .source-import-controls { margin:20px 0; justify-content:flex-start; flex-direction:row; }
+#source .source-import-controls > * { width:auto; }
+#source .upload-options .source-kind-picker { max-width:260px; margin:12px 0; }
+#source .source-kind-hint { font-size:13px; line-height:1.5; margin-top:12px !important; }
+@media(max-width:760px) {
+  #source .page-head h1 { font-size:38px !important; }
+  #source .page-head { margin-bottom:20px; }
+  #source .materials-story-panel { min-height:0; padding:24px !important; }
+  #source .materials-mascot { width:80px; left:auto; right:12px; top:8px; transform:rotate(-3deg); }
+  #source .source-import h2 { max-width:180px; padding-right:10px; }
+  #source .source-import > div > p:first-of-type { margin-top:20px !important; }
+}
+#quickClassSettings { width:min(460px,calc(100vw - 32px)); border:2px solid var(--ink); border-radius:24px; background:var(--paper); }
+#quickClassSettings input { width:100%; }

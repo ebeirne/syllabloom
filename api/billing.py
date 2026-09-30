@@ -252,6 +252,24 @@ def portal(user_id):
     return {'url': result.url}
 
 
+def configuration_health():
+    client = stripe_client()
+    checked = {}
+    for cadence, price_id in prices().items():
+        value = client.v1.prices.retrieve(price_id)
+        price = value if isinstance(value, dict) else value.to_dict()
+        expected = 1200 if cadence == 'monthly' else 10800
+        checked[cadence] = bool(price.get('active') and price.get('currency') == 'usd'
+            and price.get('unit_amount') == expected
+            and price.get('recurring', {}).get('interval') == ('month' if cadence == 'monthly' else 'year')
+            and price.get('recurring', {}).get('interval_count') == 1
+            and price.get('livemode') == (os.environ.get('STRIPE_MODE') == 'live'))
+    return {'pricesVerified': checked, 'mode': os.environ.get('STRIPE_MODE'),
+            'webhookConfigured': bool(os.environ.get('STRIPE_WEBHOOK_SECRET')),
+            'portalConfigured': os.environ.get('STRIPE_PORTAL_CONFIGURATION', '').startswith('bpc_'),
+            'returnURL': app_url()}
+
+
 def handle_api(request, method):
     if not enabled():
         request.send_json({'enabled': False, 'access': True, 'plan': 'beta'})
@@ -269,6 +287,11 @@ def handle_api(request, method):
                 raise ValueError('Invalid billing request.')
             if body.get('action') == 'checkout':
                 result = checkout(user, body.get('cadence'))
+            elif body.get('action') == 'verify-config':
+                if user not in founders():
+                    request.send_json({'error': 'This check is for the product team.'}, HTTPStatus.FORBIDDEN)
+                    return
+                result = configuration_health()
             elif body.get('action') == 'portal':
                 result = portal(user)
             else:
@@ -318,6 +341,8 @@ def handle_webhook(request):
                         db.execute('''INSERT INTO syllabloom_subscription_status(customer_id, has_access)
                             VALUES (%s,%s) ON CONFLICT(customer_id) DO UPDATE
                             SET has_access=EXCLUDED.has_access, verified_at=NOW()''', (customer, bool(paid)))
+                        from api.product_events import record_payment_event
+                        record_payment_event(db, record['user_id'], event, paid)
         request.send_json({'received': True})
     except Exception:
         request.send_json({'error': 'Please retry delivery.'}, HTTPStatus.SERVICE_UNAVAILABLE)

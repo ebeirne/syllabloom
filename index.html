@@ -3544,6 +3544,7 @@
   <link rel="stylesheet" href="redesign.css?v=20260925-question-style-1">
   <link rel="stylesheet" href="memphis.css?v=20260925-card-quality-guard-1">
   <link rel="stylesheet" href="seo-pages.css?v=20260923-seo-guides-1">
+  <link rel="stylesheet" href="product-flow.css?v=20260930-flow-2">
 </head>
 <body>
   <section id="landing" class="marketing-home" aria-label="Syllabloom home page">
@@ -3599,13 +3600,13 @@
           <p>Syllabloom is for the part students keep putting off: turning real lecture material into cards worth reviewing.</p>
         </div>
         <div class="workflow-loop" role="list" aria-label="Syllabloom learning loop">
-          <article class="loop-step" role="listitem"><span>1</span><h3>Pick the class</h3><p>Start with the course that is eating the most time right now.</p></article>
+          <article class="loop-step" role="listitem"><span>1</span><h3>Upload one lecture</h3><p>Start with the slides, PDF or notes you need to study next.</p></article>
           <b class="loop-arrow" aria-hidden="true">→</b>
-          <article class="loop-step" role="listitem"><span>2</span><h3>Add lecture material</h3><p>Use PDFs, slides, notes, or readings to create a first draft of the deck.</p></article>
+          <article class="loop-step" role="listitem"><span>2</span><h3>Preview your cards</h3><p>Read three real questions and reveal their answers before you study.</p></article>
           <b class="loop-arrow" aria-hidden="true">→</b>
           <article class="loop-step" role="listitem"><span>3</span><h3>Check the source</h3><p>Open the source quote, fix weak wording, and delete anything that is not worth studying.</p></article>
           <b class="loop-arrow" aria-hidden="true">→</b>
-          <article class="loop-step loop-step-anki" role="listitem"><span>4</span><h3>Study here or in Anki</h3><p>Export only the approved cards with your preferred format, deck, tags, and limits.</p></article>
+          <article class="loop-step loop-step-anki" role="listitem"><span>4</span><h3>Study five cards</h3><p>Finish a short session here, or export your ready cards to Anki.</p></article>
           <b class="loop-arrow" aria-hidden="true">→</b>
           <article class="loop-step" role="listitem"><span>5</span><h3>Repeat next lecture</h3><p>The real test is whether you come back with the next file instead of making cards by hand.</p></article>
           <div class="loop-return">
@@ -3623,7 +3624,7 @@
           <h2>Keep using the Anki setup you already trust.</h2>
           <p>Syllabloom handles the work before import: finding testable ideas, drafting focused prompts, linking each card to its source, and giving you control before anything enters your deck.</p>
           <ul>
-            <li><span>✓</span><div><strong>Basic or cloze</strong><small>Choose the format during class setup.</small></div></li>
+            <li><span>✓</span><div><strong>Basic or cloze</strong><small>Change the format in optional class settings.</small></div></li>
             <li><span>✓</span><div><strong>Your deck structure</strong><small>Keep deck names, nested tags, and daily new-card limits.</small></div></li>
             <li><span>✓</span><div><strong>You choose what goes in</strong><small>Use the set as written, or edit and leave out cards before export.</small></div></li>
           </ul>
@@ -4084,6 +4085,7 @@
       </section>
 
       <section id="home" class="page active">
+        <section id="returnStudyPanel" class="surface surface-pad return-study" hidden><div><span>YOUR NEXT SESSION</span><h2 id="returnStudyTitle">Continue studying</h2><p id="returnStudyDescription"></p></div><div class="flow-actions"><button id="continueSourceStudy" class="button primary">Continue studying</button><button class="button" data-go="source">Add next lecture</button></div></section>
         <header class="app-toolbar">
           <div class="breadcrumbs"><span data-class-name>Human Anatomy</span><b>/</b><strong>Today</strong></div>
           <div class="toolbar-actions">
@@ -4261,35 +4263,23 @@
         <div class="page-head">
           <div>
             <h1>Class materials</h1>
-            <p class="page-description">Manage the syllabus, slides, notes, readings, and assessments for this class. You can add, replace, or remove files at any time.</p>
+            <p class="page-description">Upload a lecture, check your cards, then start studying.</p>
           </div>
-          <button id="addClassFromSource" class="button">Add another class</button>
+
         </div>
 
         <section class="source-import surface character-story-panel materials-story-panel">
           <img class="materials-mascot character-cutout" src="assets/syllabloom-mascot-materials.webp" width="1200" height="1200" alt="The Syllabloom companion checking a course source with a magnifying glass" />
           <div>
-            <h2>Add a source</h2>
-            <p>Add a syllabus, slide deck, reading, or assessment you're allowed to use. Syllabloom reads its structure before drafting cards.</p>
-            <p class="source-kind-hint">Syllabloom identifies each file as a syllabus, class material, or past assessment. Choose a type to override detection for the batch, or change individual files before adding them.</p>
-            <p class="source-kind-hint">There is no per-account file-count cap. Each source can be up to 100 MB and 192,000 readable characters. Larger sources are prepared in visible batches of up to four sections, subject to daily limits and the shared beta budget.</p>
-            <p class="source-kind-hint">Unfinished imports are saved on this device for 24 hours so you can reopen this page and resume. Syllabloom checks what text it can read before generating anything. Scanned PDF pages can be read on this device; image-only slides may need speaker notes or descriptions to make useful cards.</p>
-            <p class="source-kind-hint">For card generation, extracted course text—not the uploaded file—is sent to OpenAI. Each draft includes its matching source passage for review. Avoid uploading sensitive personal details.</p>
-            <div class="question-style-control">
-              <label for="questionStyleMaterials">Front question style</label>
-              <select id="questionStyleMaterials" class="text-input question-style-select">
-                <option value="balanced">Balanced recall (recommended)</option>
-                <option value="direct">Direct recall</option>
-                <option value="explain">Explain why or how</option>
-                <option value="compare">Compare concepts</option>
-                <option value="apply">Apply a course example</option>
-              </select>
-              <p class="question-style-description" data-question-style-description="questionStyleMaterials" aria-live="polite">Focused retrieval questions with a source-supported mix of definitions, mechanisms, and cause/effect.</p>
-              <small>Applies to new cards only. Basic/Cloze is a separate Anki note format.</small>
-            </div>
-          </div>
+            <h2>Start with one lecture.</h2>
+            <p>Choose your slides, PDF or notes. Turn readable text into editable cards with source passages.</p>
           <div class="source-import-controls">
-            <div id="sourceKindPicker" class="source-kind-picker">
+            <label id="sourceUploadLabel" for="sourceUpload" class="button primary" role="button" tabindex="0">Choose documents</label>
+            <input id="sourceUpload" type="file" accept=".docx,.ppt,.pptw,.pptx,.pdf,.txt" multiple hidden />
+          </div>
+            <p class="source-kind-hint">Extracted text is sent to OpenAI to draft cards and saved with your signed-in workspace for source checks. Only upload material you are allowed to use, without sensitive personal information.</p>
+            <p id="sourceAccessNote" class="source-kind-hint" role="status">Your plan is checked before generation. Monthly $12, or $108 billed yearly ($9/month equivalent); confirmed free accounts keep their access.</p>
+            <details class="upload-options"><summary>Question style and file details</summary>            <div id="sourceKindPicker" class="source-kind-picker">
               <select id="sourceKind" class="source-kind source-kind-native" aria-hidden="true" tabindex="-1">
                 <option value="auto" selected>Auto-detect</option>
                 <option value="material">Class material</option>
@@ -4307,9 +4297,25 @@
                 <button class="source-kind-option" type="button" role="option" data-source-kind-value="assessment" aria-selected="false">Past assessment</button>
               </div>
             </div>
-            <label id="sourceUploadLabel" for="sourceUpload" class="button primary" role="button" tabindex="0">Choose documents</label>
-            <input id="sourceUpload" type="file" accept=".docx,.ppt,.pptw,.pptx,.pdf,.txt" multiple hidden />
+
+            <p>PDF, PPT, PPTW, PPTX, DOCX or TXT. Up to 100 MB and 192,000 readable characters per file. Generation is subject to daily limits and the shared beta budget. Image-only slides need readable notes or descriptions.</p>
+            <p>Unfinished imports stay on this device for 24 hours. Resume an interrupted import from this page.</p>
+            <div class="question-style-control">
+              <label for="questionStyleMaterials">Front question style</label>
+              <select id="questionStyleMaterials" class="text-input question-style-select">
+                <option value="balanced">Balanced recall (recommended)</option>
+                <option value="direct">Direct recall</option>
+                <option value="explain">Explain why or how</option>
+                <option value="compare">Compare concepts</option>
+                <option value="apply">Apply a course example</option>
+              </select>
+              <p class="question-style-description" data-question-style-description="questionStyleMaterials" aria-live="polite">Focused retrieval questions with a source-supported mix of definitions, mechanisms, and cause/effect.</p>
+              <small>Applies to new cards only. Basic/Cloze is a separate Anki note format.</small>
+            </div>
+          <button id="addClassFromSource" class="button">Add another class</button>
+            </details>
           </div>
+
         </section>
 
         <section id="sourceQueue" class="source-batch-queue surface" aria-labelledby="sourceQueueTitle" hidden>
@@ -4328,17 +4334,21 @@
           </footer>
         </section>
         <p id="sourceBatchFeedback" class="source-batch-feedback" role="status" aria-live="polite" hidden></p>
-        <div id="sourceLibrary" class="file-stack" aria-live="polite"></div>
         <section id="sourceStudyOutput" class="source-study-output surface" aria-labelledby="sourceStudyOutputTitle" hidden>
           <header>
             <div><span id="sourceStudyOutputEyebrow">LATEST SOURCE</span><h2 id="sourceStudyOutputTitle">Cards and notes are ready to review</h2><p id="sourceStudyOutputSummary"></p></div>
-            <button class="button primary" type="button" data-go="cards">Open ready cards</button>
+            <button id="startSourceStudy" class="button primary" type="button">Study five cards</button>
           </header>
+          <div id="sourceCardPreviews" class="source-card-previews"></div>
+          <div class="flow-actions"><button class="button" data-go="cards">Edit cards</button><button class="button" data-export-ready>Export class to Anki</button><button id="sourceAnkiSettings" class="text-button">Anki settings</button><button id="optionalClassSettings" class="text-button">Class settings</button></div>
+          <details class="source-coverage"><summary>Check source coverage</summary><p id="sourceCoverageSummary"></p><p>These counts show where cards cite readable text. They do not measure exam coverage or correctness. Check diagrams and your learning objectives separately.</p><div id="sourceCoverageRows"></div><button id="generateSelectedSections" class="button" type="button">Draft cards from selected sections</button><p id="coverageFeedback" role="status"></p></details>
+          <details class="source-notes-details"><summary>Concepts and source notes</summary>
           <div class="source-study-grid">
             <div><h3>Concepts found</h3><div id="sourceStudyConcepts" class="source-study-concepts"></div></div>
             <div><h3>Notes from the source</h3><div id="sourceStudyNotes" class="source-study-notes"></div></div>
-          </div>
+          </div></details>
         </section>
+        <div id="sourceLibrary" class="file-stack" aria-live="polite"></div>
         <div class="surface course-map sample-source-detail">
           <div><strong>0</strong><span>calendar dates in the sample syllabus</span></div>
           <div><strong>Upper limb</strong><span>Example syllabus focus</span></div>
@@ -4468,6 +4478,7 @@
       </section>
 
       <section id="profile" class="page account-page" aria-labelledby="profilePageTitle">
+
         <header class="account-page-head">
           <div>
             <p class="account-page-path">Account / Profile</p>
@@ -4536,6 +4547,7 @@
             </form>
           </section>
         </div>
+        <section class="surface surface-pad usage-preferences"><h2>Help improve the beta</h2><label><input id="usageMetricsEnabled" type="checkbox" checked> Share basic signed-in usage from this browser</label><p>Tracks steps such as importing and finishing a study set. No filenames, document text or answers. Events are kept for 90 days; billing records are separate.</p><details id="productReportPanel" hidden><summary>Product team: signed-in usage</summary><p>Last 30 days. Stage counts, not ordered conversion rates. Founder tests and research participants are shown separately. Return means studying on at least two UTC dates. Anonymous visits and refunds are not included.</p><button id="loadProductReport" class="button">Refresh report</button><div id="productReportOutput" role="status"></div><button id="checkBillingConfiguration" class="button">Check payment configuration</button><p id="billingConfigurationResult" role="status"></p></details></section>
       </section>
 
       <section id="billing" class="page account-page billing-page" aria-labelledby="billingPageTitle">
@@ -4699,6 +4711,7 @@
             <button class="button primary" type="button" data-go="source">Add class material</button>
           </section>
 
+          <section id="shortStudyComplete" class="surface surface-pad" hidden tabindex="-1"><h2>A small session, done.</h2><p id="shortStudySummary"></p><div class="flow-actions"><button id="studyFiveMore" class="button primary">Study five more</button><button class="button" data-go="source">Add next lecture</button><button class="text-button" data-export-ready>Export class to Anki</button></div></section>
           <div id="studyMeta" class="study-meta"><span id="studyPosition">Card 1 of 18</span><span id="studySection">Muscles of facial expression</span></div>
           <div id="studyProgressTrack" class="progress"><span id="studyProgress"></span></div>
 
@@ -4815,6 +4828,7 @@
     </form>
   </dialog>
 
+  <dialog id="quickClassSettings" aria-labelledby="quickClassSettingsTitle"><form id="quickClassSettingsForm" class="surface-pad"><h2 id="quickClassSettingsTitle">Class settings</h2><div class="form-field"><label for="quickClassName">Class name</label><input id="quickClassName" class="text-input" maxlength="100"></div><div class="form-field"><label for="quickClassTerm">Term</label><input id="quickClassTerm" class="text-input" maxlength="100"></div><div class="flow-actions"><button class="button primary" type="submit">Save</button><button id="closeQuickClassSettings" class="button" type="button">Cancel</button></div></form></dialog>
   <dialog id="ankiSettingsDialog" class="anki-settings-dialog" aria-labelledby="ankiSettingsTitle">
     <form id="ankiSettingsForm" class="anki-settings-form">
       <header class="anki-settings-head">
@@ -5059,8 +5073,10 @@
   <script src="source-import-store.js?v=20260930-legacy-ppt-1"></script>
   <script src="source-batch.js?v=20260930-legacy-ppt-1"></script>
   <script src="course-map.js?v=20260923-course-map-1"></script>
-  <script src="app.js?v=20260930-legacy-ppt-1"></script>
-  <script src="billing.js?v=20260928-billing-1"></script>
+  <script src="source-experience.js?v=20260930-flow-2"></script>
+  <script src="product-events.js?v=20260930-flow-2"></script>
+  <script src="app.js?v=20260930-flow-2"></script>
+  <script src="billing.js?v=20260930-flow-2"></script>
   <script type="module" src="motion-effects.js?v=20260921-motion-smooth-2"></script>
 </body>
 </html>

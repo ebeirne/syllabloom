@@ -248,17 +248,19 @@
 
   function restoreImportQueue(owner) {
     if (owner === importOwner) return;
+    const anonymousItems = !importOwner && owner ? sourceQueueItems : [];
     importOwner = owner;
     sourceQueueItems = [];
     importRestore = (async () => {
       try {
         const items = owner ? await importStore.load(owner) : [];
         if (owner !== importOwner) return;
-        sourceQueueItems = items;
-        if (items.length) sourceBatchFeedback = 'Your unfinished import was restored and is ready to continue.';
+        sourceQueueItems = [...items, ...anonymousItems];
+        if (anonymousItems.length) await persistImportQueue(owner, sourceQueueItems);
+        if (sourceQueueItems.length) sourceBatchFeedback = 'Your unfinished import was restored and is ready to continue.';
         renderSourceQueue();
       } catch (_) {
-        if (owner === importOwner) showToast('Import recovery storage is unavailable on this browser.');
+        if (owner === importOwner) { sourceQueueItems=anonymousItems; renderSourceQueue(); showToast('Import recovery storage is unavailable on this browser. Keep this tab open.'); }
       }
     })();
   }
@@ -1760,6 +1762,7 @@
 
   function activateCourseTopic(topicName, action) {
     if (action === 'study') {
+      shortStudy = null;
       state.studyFocusConcept = topicName;
       state.studyIndex = 0;
       navigate('study');
@@ -2059,9 +2062,12 @@
     heroImage.alt = custom
       ? 'A college student and the Syllabloom study companion organizing class cards'
       : 'A medical student and a small green study companion sorting anatomy flashcards';
+    const returnSource = [...state.sources].reverse().find(item => item.draftCards?.length);
+    document.querySelector('#returnStudyPanel').hidden = !custom || !returnSource;
+    if(returnSource) { document.querySelector('#returnStudyTitle').textContent = 'Continue studying'; document.querySelector('#returnStudyDescription').textContent = `${returnSource.name} · a five-card session, ready when you are.`; }
     document.querySelector('#todayHeroCopy').textContent = custom
       ? latestSource
-        ? `${cardCount} ready card${cardCount === 1 ? '' : 's'} across your class. Latest source: ${latestSource.name} (${latestSource.draftCards?.length || 0} cards). Start with a quick check, then study here or export to Anki.`
+        ? `${cardCount} ready card${cardCount === 1 ? '' : 's'} across your class. Latest source: ${latestSource.name} (${latestSource.draftCards?.length || 0} cards). Continue a short study session, or add your next lecture.`
         : 'Add your first slides, notes, syllabus, or authorized assessment to build a ready study set.'
       : 'One focused pass through upper-limb attachments, built around the questions you still miss.';
     if (!custom) {
@@ -2180,14 +2186,17 @@
       return;
     }
     prepareNewClassSetup();
+    setClassLabels('Untitled class', 'Term not set');
+    persistClassProfile();
     state.creatingClass = true;
-    openOnboarding(1);
+    window.SyllabloomEvents?.track('onboarding_started');
+    closeOnboarding('push');
   }
 
   function classIsReadyForCurrentUser() {
     const savedOwnerId = classProfileOwnerId || cachedAccountUserId;
     const profileBelongsToUser = !state.account.signedIn || !savedOwnerId || savedOwnerId === state.account.userId;
-    return profileBelongsToUser && (localStorage.getItem('rounds-onboarded') === '1' || state.classMode === 'custom');
+    return profileBelongsToUser && (localStorage.getItem('rounds-onboarded') === '1' || (state.classMode === 'custom' && state.sources.length > 0));
   }
 
   function updateMarketingStartLabels() {
@@ -2239,8 +2248,9 @@
     app.inert = false;
     app.setAttribute('aria-hidden', 'false');
     document.body.classList.remove('marketing-mode');
-    navigate('home', null);
-    syncShellHistory('app', 'home', historyMode);
+    const destination = state.sources.some(item => item.draftCards?.length) ? 'home' : 'source';
+    navigate(destination, null);
+    syncShellHistory('app', destination, historyMode);
   }
 
   function showLanding(historyMode = 'push') {
@@ -2296,6 +2306,8 @@
   }
 
   function navigate(view, historyMode = 'push') {
+    if (view === 'study' && !shortStudy && !state.studyFocusConcept && state.sources.some(item=>item.draftCards?.length)) { startShortStudy(); return; }
+    if (view !== 'study') shortStudy = null;
     const previousView = state.view;
     if (view !== 'study') state.studyFocusConcept = '';
     state.view = view;
@@ -2434,7 +2446,25 @@
     document.querySelector('#skippedCount').textContent = skippedFromSample + state.lectureCards.filter(card => card.reviewStatus === 'skipped').length;
   }
 
+  let shortStudy = null;
+  function startShortStudy(sourceId, excluded = []) {
+    const sourceItem = state.sources.find(item => item.id === sourceId) || [...state.sources].reverse().find(item => item.draftCards?.length);
+    if (!sourceItem) { navigate('source'); return; }
+    const all = window.SyllabloomCardSet.sourceCards([sourceItem]).filter(card => window.SyllabloomSourceStudy.isUsableCard(card));
+    const cards = all.map(card => state.lectureCards.find(saved => saved.sourceKey === lectureCardKey(card) || window.SyllabloomCardSet.contentKey(saved) === window.SyllabloomCardSet.contentKey(card))).filter(card => card && card.reviewStatus === 'approved');
+    shortStudy = { sourceId: sourceItem.id, cards: window.SyllabloomSourceExperience.chooseSession(cards, state.reviewHistory, excluded), rated: new Set(), complete: false };
+    state.studyIndex = 0; state.studyFocusConcept = '';
+    if (shortStudy.cards.length) window.SyllabloomEvents?.track('study_started', {cards:shortStudy.cards.length});
+    navigate('study');
+  }
+  function finishShortStudy() {
+    if (!shortStudy || shortStudy.rated.size < shortStudy.cards.length || shortStudy.complete) return false;
+    shortStudy.complete = true;
+    window.SyllabloomEvents?.track('study_completed', {cards:shortStudy.cards.length});
+    renderStudy(); document.querySelector('#shortStudyComplete').focus(); return true;
+  }
   function studyCards() {
+    if (shortStudy) return shortStudy.cards.map(card => ({directCard:state.lectureCards.find(saved=>saved.id===card.id) || card}));
     const approved = [];
     if (state.includeSampleMaterial) {
       Object.entries(state.statuses).forEach(([key, status]) => {
@@ -2941,6 +2971,7 @@
       link.download = filename;
       document.body.appendChild(link);
       link.click();
+      window.SyllabloomEvents?.track('anki_exported', {cards:approved.length});
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       showToast(`${approved.length} ready card${approved.length === 1 ? '' : 's'} exported to Anki`);
@@ -2954,11 +2985,14 @@
 
   function renderStudy({ preserveRatingReceipt = false } = {}) {
     const cards = studyCards();
-    const hasCards = cards.length > 0;
+    const complete = Boolean(shortStudy?.complete);
+    document.querySelector('#shortStudyComplete').hidden = !complete;
+    if(complete) document.querySelector('#shortStudySummary').textContent = `You reviewed ${shortStudy.cards.length} cards. Your ratings are saved. Come back for the next short session or add your next lecture.`;
+    const hasCards = cards.length > 0 && !complete;
     const focusBanner = document.querySelector('#studyFocusBanner');
     focusBanner.hidden = !state.studyFocusConcept;
     if (state.studyFocusConcept) document.querySelector('#studyFocusName').textContent = state.studyFocusConcept;
-    document.querySelector('#studyEmpty').hidden = hasCards;
+    document.querySelector('#studyEmpty').hidden = hasCards || complete;
     document.querySelector('#studyMeta').hidden = !hasCards;
     document.querySelector('#studyProgressTrack').hidden = !hasCards;
     document.querySelector('#studyCardStage').hidden = !hasCards;
@@ -3818,7 +3852,7 @@
     const processing = sourceItem.sample
       ? 'example'
       : sourceItem.storage === 'session'
-        ? 'cards saved in this browser; original file not stored'
+        ? 'study content saved; original file not stored'
         : 'saved in this browser';
     const classification = sourceItem.classificationReason && sourceItem.classificationReason !== 'Manually selected'
       ? ` · ${sourceItem.classificationReason}`
@@ -3908,11 +3942,21 @@
     const study = window.SyllabloomSourceStudy;
     const concepts = study ? study.cleanConcepts(sourceItem.concepts) : (Array.isArray(sourceItem.concepts) ? sourceItem.concepts : []);
     const notes = study ? study.cleanNotes(sourceItem.notes) : (Array.isArray(sourceItem.notes) ? sourceItem.notes : []);
-    const cards = window.SyllabloomCardSet.sourceCards([sourceItem]).filter(card => !study || study.isUsableCard(card));
+    const cards = window.SyllabloomCardSet.sourceCards([sourceItem]).filter(card => !study || study.isUsableCard(card)).map(card => state.lectureCards.find(saved => saved.sourceKey === lectureCardKey(card)) || card);
     panel.hidden = false;
+    panel.dataset.sourceId = sourceItem.id;
+    const startButton = document.querySelector('#startSourceStudy');
+    startButton.disabled = !cards.length;
+    startButton.textContent = `Study ${Math.min(5, cards.length)} cards`;
+    document.querySelector('#sourceCardPreviews').innerHTML = cards.slice(0,3).map((card,index) => `<article class="source-card-preview"><small>CARD ${index+1}</small><h3>${escapeHtml(card.front)}</h3><details><summary>Show answer</summary><p>${escapeHtml(card.back)}</p><small>${escapeHtml(card.sourceLocation || 'Source passage')}</small>${card.sourceQuote ? `<blockquote>${escapeHtml(card.sourceQuote)}</blockquote>` : '<p>Check this answer in your original source.</p>'}</details></article>`).join('');
+    const rows = window.SyllabloomSourceExperience.coverage(sourceItem,cards);
+    const readable = rows.filter(row=>row.readable);
+    document.querySelector('#sourceCoverageSummary').textContent = rows.length ? `${readable.filter(row=>row.count).length} of ${readable.length} readable sections have cited cards. ${rows.length-readable.length} section${rows.length-readable.length === 1 ? ' has' : 's have'} no readable text.` : 'Re-upload this source once to enable section coverage. Existing cards will be kept.';
+    document.querySelector('#sourceCoverageRows').innerHTML = rows.map((row,index) => `<label class="coverage-row"><input type="checkbox" data-coverage-index="${index}" ${row.readable ? '' : 'disabled'}><span><strong>${escapeHtml(row.label)}: ${escapeHtml(row.status)}</strong><small>${escapeHtml(row.title)}</small>${row.lowText || row.imageWarning ? '<small>Limited text or visual content: check the original.</small>' : ''}</span></label>`).join('');
+    document.querySelector('#generateSelectedSections').hidden = !readable.length;
     document.querySelector('#sourceStudyOutputEyebrow').textContent = sourceItem.name;
     document.querySelector('#sourceStudyOutputTitle').textContent = `${cards.length} ready card${cards.length === 1 ? '' : 's'} from this source`;
-    document.querySelector('#sourceStudyOutputSummary').textContent = `${concepts.length} concept${concepts.length === 1 ? '' : 's'} and ${notes.length} note section${notes.length === 1 ? '' : 's'} were traced back to the uploaded file. Check these cards against your learning objectives: this set may not cover every exam topic.`;
+    document.querySelector('#sourceStudyOutputSummary').textContent = 'Preview the questions, check their source passages, then try a short session. Edit anything that needs work.';
     document.querySelector('#sourceStudyConcepts').innerHTML = concepts.length
       ? concepts.slice(0, 12).map(concept => `<span>${escapeHtml(concept.name || concept)}</span>`).join('')
       : '<p>No named concepts were found.</p>';
@@ -4194,6 +4238,8 @@
       item.status === 'queued' || (item.status === 'failed' && item.retryable)
     );
     if (!processable) return;
+    if (!state.account.signedIn) { window.dispatchEvent(new CustomEvent('syllabloom:auth-request', {detail:{intent:'upload'}})); return; }
+    await importRestore;
     const owner = importOwner;
     const workingQueue = sourceQueueItems;
     const assertOwner = () => { if (owner !== importOwner) throw new Error('Account changed. Sign back in to resume this import.'); };
@@ -4205,6 +4251,10 @@
     renderSourceQueue();
     let result;
     try {
+      const access = await window.SyllabloomBilling?.ensureAccess();
+      assertOwner();
+      if (access && !access.access) { showToast('Choose a plan before generating cards. Your upload list is saved.'); navigate('billing'); return; }
+      window.SyllabloomEvents?.track('upload_started', {files:workingQueue.filter(item=>item.status==='queued' || item.retryable).length});
       await persistImportQueue(owner, workingQueue);
       result = await window.SyllabloomSourceBatch.processQueue(
         workingQueue,
@@ -4239,7 +4289,8 @@
     }
     if (owner !== importOwner) return;
     const completed = sourceQueueItems.filter(item => item.status === 'done');
-    const added = completed.filter(item => !item.duplicateSkipped);
+    const added = completed.filter(item => !item.duplicateSkipped && !item.targetSourceId);
+    const expanded = completed.filter(item => item.targetSourceId && !item.duplicateSkipped);
     const duplicateSkipped = completed.filter(item => item.duplicateSkipped).length;
     const remainingItems = sourceQueueItems.filter(item => item.status !== 'done');
     const cardCount = added.reduce((total, item) => total + (item.result?.draftCards?.length || 0), 0);
@@ -4254,6 +4305,7 @@
     const remaining = sourceQueueItems.length;
     const feedbackParts = [];
     if (added.length) feedbackParts.push(added.length + ' document' + (added.length === 1 ? '' : 's') + ' added');
+    if (expanded.length) feedbackParts.push(`${expanded.reduce((total,item)=>total+(item.addedCardCount || 0),0)} additional unique cards added; existing cards kept`);
     if (duplicateSkipped) feedbackParts.push(duplicateSkipped + ' exact duplicate' + (duplicateSkipped === 1 ? '' : 's') + ' skipped without reprocessing');
     if (cardCount) feedbackParts.push(cardCount + ' source-based card' + (cardCount === 1 ? '' : 's') + ' ready');
     if (noteCount) feedbackParts.push(noteCount + ' note section' + (noteCount === 1 ? '' : 's') + ' added');
@@ -4452,10 +4504,12 @@
         options.onProgress?.(queueItem.preflightLabel);
       }
 
-      const duplicate = state.sources.find(item =>
+      window.SyllabloomEvents?.track('extraction_succeeded', {fileType:file.name.split('.').pop().toLowerCase()});
+      const duplicate = !queueItem?.targetSourceId && state.sources.find(item =>
         item.fileFingerprint && item.fileFingerprint === payload.source.fileFingerprint
       );
       if (duplicate) {
+        if (!duplicate.studySections?.length && payload.source.studySections?.length) { duplicate.studySections=payload.source.studySections; persistClassSources(); renderSourceStudyOutput(duplicate); }
         if (queueItem) {
           queueItem.duplicateSkipped = true;
           queueItem.progressLabel = 'Exact duplicate · skipped';
@@ -4566,7 +4620,10 @@
       delete payload.extractedText;
       delete payload.extractedUnits;
       const previousSource = state.sources.find(item => item.id === payload.source.id);
-      payload.source = window.SyllabloomCardSet.mergeSource(previousSource, payload.source);
+      payload.source = queueItem?.targetSourceId
+        ? window.SyllabloomSourceExperience.mergeAdditional(state.sources.find(item=>item.id===queueItem.targetSourceId), payload.source, window.SyllabloomCardSet)
+        : window.SyllabloomCardSet.mergeSource(previousSource, payload.source);
+      if(queueItem) queueItem.addedCardCount = Math.max(0,(payload.source.draftCards?.length || 0)-(previousSource?.draftCards?.length || 0));
       if (detectedKind === 'syllabus') {
         state.useDemoSyllabus = false;
         state.syllabusName = payload.source.name;
@@ -4633,6 +4690,8 @@
       renderStudy();
       updateAssessmentIntro();
       renderSourceStudyOutput(detectedKind === 'syllabus' ? null : payload.source);
+      if(payload.source.draftCards?.length) window.SyllabloomEvents?.track('generation_succeeded', {cards:queueItem?.addedCardCount ?? payload.source.draftCards.length});
+      if(detectedKind !== 'syllabus') document.querySelector('#sourceStudyOutput').scrollIntoView({behavior:'smooth',block:'start'});
       if (detectedKind !== 'syllabus' && (payload.source.draftCards || []).length
         && ankiDesktopSettings.autoSync && ankiDesktopSettings.ownerId === state.account.userId) {
         sendReadyCardsToDesktop({ automatic: true });
@@ -4656,6 +4715,7 @@
       }
       return payload.source;
     } catch (error) {
+      window.SyllabloomEvents?.track('import_failed', {reason:'unknown',fileType:file.name.split('.').pop().toLowerCase()});
       if (!options.silent) showToast(error.message);
       throw error;
     } finally {
@@ -4875,6 +4935,7 @@
     }
   });
   document.querySelector('[data-clear-study-focus]').addEventListener('click', () => {
+    shortStudy = null;
     state.studyFocusConcept = '';
     state.studyIndex = 0;
     renderStudy();
@@ -5034,6 +5095,7 @@
   });
   window.addEventListener('syllabloom:auth-change', event => {
     const detail = event.detail || {};
+    if (state.account.userId !== (detail.userId || '')) shortStudy = null;
     state.account.signedIn = Boolean(detail.signedIn);
     state.account.email = detail.email || '';
     state.account.userId = detail.userId || '';
@@ -5513,6 +5575,47 @@
     }
   });
 
+  document.querySelectorAll('[data-export-ready]').forEach(button=>button.addEventListener('click',exportApprovedCards));
+  document.querySelector('#startSourceStudy').addEventListener('click',()=>startShortStudy(document.querySelector('#sourceStudyOutput').dataset.sourceId));
+  document.querySelector('#continueSourceStudy').addEventListener('click',()=>startShortStudy());
+  document.querySelector('#studyFiveMore').addEventListener('click',()=>startShortStudy(shortStudy?.sourceId, shortStudy?.cards.map(card=>card.id) || []));
+  document.querySelector('#optionalClassSettings').addEventListener('click',()=>{
+    document.querySelector('#quickClassName').value=state.className;
+    document.querySelector('#quickClassTerm').value=state.classTerm;
+    document.querySelector('#quickClassSettings').showModal();
+  });
+  document.querySelector('#closeQuickClassSettings').addEventListener('click',()=>document.querySelector('#quickClassSettings').close());
+  document.querySelector('#quickClassSettingsForm').addEventListener('submit',event=>{
+    event.preventDefault();setClassLabels(document.querySelector('#quickClassName').value.trim() || 'Untitled class',document.querySelector('#quickClassTerm').value.trim() || 'Term not set');persistClassProfile();document.querySelector('#quickClassSettings').close();showToast('Class settings saved');
+  });
+  document.querySelector('#sourceAnkiSettings').addEventListener('click',()=>openAnkiSettings(false));
+  window.addEventListener('syllabloom:billing-change', event => {
+    const access=event.detail;
+    document.querySelector('#sourceAccessNote').textContent=access?.lifetime ? 'Your free lifetime access is confirmed. No payment details needed.' : access?.access ? 'Your plan is active. Generation is subject to the beta usage limits.' : 'Your plan is checked before generation. Monthly $12, or $108 billed yearly ($9/month equivalent); confirmed free accounts keep their access.';
+  });
+  document.querySelector('#generateSelectedSections').addEventListener('click',async event=>{
+    const button=event.currentTarget, feedback=document.querySelector('#coverageFeedback');
+    if(sourceBatchRunning) { feedback.textContent='Let the current import finish first.'; return; }
+    const sourceId=document.querySelector('#sourceStudyOutput').dataset.sourceId;
+    const original=state.sources.find(item=>item.id===sourceId);
+    const sections=[...document.querySelectorAll('[data-coverage-index]:checked')].map(input=>original?.studySections?.[Number(input.dataset.coverageIndex)]).filter(section=>section?.text?.trim()).map(({label,text})=>({label,text}));
+    if(!sections.length) {feedback.textContent='Select a readable section first.';return;}
+    const owner=importOwner; button.disabled=true; feedback.textContent='Preparing selected sections...';
+    try {
+      const response=await sourceRequest('/api/source',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operation:'prepare-sections',filename:original.name,sections})});
+      const prepared=await checkedSourceResponse(response,'Could not prepare these sections.');
+      if(owner!==importOwner) throw new Error('Account changed. Try again.');
+      const file=new File([prepared.extractedText],original.name,{type:'text/plain'});
+      const item=window.SyllabloomSourceBatch.createQueueItems([file],original.kind)[0];
+      item.targetSourceId=sourceId;
+      item.inspectionCache={kind:original.kind,payload:{source:{...original,draftCards:[],fingerprint:prepared.fingerprint,fileFingerprint:'sections-'+prepared.fingerprint,preflight:prepared.preflight},extractedText:prepared.extractedText,extractedUnits:prepared.extractedUnits}};
+      sourceQueueItems.push(item); await persistImportQueue();renderSourceQueue();
+      window.SyllabloomEvents?.track('coverage_requested',{sections:sections.length});
+      feedback.textContent='Selected sections are in the import queue.';
+      await addQueuedSources();
+    } catch(error) {feedback.textContent=error.message || 'Try again.';} finally {button.disabled=false;}
+  });
+
   document.querySelector('#showAnswer').addEventListener('click', () => {
     hideRatingReceipt();
     resetRatingControls();
@@ -5528,6 +5631,7 @@
     if (!item || button.disabled) return;
     const rating = button.dataset.rating;
     const persisted = recordStudyRating(item, rating);
+    shortStudy?.rated.add(studyCardKey(item));
     document.querySelectorAll('.rating').forEach(control => {
       control.disabled = true;
       control.classList.toggle('is-recorded', control === button);
@@ -5541,6 +5645,7 @@
       showMissExplanation(item);
       return;
     }
+    if (finishShortStudy()) return;
     window.setTimeout(() => {
       state.studyIndex = (state.studyIndex + 1) % cards.length;
       renderStudy({ preserveRatingReceipt: true });
@@ -5559,6 +5664,7 @@
   });
 
   document.querySelector('#continueAfterMiss').addEventListener('click', () => {
+    if (finishShortStudy()) return;
     const cards = studyCards();
     state.studyIndex = (state.studyIndex + 1) % cards.length;
     renderStudy();

@@ -41,6 +41,9 @@ class handler(JsonHandler):
                     (cutoff,),
                 )
                 deleted = max(0, result.rowcount)
+                from api.product_events import SCHEMA
+                connection.execute(SCHEMA)
+                connection.execute("DELETE FROM syllabloom_product_events WHERE created_at < now()-interval '90 days'")
             self.send_json({"ok": True, "deletedUsageRows": deleted})
         except Exception as exc:
             print(f"AI usage cleanup failed: {type(exc).__name__}", flush=True)

@@ -53,7 +53,7 @@ test('import retry keeps inspection and successful batches, then produces one so
   const state = { anki: {}, sources: [], classMode: 'custom', className: 'Biology', lectureCards: [], account: {} };
   const context = {
     state, Date, Set, Map, structuredClone, FormData: class { append() {} },
-    document: { querySelector: () => ({ textContent: '', classList: { add() {}, remove() {} } }) },
+    document: { querySelector: () => ({ textContent: '', scrollIntoView() {}, classList: { add() {}, remove() {} } }) },
     window: { location: { hostname: 'beta.example' }, SyllabloomAuth: { getToken: async () => 'token' },
       SyllabloomSourceBatch: { ...batch, authenticatedRequest: (url, opts, auth) => batch.authenticatedRequest(url, opts, auth, request) },
       SyllabloomCardSet: { contentKey: c => c.front, mergeSource: (_old, value) => value } },

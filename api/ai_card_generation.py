@@ -196,6 +196,16 @@ def _split_long_text(text: str, maximum: int) -> list[str]:
 
 
 def _source_units(text: str, filename: str, units: dict | None) -> list[tuple[str, str]]:
+    selected = units.get('selectedSections') if isinstance(units, dict) else None
+    if selected is not None:
+        if not isinstance(selected, list) or not 1 <= len(selected) <= 100:
+            raise ValueError('Choose between one and 100 readable source sections.')
+        if any(not isinstance(s, dict) or not re.fullmatch(r'(?:Page|Slide|Section) [1-9]\d{0,4}', str(s.get('label', '')))
+               or not isinstance(s.get('text'), str) for s in selected):
+            raise ValueError('The selected source sections are invalid.')
+        if text != '\n\n'.join(s['text'] for s in selected):
+            raise ValueError('The selected source text changed. Please try again.')
+        return [(s['label'], part) for s in selected for part in _split_long_text(s['text'], MAX_CHUNK_CHARS)]
     page_texts = units.get("pageTexts") if isinstance(units, dict) else None
     if isinstance(page_texts, list):
         pages = [(f"Page {index}", str(page or "").strip()) for index, page in enumerate(page_texts, start=1)]
@@ -210,8 +220,8 @@ def _source_units(text: str, filename: str, units: dict | None) -> list[tuple[st
             slides.extend((f"Slide {match.group(1)}", piece) for piece in _split_long_text(slide_text, MAX_CHUNK_CHARS))
         return slides
 
-    label = Path(filename or "Source document").name or "Source document"
-    return [(label, piece) for piece in _split_long_text(text, MAX_CHUNK_CHARS)]
+    from api.source_coverage import study_sections
+    return [(section["label"], section["text"]) for section in study_sections(text, {})]
 
 
 def _source_chunks(text: str, filename: str, units: dict | None) -> list[dict[str, str]]:
@@ -449,7 +459,7 @@ def _validated_card(raw: dict, chunk: dict, filename: str) -> dict | None:
     if len(answer_terms) >= 3 and len(answer_terms & quote_terms) < max(2, math.ceil(len(answer_terms) * 0.45)):
         return None
     stable_id = hashlib.sha256(f"{filename}\0{locator}\0{question}\0{answer}".encode("utf-8")).hexdigest()[:16]
-    citation = f"{filename} · {locator}" if locator.startswith(("Page ", "Slide ")) else filename
+    citation = f"{filename} · {locator}" if locator.startswith(("Page ", "Slide ", "Section ")) else filename
     return {
         "id": f"ai-{stable_id}",
         "muscle": concept,
@@ -459,7 +469,7 @@ def _validated_card(raw: dict, chunk: dict, filename: str) -> dict | None:
         "front": question,
         "back": answer,
         "source": citation,
-        "sourceLocation": locator if locator.startswith(("Page ", "Slide ")) else "",
+        "sourceLocation": locator if locator.startswith(("Page ", "Slide ", "Section ")) else "",
         "sourceQuote": quote,
         "generatedBy": "openai",
         "status": "ai-generated",

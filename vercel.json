@@ -15,6 +15,7 @@
     { "path": "/api/ai-usage-cleanup", "schedule": "15 3 * * *" }
   ],
   "rewrites": [
+    { "source": "/api/product-events", "destination": "/api/user-data?billing_route=product-events" },
     { "source": "/api/billing-access", "destination": "/api/user-data?billing_route=billing-access" },
     { "source": "/api/stripe-webhook", "destination": "/api/user-data?billing_route=stripe-webhook" },
     { "source": "/api/sessions/latest", "destination": "/api/session-latest" }
