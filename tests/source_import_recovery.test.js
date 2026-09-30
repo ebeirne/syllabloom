@@ -43,6 +43,7 @@ test('import retry keeps inspection and successful batches, then produces one so
   }, extractedText: 'Lecture text', extractedUnits: {} };
   const request = async (_url, options) => {
     const body = typeof options.body === 'string' ? JSON.parse(options.body) : {};
+    if (body.operation === 'generate-batch') assert.equal(body.durable, true);
     requests.push(body.operation === 'generate-batch' ? body.batchIndex : 'inspect');
     if (body.batchIndex === 1 && fail) return { ok: false, status: 503, json: async () => ({ error: 'temporarily unavailable', retryable: true }) };
     return { ok: true, status: 200, json: async () => body.operation === 'generate-batch'
@@ -69,13 +70,40 @@ test('import retry keeps inspection and successful batches, then produces one so
   await assert.rejects(context.uploadSource(file, 'auto', opts), /temporarily unavailable/);
   assert.equal(state.sources.length, 0);
   fail = false;
-  await context.uploadSource(file, 'auto', opts);
+  // A reload restores a serialized queue, not the original in-memory object.
+  const restoredOpts = { ...opts, queueItem: structuredClone(queueItem) };
+  await context.uploadSource(file, 'auto', restoredOpts);
   assert.deepEqual(requests, ['inspect', 0, 1, 1]);
   assert.equal(state.sources.length, 1);
   assert.equal(state.lectureCards.length, 2);
-  await context.uploadSource(file, 'auto', opts);
+  await context.uploadSource(file, 'auto', restoredOpts);
   assert.equal(state.sources.length, 1);
   assert.deepEqual(requests, ['inspect', 0, 1, 1]);
+});
+
+test('account switch during token retrieval stops the request before transmission', async () => {
+  const source = fs.readFileSync(require.resolve('../app.js'), 'utf8');
+  const code = source.slice(source.indexOf('  function sourceRequest('), source.indexOf('  async function uploadLargeSource('));
+  let owner = 'alice';
+  let sent = 0;
+  const context = { window: {
+    SyllabloomAuth: { getToken: async () => { owner = 'bob'; return 'bob-token'; } },
+    SyllabloomSourceBatch: { authenticatedRequest: (url, options, auth) => batch.authenticatedRequest(url, options, auth, async () => { sent++; }) }
+  } };
+  vm.createContext(context); vm.runInContext(code, context);
+  await assert.rejects(context.sourceRequest('/api/source', {}, () => {
+    if (owner !== 'alice') throw Error('Account changed');
+  }), /Account changed/);
+  assert.equal(sent, 0);
+});
+
+test('uncertain server batch requires explicit restart while a running batch can be resumed', async () => {
+  const source = fs.readFileSync(require.resolve('../app.js'), 'utf8');
+  const code = source.slice(source.indexOf('  async function checkedSourceResponse('), source.indexOf('  function sourceRequest('));
+  const context = {};
+  vm.createContext(context); vm.runInContext(code, context);
+  await assert.rejects(context.checkedSourceResponse({ ok: false, status: 502, json: async () => ({ error: 'Restart unfinished batch', errorCode: 'BATCH_RESTART_REQUIRED', retryable: false }) }), error => error.restartRequired && !error.retryable);
+  await assert.rejects(context.checkedSourceResponse({ ok: false, status: 409, json: async () => ({ error: 'Still processing', retryable: true }) }), error => error.retryable && !error.restartRequired);
 });
 
 test('changed OCR text, document type or question style invalidates batch results', () => {

@@ -232,6 +232,37 @@
   let sourcePdfLibraryPromise = null;
   let calendarImportOcrText = '';
   let sourceQueueItems = [];
+  const importStore = window.SyllabloomImportStore.createStore();
+  let importOwner = '';
+  let importRestore = Promise.resolve();
+
+  async function persistImportQueue(owner = importOwner, items = sourceQueueItems) {
+    try { await importStore.save(owner, items); }
+    catch (_) {
+      if (owner === importOwner) {
+        sourceBatchFeedback = 'This browser could not save import recovery. Keep this tab open until the import finishes.';
+        renderSourceQueue();
+      }
+    }
+  }
+
+  function restoreImportQueue(owner) {
+    if (owner === importOwner) return;
+    importOwner = owner;
+    sourceQueueItems = [];
+    importRestore = (async () => {
+      try {
+        const items = owner ? await importStore.load(owner) : [];
+        if (owner !== importOwner) return;
+        sourceQueueItems = items;
+        if (items.length) sourceBatchFeedback = 'Your unfinished import was restored and is ready to continue.';
+        renderSourceQueue();
+      } catch (_) {
+        if (owner === importOwner) showToast('Import recovery storage is unavailable on this browser.');
+      }
+    })();
+  }
+
   let sourceBatchRunning = false;
   let sourceBatchProgress = null;
   let sourceBatchFeedback = '';
@@ -4112,6 +4143,7 @@
           </div>
           <div class="source-queue-state">
             <span class="source-queue-status ${statusClass}">${statusLabel}</span>
+            ${item.restartRequired ? `<button type="button" data-restart-source="${escapeHtml(item.id)}" ${sourceBatchRunning ? 'disabled' : ''}>Restart unfinished batch</button>` : ''}
             ${item.error ? '<small>' + escapeHtml(item.error) + '</small>' : item.preflightLabel ? '<small class="is-meta">' + escapeHtml(item.preflightLabel) + '</small>' : ''}
           </div>
           <button class="source-queue-remove" type="button" data-remove-queued-source="${escapeHtml(item.id)}" aria-label="Remove ${escapeHtml(item.name)} from this batch" ${sourceBatchRunning ? 'disabled' : ''}>×</button>
@@ -4126,7 +4158,7 @@
       ? 'Adding documents…'
       : sourceQueueItems.some(item => item.status === 'queued')
         ? 'Add ' + processable.length + (processable.length === 1 ? ' document' : ' documents')
-        : processable.length === 1 ? 'Retry failed document' : 'Retry failed documents';
+        : 'Resume import';
 
     const current = sourceQueueItems.find(item => item.status === 'processing');
     if (sourceBatchRunning && current && sourceBatchProgress) {
@@ -4139,13 +4171,15 @@
     initializeThemedSelectPickers();
   }
 
-  function queueSourceFiles(files) {
+  async function queueSourceFiles(files) {
+    await importRestore;
     const selected = window.SyllabloomSourceBatch.createQueueItems(
       files,
       document.querySelector('#sourceKind').value
     );
     sourceQueueItems = [...sourceQueueItems, ...selected];
     sourceBatchFeedback = '';
+    await persistImportQueue();
     renderSourceQueue();
     if (selected.length) {
       showToast(selected.length === 1
@@ -4160,32 +4194,50 @@
       item.status === 'queued' || (item.status === 'failed' && item.retryable)
     );
     if (!processable) return;
+    const owner = importOwner;
+    const workingQueue = sourceQueueItems;
+    const assertOwner = () => { if (owner !== importOwner) throw new Error('Account changed. Sign back in to resume this import.'); };
 
     sourceBatchRunning = true;
     const questionStyle = normalizedQuestionStyle(state.anki.questionStyle);
     sourceBatchProgress = null;
     sourceBatchFeedback = '';
     renderSourceQueue();
-    const result = await window.SyllabloomSourceBatch.processQueue(
-      sourceQueueItems,
-      item => uploadSource(item.file, item.kind, {
-        silent: true,
-        manageButton: false,
-        queueItem: item,
-        questionStyle,
-        onProgress: message => {
-          item.progressLabel = message;
+    let result;
+    try {
+      await persistImportQueue(owner, workingQueue);
+      result = await window.SyllabloomSourceBatch.processQueue(
+        workingQueue,
+        item => uploadSource(item.file, item.kind, {
+          silent: true,
+          manageButton: false,
+          queueItem: item,
+          assertOwner,
+          checkpoint: () => persistImportQueue(owner, workingQueue),
+          questionStyle,
+          onProgress: message => {
+            item.progressLabel = message;
+            renderSourceQueue();
+          }
+        }),
+        async (item, details) => {
+          await persistImportQueue(owner, workingQueue);
+          assertOwner();
+          if (item.status === 'processing') {
+            sourceBatchProgress = { current: details.index + 1, total: details.total };
+          }
           renderSourceQueue();
         }
-      }),
-      (item, details) => {
-        if (item.status === 'processing') {
-          sourceBatchProgress = { current: details.index + 1, total: details.total };
-        }
-        renderSourceQueue();
-      }
-    );
-
+      );
+    } catch (error) {
+      if (owner === importOwner) showToast(error.message || 'Import paused. Resume to continue.');
+      return;
+    } finally {
+      sourceBatchRunning = false;
+      await persistImportQueue(owner, workingQueue);
+      renderSourceQueue();
+    }
+    if (owner !== importOwner) return;
     const completed = sourceQueueItems.filter(item => item.status === 'done');
     const added = completed.filter(item => !item.duplicateSkipped);
     const duplicateSkipped = completed.filter(item => item.duplicateSkipped).length;
@@ -4196,6 +4248,7 @@
     const calendarWarningCount = added.reduce((total, item) => total + (item.result?.calendarWarnings?.length || 0), 0);
     const contentDocumentCount = added.filter(item => item.result?.kind !== 'syllabus').length;
     sourceQueueItems = remainingItems;
+    await persistImportQueue();
     sourceBatchRunning = false;
     sourceBatchProgress = null;
     const remaining = sourceQueueItems.length;
@@ -4249,17 +4302,23 @@
         ? response.status < 500
         : payload.retryable !== false;
       error.fileFingerprint = payload.fileFingerprint || '';
+      error.restartRequired = error.code === 'BATCH_RESTART_REQUIRED';
       throw error;
     }
     return payload;
   }
 
-  function sourceRequest(url, options) {
-    return window.SyllabloomSourceBatch.authenticatedRequest(url, options, window.SyllabloomAuth);
+  function sourceRequest(url, options, assertOwner = () => {}) {
+    const auth = { getToken: async settings => {
+      const token = await window.SyllabloomAuth?.getToken?.(settings);
+      assertOwner();
+      return token;
+    } };
+    return window.SyllabloomSourceBatch.authenticatedRequest(url, options, auth);
   }
 
-  async function uploadLargeSource(file, kind, onProgress = () => {}) {
-    const ticketResponse = await sourceRequest('/api/source-upload-url', {
+  async function uploadLargeSource(file, kind, onProgress = () => {}, request = sourceRequest) {
+    const ticketResponse = await request('/api/source-upload-url', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filename: file.name, size: file.size })
@@ -4267,7 +4326,7 @@
     const ticket = await checkedSourceResponse(ticketResponse, 'The secure upload could not be prepared.');
     try {
       await uploadLargeSourceFile(ticket.uploadUrl, file, ticket.contentType, onProgress);
-      const response = await sourceRequest('/api/source', {
+      const response = await request('/api/source', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -4291,6 +4350,12 @@
     const manageButton = options.manageButton !== false;
     const queueItem = options.queueItem || null;
     const questionStyle = normalizedQuestionStyle(options.questionStyle || state.anki.questionStyle);
+    const request = async (url, init) => {
+      options.assertOwner?.();
+      const response = await sourceRequest(url, init, options.assertOwner);
+      options.assertOwner?.();
+      return response;
+    };
     let lastProgressLabel = '';
     let lastProgressAt = 0;
     const reportProgress = message => {
@@ -4321,7 +4386,7 @@
       const inspectOcrText = async (pageTexts, fileFingerprint) => {
         const text = pageTexts.filter(page => page.trim()).join('\n');
         reportProgress('Updating the source preview with on-device OCR…');
-        const response = await sourceRequest('/api/source', {
+        const response = await request('/api/source', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -4344,7 +4409,7 @@
           if (!isLocalDevelopment && file.size > 3 * 1024 * 1024) {
             payload = await uploadLargeSource(file, kind, percent => {
               reportProgress(`Uploading securely… ${percent}%`);
-            });
+            }, request);
           } else {
             reportProgress('Inspecting the source before card generation…');
             const body = new FormData();
@@ -4352,7 +4417,7 @@
             body.append('kind', kind);
             body.append('questionStyle', questionStyle);
             body.append('inspect', '1');
-            const response = await sourceRequest('/api/source', {
+            const response = await request('/api/source', {
               method: 'POST',
               body
             });
@@ -4375,6 +4440,8 @@
         if (queueItem && payload?.source) queueItem.inspectionCache = { kind, payload: structuredClone(payload) };
       }
       if (!payload?.source) throw new Error('The source preview did not contain readable course material.');
+      options.assertOwner?.();
+      await options.checkpoint?.();
       const detectedKind = payload.source.kind || kind;
       if (queueItem && payload.source.preflight && !payload.source.preflight.requiresCards) {
         const preflight = payload.source.preflight;
@@ -4422,13 +4489,17 @@
           let result = batchCache.results[batchIndex];
           if (!result) {
             reportProgress(`Preparing card batch ${batchIndex + 1} of ${batchCount}…`);
+            if (queueItem) queueItem.activeBatchIndex = batchIndex;
+            await options.checkpoint?.();
             let response;
             try {
-              response = await sourceRequest('/api/source', {
+              response = await request('/api/source', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   operation: 'generate-batch',
+                  durable: true,
+                  restartUncertain: queueItem?.restartUncertain === true && queueItem?.restartBatchIndex === batchIndex,
                   filename: file.name,
                   kind: detectedKind,
                   extractedText: text,
@@ -4440,13 +4511,21 @@
               });
             } catch (error) {
               // The request may have reached the model before the connection failed.
-              error.retryable = false;
+              error.retryable = true;
+              error.message = 'Connection interrupted. Choose Resume import to recover the saved batch result.';
               throw error;
             }
-            const batchPayload = await checkedSourceResponse(response, 'This card batch could not finish.');
+            let batchPayload;
+            try { batchPayload = await checkedSourceResponse(response, 'This card batch could not finish. Choose Resume import to recover its result.'); }
+            catch (error) {
+              if (response.status >= 500 && !error.restartRequired) error.retryable = true;
+              throw error;
+            }
             result = batchPayload.result;
             if (!result || !Array.isArray(result.cards)) throw new Error('The card batch returned an incomplete result.');
             batchCache.results[batchIndex] = result;
+            if (queueItem?.restartBatchIndex === batchIndex) queueItem.restartUncertain = false;
+            await options.checkpoint?.();
           }
           generatedCards.push(...(result.cards || []));
           generatedConcepts.push(...(result.concepts || []));
@@ -4483,6 +4562,7 @@
         };
       }
 
+      options.assertOwner?.();
       delete payload.extractedText;
       delete payload.extractedUnits;
       const previousSource = state.sources.find(item => item.id === payload.source.id);
@@ -4959,6 +5039,7 @@
     state.account.userId = detail.userId || '';
     state.account.displayName = detail.displayName || '';
     state.account.imageUrl = detail.imageUrl || '';
+    restoreImportQueue(state.account.userId);
     if (state.account.signedIn && state.account.userId) {
       const usageByUser = storedJson('syllabloom-class-usage-by-user', {});
       const hasScopedUsage = Object.prototype.hasOwnProperty.call(usageByUser, state.account.userId);
@@ -5252,19 +5333,30 @@
     if (!select || sourceBatchRunning) return;
     const item = sourceQueueItems.find(entry => entry.id === select.dataset.sourceQueueKind);
     if (item) item.kind = select.value;
+    persistImportQueue();
   });
   document.querySelector('#sourceQueueList').addEventListener('click', event => {
+    const restart = event.target.closest('[data-restart-source]');
+    if (restart && !sourceBatchRunning) {
+      const item = sourceQueueItems.find(entry => entry.id === restart.dataset.restartSource);
+      if (item) { item.restartUncertain = true; item.restartBatchIndex = item.activeBatchIndex; item.restartRequired = false; item.retryable = true; }
+      persistImportQueue();
+      addQueuedSources();
+      return;
+    }
     const removeButton = event.target.closest('[data-remove-queued-source]');
     if (!removeButton || sourceBatchRunning) return;
     const item = sourceQueueItems.find(entry => entry.id === removeButton.dataset.removeQueuedSource);
     sourceQueueItems = sourceQueueItems.filter(entry => entry.id !== removeButton.dataset.removeQueuedSource);
     sourceBatchFeedback = item ? item.name + ' removed from the import list.' : '';
+    persistImportQueue();
     renderSourceQueue();
   });
   document.querySelector('#sourceQueueAdd').addEventListener('click', addQueuedSources);
   document.querySelector('#sourceQueueClear').addEventListener('click', () => {
     if (sourceBatchRunning) return;
     sourceQueueItems = [];
+    persistImportQueue();
     sourceBatchFeedback = '';
     renderSourceQueue();
   });

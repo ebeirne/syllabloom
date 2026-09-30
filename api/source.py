@@ -166,7 +166,13 @@ def _generate_source_batch(body: object, user_id: str) -> dict:
         raise ValueError("The source changed during import. Please upload it again.")
     if not isinstance(batch_index, int) or isinstance(batch_index, bool):
         raise ValueError("The card-generation batch is invalid.")
-    return generate_source_cards_batch(text, filename, kind, units, user_id, batch_index, question_style)
+    generate = lambda: generate_source_cards_batch(text, filename, kind, units, user_id, batch_index, question_style)
+    if body.get("durable") is True:
+        from api.source_jobs import run_batch
+        identity = {"version": 1, "text": fingerprint, "units": units, "filename": filename,
+                    "kind": kind, "batch": batch_index, "style": question_style}
+        return run_batch(user_id, identity, generate, restart=body.get("restartUncertain") is True)
+    return generate()
 
 
 def _file_fingerprint(path: Path) -> str:
@@ -308,7 +314,8 @@ class handler(JsonHandler):
                         result = _generate_source_batch(body, user_id or "local-development")
                     except CardGenerationError as exc:
                         self.send_json(
-                            {"error": exc.public_message, "retryable": exc.retryable}, exc.status
+                            {"error": exc.public_message, "retryable": exc.retryable,
+                             "errorCode": getattr(exc, "code", "")}, exc.status
                         )
                         return
                     except ValueError as exc:

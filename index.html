@@ -4273,7 +4273,7 @@
             <p>Add a syllabus, slide deck, reading, or assessment you're allowed to use. Syllabloom reads its structure before drafting cards.</p>
             <p class="source-kind-hint">Syllabloom identifies each file as a syllabus, class material, or past assessment. Choose a type to override detection for the batch, or change individual files before adding them.</p>
             <p class="source-kind-hint">There is no per-account file-count cap. Each source can be up to 100 MB and 192,000 readable characters. Larger sources are prepared in visible batches of up to four sections, subject to daily limits and the shared beta budget.</p>
-            <p class="source-kind-hint">Syllabloom checks what text it can read before generating anything. Scanned PDF pages can be read on this device; image-only slides may need speaker notes or descriptions to make useful cards.</p>
+            <p class="source-kind-hint">Unfinished imports are saved on this device for 24 hours so you can reopen this page and resume. Syllabloom checks what text it can read before generating anything. Scanned PDF pages can be read on this device; image-only slides may need speaker notes or descriptions to make useful cards.</p>
             <p class="source-kind-hint">For card generation, extracted course text—not the uploaded file—is sent to OpenAI. Each draft includes its matching source passage for review. Avoid uploading sensitive personal details.</p>
             <div class="question-style-control">
               <label for="questionStyleMaterials">Front question style</label>
@@ -5051,14 +5051,15 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="muscle-data.js?v=20260921-loop"></script>
-  <script src="auth.js?v=20260930-recovery-1"></script>
+  <script src="auth.js?v=20260930-durable-1"></script>
   <script src="calendar-features.js?v=20260922-schedule-import-1"></script>
   <script src="card-set.js?v=20260922-card-management-1"></script>
   <script src="source-study.js?v=20260925-card-quality-guard-1"></script>
   <script src="anki-connect.js?v=20260924-anki-desktop-bridge-1"></script>
-  <script src="source-batch.js?v=20260930-recovery-1"></script>
+  <script src="source-import-store.js?v=20260930-durable-1"></script>
+  <script src="source-batch.js?v=20260930-durable-1"></script>
   <script src="course-map.js?v=20260923-course-map-1"></script>
-  <script src="app.js?v=20260930-recovery-1"></script>
+  <script src="app.js?v=20260930-durable-1"></script>
   <script src="billing.js?v=20260928-billing-1"></script>
   <script type="module" src="motion-effects.js?v=20260921-motion-smooth-2"></script>
 </body>

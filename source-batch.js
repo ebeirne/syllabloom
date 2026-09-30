@@ -63,7 +63,7 @@
       item.status = 'processing';
       item.error = '';
       item.retryable = false;
-      onUpdate(item, { index, total: work.length });
+      await onUpdate(item, { index, total: work.length });
 
       try {
         item.result = await importer(item);
@@ -73,10 +73,11 @@
         item.status = 'failed';
         item.error = error?.message || 'This document could not be read. Try again or remove it.';
         item.retryable = error?.retryable !== false;
+        item.restartRequired = error?.restartRequired === true;
         failed += 1;
       }
 
-      onUpdate(item, { index, total: work.length });
+      await onUpdate(item, { index, total: work.length });
     }
 
     return { attempted: work.length, succeeded, failed };
