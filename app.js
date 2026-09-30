@@ -4182,8 +4182,8 @@
           <div class="source-queue-kind">
             <span class="source-queue-kind-label">Document type</span>
             <div class="source-kind-picker source-queue-kind-picker" data-themed-select-picker>
-              <select class="source-kind-native" data-source-queue-kind="${escapeHtml(item.id)}" aria-hidden="true" tabindex="-1">${optionMarkup}</select>
-              <button class="source-kind-trigger" type="button" aria-label="Document type for ${escapeHtml(item.name)}" aria-haspopup="listbox" aria-expanded="false" aria-controls="${menuId}" ${sourceBatchRunning ? 'disabled' : ''}>
+              <select class="source-kind-native" data-source-queue-kind="${escapeHtml(item.id)}" aria-hidden="true" tabindex="-1" ${item.targetSourceId ? 'disabled' : ''}>${optionMarkup}</select>
+              <button class="source-kind-trigger" type="button" aria-label="Document type for ${escapeHtml(item.name)}" aria-haspopup="listbox" aria-expanded="false" aria-controls="${menuId}" ${sourceBatchRunning || item.targetSourceId ? 'disabled' : ''}>
                 <span data-select-current>${escapeHtml(options.find(option => option[0] === item.kind)?.[1] || 'Auto-detect')}</span>
                 <span class="source-kind-trigger-arrow" aria-hidden="true"></span>
               </button>
@@ -4406,6 +4406,10 @@
     const priorText = label.textContent;
     const manageButton = options.manageButton !== false;
     const queueItem = options.queueItem || null;
+    if (queueItem?.targetSourceId) {
+      if (!queueItem.inspectionCache) throw new Error('Select the source sections again to prepare this request.');
+      kind = queueItem.inspectionCache.kind;
+    }
     const questionStyle = normalizedQuestionStyle(options.questionStyle || state.anki.questionStyle);
     const request = async (url, init) => {
       options.assertOwner?.();
