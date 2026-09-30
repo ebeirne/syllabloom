@@ -5611,7 +5611,7 @@
     if(!sections.length) {feedback.textContent='Select a readable section first.';return;}
     const owner=importOwner; button.disabled=true; feedback.textContent='Preparing selected sections...';
     try {
-      const response=await sourceRequest('/api/source',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operation:'prepare-sections',filename:original.name,sections})});
+      const response=await sourceRequest('/api/source',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operation:'prepare-sections',filename:original.name,sections})},()=>{ if(owner!==importOwner) throw new Error('Account changed. Try again.'); });
       const prepared=await checkedSourceResponse(response,'Could not prepare these sections.');
       if(owner!==importOwner) throw new Error('Account changed. Try again.');
       const file=new File([prepared.extractedText],original.name,{type:'text/plain'});
