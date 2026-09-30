@@ -1,4 +1,5 @@
 import os
+import json
 import uuid
 import hashlib
 import psycopg
@@ -34,6 +35,7 @@ def test_report_counts_real_dates_cohorts_payments_and_retries_without_identifie
     events.record_payment_event(database,'organic',event,True)
     events.record_payment_event(database,'organic',event,True)
     report=events.report(database)
+    json.dumps(report)  # PostgreSQL SUM(bigint) returns Decimal; API output must be JSON-safe.
     assert report['returning']=={'organic':1}
     assert report['referrals']==[{'code':'med01','studyingUsers':1}]
     assert report['grossRevenue']==[{'cohort':'organic','currency':'usd','amountMinor':1200}]

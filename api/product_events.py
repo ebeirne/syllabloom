@@ -101,7 +101,7 @@ def report(db):
         AND created_at > now()-interval '30 days' GROUP BY cohort,properties->>'currency' ''').fetchall()
     return {'days': 30, 'events': [{'cohort': c, 'event': e, 'count': n, 'users': u} for c,e,n,u in rows],
             'returning': dict(returns), 'referrals': [{'code': r, 'studyingUsers': n} for r,n in referrals],
-            'grossRevenue': [{'cohort': c, 'currency': cur, 'amountMinor': amount} for c,cur,amount in revenue]}
+            'grossRevenue': [{'cohort': c, 'currency': cur, 'amountMinor': int(amount)} for c,cur,amount in revenue]}
 
 
 def handle(request, method):
