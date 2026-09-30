@@ -33,3 +33,7 @@
 }
 #quickClassSettings { width:min(460px,calc(100vw - 32px)); border:2px solid var(--ink); border-radius:24px; background:var(--paper); }
 #quickClassSettings input { width:100%; }
+
+.return-study h1 { font-size:clamp(30px,4vw,48px) !important; margin:10px 0; }
+.more-study-options > summary { padding:20px; cursor:pointer; font-weight:650; }
+.more-study-options { margin-bottom:24px; }

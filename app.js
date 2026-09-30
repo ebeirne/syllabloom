@@ -2064,6 +2064,11 @@
       : 'A medical student and a small green study companion sorting anatomy flashcards';
     const returnSource = [...state.sources].reverse().find(item => item.draftCards?.length);
     document.querySelector('#returnStudyPanel').hidden = !custom || !returnSource;
+    const moreStudy = document.querySelector('#moreStudyOptions');
+    const hasReturn = Boolean(custom && returnSource);
+    if (moreStudy.dataset.hasReturn !== String(hasReturn)) moreStudy.open = !hasReturn;
+    moreStudy.dataset.hasReturn = String(hasReturn);
+    moreStudy.querySelector('summary').hidden = !hasReturn;
     if(returnSource) { document.querySelector('#returnStudyTitle').textContent = 'Continue studying'; document.querySelector('#returnStudyDescription').textContent = `${returnSource.name} · a five-card session, ready when you are.`; }
     document.querySelector('#todayHeroCopy').textContent = custom
       ? latestSource
