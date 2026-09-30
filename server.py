@@ -202,8 +202,16 @@ def extract_source_text(path: Path, suffix: str) -> tuple[str, dict]:
         with pdfplumber.open(path) as document:
             pages = []
             for page in document.pages:
-                normalized_page = page.dedupe_chars(tolerance=1)
-                pages.append((normalized_page.extract_text(x_tolerance=2, y_tolerance=3) or "").strip())
+                normalized_page = None
+                try:
+                    normalized_page = page.dedupe_chars(tolerance=1)
+                    pages.append((normalized_page.extract_text(x_tolerance=2, y_tolerance=3) or "").strip())
+                finally:
+                    # pdfplumber caches page layouts. Release each page instead
+                    # of retaining an entire large lecture's object graph.
+                    if normalized_page is not None:
+                        normalized_page.close()
+                    page.close()
         return "\n".join(page for page in pages if page), {
             "unitLabel": "pages",
             "unitCount": len(pages),

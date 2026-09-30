@@ -4220,6 +4220,8 @@
     return new Promise((resolve, reject) => {
       const request = new XMLHttpRequest();
       request.open('PUT', url);
+      request.timeout = 10 * 60 * 1000;
+      request.addEventListener('timeout', () => reject(new Error('The upload timed out. Check your connection and retry.')));
       request.setRequestHeader('Content-Type', contentType);
       request.upload.addEventListener('progress', event => {
         if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
@@ -4252,18 +4254,22 @@
     return payload;
   }
 
-  async function uploadLargeSource(file, kind, token, onProgress = () => {}) {
-    const ticketResponse = await fetch('/api/source-upload-url', {
+  function sourceRequest(url, options) {
+    return window.SyllabloomSourceBatch.authenticatedRequest(url, options, window.SyllabloomAuth);
+  }
+
+  async function uploadLargeSource(file, kind, onProgress = () => {}) {
+    const ticketResponse = await sourceRequest('/api/source-upload-url', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filename: file.name, size: file.size })
     });
     const ticket = await checkedSourceResponse(ticketResponse, 'The secure upload could not be prepared.');
     try {
       await uploadLargeSourceFile(ticket.uploadUrl, file, ticket.contentType, onProgress);
-      const response = await fetch('/api/source', {
+      const response = await sourceRequest('/api/source', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           filename: file.name,
           kind,
@@ -4315,9 +4321,9 @@
       const inspectOcrText = async (pageTexts, fileFingerprint) => {
         const text = pageTexts.filter(page => page.trim()).join('\n');
         reportProgress('Updating the source preview with on-device OCR…');
-        const response = await fetch('/api/source', {
+        const response = await sourceRequest('/api/source', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             operation: 'inspect-text',
             filename: file.name,
@@ -4330,38 +4336,43 @@
         return checkedSourceResponse(response, 'The scanned PDF could not be prepared.');
       };
 
-      try {
-        if (!isLocalDevelopment && file.size > 3 * 1024 * 1024) {
-          payload = await uploadLargeSource(file, kind, token, percent => {
-            reportProgress(`Uploading securely… ${percent}%`);
-          });
-        } else {
-          reportProgress('Inspecting the source before card generation…');
-          const body = new FormData();
-          body.append('source', file, file.name);
-          body.append('kind', kind);
-          body.append('questionStyle', questionStyle);
-          body.append('inspect', '1');
-          const response = await fetch('/api/source', {
-            method: 'POST',
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-            body
-          });
-          payload = await checkedSourceResponse(response, 'The document could not be read.');
+      const inspected = queueItem?.inspectionCache;
+      if (inspected?.kind === kind) {
+        payload = structuredClone(inspected.payload);
+      } else {
+        try {
+          if (!isLocalDevelopment && file.size > 3 * 1024 * 1024) {
+            payload = await uploadLargeSource(file, kind, percent => {
+              reportProgress(`Uploading securely… ${percent}%`);
+            });
+          } else {
+            reportProgress('Inspecting the source before card generation…');
+            const body = new FormData();
+            body.append('source', file, file.name);
+            body.append('kind', kind);
+            body.append('questionStyle', questionStyle);
+            body.append('inspect', '1');
+            const response = await sourceRequest('/api/source', {
+              method: 'POST',
+              body
+            });
+            payload = await checkedSourceResponse(response, 'The document could not be read.');
+          }
+        } catch (inspectError) {
+          if (inspectError?.code !== 'NO_SELECTABLE_TEXT' || !String(file.name || '').toLowerCase().endsWith('.pdf')) throw inspectError;
+          reportProgress('No text layer · reading scanned pages on this device…');
+          const reading = await readPdfTextOnDevice(file, [], [], reportProgress);
+          payload = await inspectOcrText(reading.pageTexts, inspectError.fileFingerprint);
         }
-      } catch (inspectError) {
-        if (inspectError?.code !== 'NO_SELECTABLE_TEXT' || !String(file.name || '').toLowerCase().endsWith('.pdf')) throw inspectError;
-        reportProgress('No text layer · reading scanned pages on this device…');
-        const reading = await readPdfTextOnDevice(file, [], [], reportProgress);
-        payload = await inspectOcrText(reading.pageTexts, inspectError.fileFingerprint);
-      }
 
-      if (String(file.name || '').toLowerCase().endsWith('.pdf')) {
-        const lowTextPages = payload.source?.preflight?.lowTextPages || [];
-        if (lowTextPages.length) {
-          const reading = await readPdfTextOnDevice(file, lowTextPages, payload.extractedUnits?.pageTexts || [], reportProgress);
-          payload = await inspectOcrText(reading.pageTexts, payload.source.fileFingerprint);
+        if (String(file.name || '').toLowerCase().endsWith('.pdf')) {
+          const lowTextPages = payload.source?.preflight?.lowTextPages || [];
+          if (lowTextPages.length) {
+            const reading = await readPdfTextOnDevice(file, lowTextPages, payload.extractedUnits?.pageTexts || [], reportProgress);
+            payload = await inspectOcrText(reading.pageTexts, payload.source.fileFingerprint);
+          }
         }
+        if (queueItem && payload?.source) queueItem.inspectionCache = { kind, payload: structuredClone(payload) };
       }
       if (!payload?.source) throw new Error('The source preview did not contain readable course material.');
       const detectedKind = payload.source.kind || kind;
@@ -4399,10 +4410,11 @@
           queueItem.preflightLabel = `${preflight.unitCount} ${preflight.unitLabel} · ${preflight.inputCharacters.toLocaleString()} readable characters · ${batchCount} card batch${batchCount === 1 ? '' : 'es'}${imageGap}`;
           options.onProgress?.(queueItem.preflightLabel);
         }
+        const identity = window.SyllabloomSourceBatch.generationKey(payload.source, file.name, questionStyle);
         const cache = queueItem?.generationCache;
-        const batchCache = cache?.fingerprint === payload.source.fileFingerprint && cache?.questionStyle === questionStyle
+        const batchCache = cache?.identity === identity
           ? cache
-          : { fingerprint: payload.source.fileFingerprint, questionStyle, results: [] };
+          : { identity, results: [] };
         if (queueItem) queueItem.generationCache = batchCache;
         const generatedCards = [];
         const generatedConcepts = [];
@@ -4412,9 +4424,9 @@
             reportProgress(`Preparing card batch ${batchIndex + 1} of ${batchCount}…`);
             let response;
             try {
-              response = await fetch('/api/source', {
+              response = await sourceRequest('/api/source', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   operation: 'generate-batch',
                   filename: file.name,

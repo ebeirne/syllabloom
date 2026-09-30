@@ -1,0 +1,20 @@
+name: Upload and study regression checks
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  upload-study:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: python -m pip install -r requirements.txt pytest pytest-subtests
+      - name: Document extraction, generation boundaries, authentication and study activation
+        run: python -m pytest tests/test_source_compiler.py tests/test_source_upload.py tests/test_source_batch.py tests/test_ai_card_generation.py tests/test_ai_usage.py tests/test_uploaded_source_activation.py tests/test_auth_navigation.py tests/test_billing.py -q
+      - name: Interrupted imports, OCR, upload URLs and card handling
+        run: node --test tests/source_import_recovery.test.js tests/source_upload.test.js tests/source_batch.test.js tests/source_pdf_ocr.test.js tests/card_set.test.js tests/source_study.test.js

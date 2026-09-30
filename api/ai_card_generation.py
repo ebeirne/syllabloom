@@ -22,7 +22,9 @@ CHUNKS_PER_BATCH = 4
 QUESTION_STYLES = {"balanced", "direct", "explain", "compare", "apply"}
 MAX_SYNC_SOURCE_TEXT_CHARS = MAX_CHUNK_CHARS * CHUNKS_PER_BATCH
 MAX_CARDS_PER_CHUNK = 12
-MAX_OUTPUT_TOKENS_PER_CHUNK = 1_900
+# Twelve cards include questions, answers, exact source quotes and JSON syntax.
+# The old 1,900-token ceiling could truncate otherwise valid medical decks.
+MAX_OUTPUT_TOKENS_PER_CHUNK = 4_096
 REQUEST_TIMEOUT_SECONDS = 38
 _URL_RE = re.compile(r"\b(?:https?://|www\.)\S+", re.IGNORECASE)
 _ADMIN_INSTRUCTION_RE = re.compile(
@@ -94,6 +96,11 @@ class CardGenerationError(RuntimeError):
 class AIConfigurationError(CardGenerationError):
     status = HTTPStatus.SERVICE_UNAVAILABLE
     public_message = "AI card generation is not configured yet. Your document was not added."
+    retryable = True
+
+
+class IncompleteCardGenerationError(CardGenerationError):
+    public_message = "The AI response stopped before finishing this batch. Retry to continue; completed batches are kept."
     retryable = True
 
 
@@ -379,6 +386,8 @@ def _request_chunk(
         if payload.get("status") not in {None, "completed"}:
             reason = (payload.get("incomplete_details") or {}).get("reason")
             print(f"Card provider incomplete: token_limit={reason == 'max_output_tokens'}", flush=True)
+            if payload.get("status") == "incomplete" and reason == "max_output_tokens":
+                raise IncompleteCardGenerationError()
             raise CardGenerationError()
         parsed = json.loads(_response_text(payload))
         cards = parsed.get("cards")
