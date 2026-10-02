@@ -58,8 +58,8 @@ class SeoPageTests(unittest.TestCase):
         self.assertIsNotNone(match)
         schema = json.loads(match.group(1))
         self.assertEqual(schema["@type"], "WebApplication")
-        self.assertTrue(schema["isAccessibleForFree"])
-        self.assertEqual(schema["offers"]["price"], "0")
+        self.assertFalse(schema["isAccessibleForFree"])
+        self.assertEqual(schema["offers"]["price"], "12")
         self.assertNotIn("aggregateRating", schema)
 
     def test_sample_export_demo_opens_the_real_sample_class(self) -> None:
@@ -99,7 +99,7 @@ class SeoPageTests(unittest.TestCase):
         self.assertIn("campus schedules vary", calendar)
         self.assertIn("not a benchmark", comparison)
         self.assertIn("should review, correct, or remove cards", comparison)
-        self.assertIn("no paid checkout", comparison)
+        self.assertIn("$108 billed annually", comparison)
 
     def test_robots_and_sitemap_only_advertise_intended_public_pages(self) -> None:
         robots = (ROOT / "robots.txt").read_text(encoding="utf-8")

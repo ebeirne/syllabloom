@@ -1,0 +1,9 @@
+[Unit]
+Description=Syllabloom nightly cleanup (abandoned uploads, old AI usage rows)
+
+[Service]
+Type=oneshot
+User=syllabloom
+EnvironmentFile=/etc/syllabloom.env
+ExecStart=/bin/sh -c 'curl -fsS -H "Authorization: Bearer $CRON_SECRET" http://127.0.0.1:4174/api/source-upload-cleanup'
+ExecStart=/bin/sh -c 'curl -fsS -H "Authorization: Bearer $CRON_SECRET" http://127.0.0.1:4174/api/ai-usage-cleanup'

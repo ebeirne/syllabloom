@@ -1,8 +1,25 @@
 (function (root) {
   const allowedKinds = new Set(['auto', 'material', 'syllabus', 'assessment']);
-  const allowedExtensions = new Set(['docx', 'pptx', 'pdf', 'txt']);
+  const allowedExtensions = new Set(['docx', 'ppt', 'pptw', 'pptx', 'pdf', 'txt']);
   const maxFileBytes = 100 * 1024 * 1024;
   let nextQueueId = 0;
+
+  // Refresh between upload, OCR and generation. Only replay a request rejected
+  // by authentication, never a network failure or uncertain provider response.
+  async function authenticatedRequest(url, options, auth, request = fetch) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const token = await auth?.getToken?.(attempt ? { skipCache: true } : undefined);
+      const headers = { ...options.headers };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const response = await request(url, { ...options, headers });
+      if (response.status !== 401 || attempt === 1 || !auth?.getToken) return response;
+    }
+  }
+
+  function generationKey(source, filename, questionStyle) {
+    return JSON.stringify([source.fileFingerprint, source.fingerprint, source.kind,
+      filename, questionStyle, source.preflight?.batchCount]);
+  }
 
   function createQueueItems(files, defaultKind = 'auto') {
     const kind = allowedKinds.has(defaultKind) ? defaultKind : 'auto';
@@ -22,7 +39,7 @@
 
       if (!allowedExtensions.has(extension)) {
         item.status = 'failed';
-        item.error = 'Use a DOCX, PPTX, PDF, or TXT file.';
+        item.error = 'Use a DOCX, PowerPoint, PDF, or TXT file.';
       } else if (!item.size) {
         item.status = 'failed';
         item.error = 'This document is empty. Choose a file that contains content.';
@@ -44,7 +61,7 @@
       item.status = 'processing';
       item.error = '';
       item.retryable = false;
-      onUpdate(item, { index, total: work.length });
+      await onUpdate(item, { index, total: work.length });
 
       try {
         item.result = await importer(item);
@@ -54,16 +71,17 @@
         item.status = 'failed';
         item.error = error?.message || 'This document could not be read. Try again or remove it.';
         item.retryable = error?.retryable !== false;
+        item.restartRequired = error?.restartRequired === true;
         failed += 1;
       }
 
-      onUpdate(item, { index, total: work.length });
+      await onUpdate(item, { index, total: work.length });
     }
 
     return { attempted: work.length, succeeded, failed };
   }
 
-  const api = { createQueueItems, processQueue };
+  const api = { createQueueItems, processQueue, authenticatedRequest, generationKey };
   root.SyllabloomSourceBatch = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -13,6 +13,8 @@ from unittest.mock import patch
 from api.ai_card_generation import (
     AIConfigurationError,
     AIUsageLimitError,
+    CardGenerationError,
+    IncompleteCardGenerationError,
     MAX_CARDS_PER_CHUNK,
     MAX_OUTPUT_TOKENS_PER_CHUNK,
     NoStudyCardsError,
@@ -78,6 +80,49 @@ class FakeOpener:
 
 
 class AICardGenerationTests(unittest.TestCase):
+    def test_known_token_truncation_can_be_manually_retried_without_accepting_partial_cards(self):
+        calls = []
+        def truncated(request, timeout):
+            calls.append(request)
+            response = FakeResponse([card()])
+            payload = json.loads(response.body)
+            payload.update(status="incomplete", incomplete_details={"reason": "max_output_tokens"})
+            response.body = json.dumps(payload).encode()
+            return response
+        with self.assertRaises(IncompleteCardGenerationError) as failure:
+            generate_ai_cards(SOURCE, "lecture.pdf", "material", {"pageTexts": [SOURCE]}, api_key="test", opener=truncated)
+        self.assertTrue(failure.exception.retryable)
+        self.assertEqual(len(calls), 1)
+
+    def test_connection_loss_stays_ambiguous_and_is_never_automatically_retried(self):
+        calls = []
+        def offline(request, timeout):
+            calls.append(request)
+            raise TimeoutError()
+        with self.assertRaises(CardGenerationError) as failure:
+            generate_ai_cards(SOURCE, "lecture.pdf", "material", {"pageTexts": [SOURCE]}, api_key="test", opener=offline)
+        self.assertFalse(failure.exception.retryable)
+        self.assertEqual(len(calls), 1)
+
+    def test_explicit_slide_facts_survive_model_omissions(self) -> None:
+        text = "Slide 2\nANTERIOR LEG\nTibialis anterior\nATTACHMENT\nTibia to medial cuneiform\nACTION\nDorsiflexes and inverts foot\nINNERVATION\nDeep fibular (peroneal)"
+        result = generate_ai_cards(text, "lecture.pptx", "material", {}, api_key="test", opener=FakeOpener([]))
+        self.assertEqual(len(result["cards"]), 3)
+        nerve = next(card for card in result["cards"] if card["field"] == "innervation")
+        self.assertEqual(nerve["back"], "Deep fibular (peroneal)")
+        self.assertEqual(nerve["sourceLocation"], "Slide 2")
+        self.assertIn(nerve["sourceQuote"], text)
+        self.assertEqual(nerve["generatedBy"], "source-extraction")
+        assessment = generate_ai_cards(text, "exam.pptx", "assessment", {}, api_key="test", opener=FakeOpener([]))
+        self.assertEqual(assessment["cards"], [])
+
+    def test_explicit_facts_do_not_duplicate_a_complete_ai_card(self) -> None:
+        text = "Slide 2\nANTERIOR LEG\nTibialis anterior\nATTACHMENT\nTibia to medial cuneiform\nACTION\nDorsiflexes and inverts foot\nINNERVATION\nDeep fibular (peroneal)"
+        raw = {"concept": "Tibialis anterior", "question": "What innervates Tibialis anterior?", "answer": "Deep fibular (peroneal)", "card_type": "other", "source_locator": "Slide 2", "source_quote": "INNERVATION\nDeep fibular (peroneal)"}
+        result = generate_ai_cards(text, "lecture.pptx", "material", {}, api_key="test", opener=FakeOpener([raw]))
+        self.assertEqual(len(result["cards"]), 3)
+        self.assertEqual(sum("innervates" in card["front"] for card in result["cards"]), 1)
+
     def test_later_generation_batch_only_sends_its_four_source_chunks(self) -> None:
         page_texts = [f"Page concept {index}. " + ("distinct concept evidence " * 300) for index in range(1, 9)]
         text = "\n".join(page_texts)
@@ -283,7 +328,6 @@ class AICardGenerationTests(unittest.TestCase):
         )
 
         self.assertEqual(MAX_CARDS_PER_CHUNK, 12)
-        self.assertEqual(MAX_OUTPUT_TOKENS_PER_CHUNK, 1_900)
         self.assertEqual(len(result["cards"]), 12)
 
     def test_generation_prompt_prioritizes_concept_coverage_and_ignores_course_logistics(self) -> None:

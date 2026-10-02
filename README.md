@@ -2,8 +2,6 @@
 
 Syllabloom turns lectures, slides, syllabi, and course files into editable, source-linked Anki cards. It also learns from assessments and class deadlines to decide which new material should enter the queue, while Anki remains responsible for scheduling card reviews.
 
-**Live beta:** [syllabloom-beta.vercel.app](https://syllabloom-beta.vercel.app/)
-
 ## What is included
 
 - Marketing site and per-class onboarding
@@ -18,7 +16,7 @@ Syllabloom turns lectures, slides, syllabi, and course files into editable, sour
 - Anki preferences for limits, learning steps, lapses, ordering, burying, Easy Days, audio, timers, FSRS, and SM-2
 - Class calendar and new-card release planning around lectures, quizzes, assignments, and exams
 - Full profile hub with Clerk identity controls, current tier, active classes, and editable important dates
-- Dedicated billing page with a stable Syllabloom plan comparison and an isolated Clerk checkout dialog for live production billing
+- Dedicated billing page with server-verified lifetime access and Stripe subscription checkout (disabled until configured and verified)
 - Responsive student workspace and task-specific Syllabloom companion scenes
 - Real medical-class fixtures and regression reports
 
@@ -52,25 +50,19 @@ $env:CLERK_PUBLISHABLE_KEY = "pk_test_your_key"
 python server.py
 ```
 
-Use the same `CLERK_PUBLISHABLE_KEY` environment variable in Vercel. Clerk controls beta access and the one-free-class gate. Neon is connected to the Vercel project on its Free plan; the API verifies Clerk session tokens and stores each workspace under the verified Clerk user ID. Class profiles, parsed sources and cards, calendar dates, Anki preferences, card edits, and study history sync across devices. Original lecture audio and video stay in IndexedDB on the current device and are not uploaded to Neon.
+Use the same `CLERK_PUBLISHABLE_KEY` environment variable on the server (`/etc/syllabloom.env`). Clerk controls beta access and the one-free-class gate. Neon provides the Postgres database; the API verifies Clerk session tokens and stores each workspace under the verified Clerk user ID. Class profiles, parsed sources and cards, calendar dates, Anki preferences, card edits, and study history sync across devices. Original lecture audio and video stay in IndexedDB on the current device and are not uploaded to Neon.
 
-For local development, install the requirements and pull the Vercel Development environment to a separate ignored file so an existing `.env.local` is not overwritten:
-
-```powershell
-vercel env pull .env.development.local --environment=development
-```
-
-The Neon integration supplies `DATABASE_URL`. Do not add database credentials to browser code or commit local environment files. Set the server-only `OPENAI_API_KEY` in Vercel's encrypted environment settings (and in a local ignored environment file for local testing); never use a browser-exposed `VITE_` or `NEXT_PUBLIC_` variable. AI usage is guarded by atomic Neon counters: at most 192,000 source characters per account per UTC day and 1,000,000 across the beta per day, plus a shared $18 estimated monthly provider-cost reservation cap, leaving $2 below the user's $20 test balance. Each request reserves an upper bound before calling the provider, including its maximum output tokens; failed attempts keep their reservation. Counter rows for daily source volume are deleted after 90 days. Each material is limited to 192,000 extracted characters for one import, split into at most 16 page/slide-aware chunks and generated in sequential batches of 4 chunks (12 accepted cards per chunk) so each serverless request stays bounded and the import can report progress. The source is inspected before any card request; exact duplicate extracted content already in the class skips AI generation, and successfully completed batches are kept in the active import queue for a retry. PPTX speaker notes and image descriptions join the extracted text. Sparse/scanned PDF pages can be OCR'd locally in the browser (up to 100 PDF pages); page images are not sent to OpenAI. GPT-5.4 nano is pinned for the beta to keep reasoning costs low; source-quote and location checks still reject unsupported output. If the provider or usage guard is unavailable, the upload is rejected rather than returning heuristic cards as if they were AI-generated. Syllabi are excluded from AI generation and continue through the calendar parser. The API request sets `store: false`; see the Privacy Policy for OpenAI's default abuse-monitoring retention. Tests use mocked Responses API replies and do not make billed provider calls.
+`DATABASE_URL` is your Neon connection string. Do not add database credentials to browser code or commit local environment files. Set the server-only `OPENAI_API_KEY` in `/etc/syllabloom.env` (mode 600; and in a local ignored environment file for local testing); never use a browser-exposed `VITE_` or `NEXT_PUBLIC_` variable. AI usage is guarded by atomic Neon counters: at most 192,000 source characters per account per UTC day and 1,000,000 across the beta per day, plus a shared $18 estimated monthly provider-cost reservation cap, leaving $2 below the user's $20 test balance. Each request reserves an upper bound before calling the provider, including its maximum output tokens; failed attempts keep their reservation. Counter rows for daily source volume are deleted after 90 days. Each material is limited to 192,000 extracted characters for one import, split into at most 16 page/slide-aware chunks and generated in sequential batches of 4 chunks (12 accepted cards per chunk) so each request stays bounded and the import can report progress. The source is inspected before any card request; exact duplicate extracted content already in the class skips AI generation, and successfully completed batches are kept in the active import queue for a retry. PPTX speaker notes and image descriptions join the extracted text. Sparse/scanned PDF pages can be OCR'd locally in the browser (up to 100 PDF pages); page images are not sent to OpenAI. GPT-5.4 nano is pinned for the beta to keep reasoning costs low; source-quote and location checks still reject unsupported output. If the provider or usage guard is unavailable, the upload is rejected rather than returning heuristic cards as if they were AI-generated. Syllabi are excluded from AI generation and continue through the calendar parser. The API request sets `store: false`; see the Privacy Policy for OpenAI's default abuse-monitoring retention. Tests use mocked Responses API replies and do not make billed provider calls.
 
 On the first signed-in visit, an unclaimed local workspace is saved to the account if it has no existing cloud workspace; if another account owns the browser's workspace, it is not copied into the new account.
 
 ### Billing
 
-The billing page is wired to Clerk Billing for individual users. It checks the signed-in user's `student` Plan and keeps the product-owned comparison visible at every viewport. Clerk's pricing and Stripe checkout UI is isolated in a dialog and only mounts when the site uses a `pk_live_` production key. Test-mode deployments are explicitly labeled as a free beta and cannot present a live checkout. Account, payment-method, and statement management stays in Clerk's secure user profile.
+Keep Syllabloom on `syllabloom-beta.vercel.app` with its existing Clerk development instance. A custom domain or Clerk production migration is not part of this change. Direct Stripe Checkout handles subscriptions independently of Clerk Billing. Checkout remains disabled unless `SYLLABLOOM_BILLING_ENABLED=true`; the example configuration defaults to disabled billing and Stripe test mode.
 
-For development, enable Billing in the Clerk Dashboard and use Clerk's shared development gateway. Create a public `student` Plan with monthly and annual prices. Production needs a production Clerk instance connected to an independent Stripe account; a Stripe account attached to a development instance cannot be reused for production.
+Server-owned access grants keep the frozen `SYLLABLOOM_FOUNDER_IDS` snapshot free forever, separately from the next ten new users in Clerk signup order. Existing grants are retained. Paid access requires a current subscription to an allowed price: $12 USD monthly or $108 USD annually ($9/month equivalent). The browser cannot grant itself a plan, and a successful checkout return URL does not grant access.
 
-Clerk Billing currently processes payments through Stripe but manages Plans and Subscriptions separately from Stripe Billing. Before charging students, review the current tax, VAT, refund, country, and 3D Secure limitations in Clerk's Billing documentation.
+Before enabling billing, configure the server-only variables in `.env.example`, validate checkout in Stripe test mode, and verify signed notifications at `/api/stripe-webhook` and a dedicated cancellation portal configuration. Do not commit secrets or the private founder snapshot. Preview deployments cannot use live Stripe credentials and must retain their separate database. Creating Stripe product prices alone does not enable checkout or charge anyone.
 
 ### Optional local transcription
 
@@ -92,7 +84,7 @@ Audio remains on the local machine in this mode. The local server turns transcri
 ## Project structure
 
 ```text
-api/                 Vercel serverless endpoints
+api/                 API endpoints, routed by api/routes.py
 assets/              Brand marks, illustrations, and mascot artwork
 data/                Sample source library and saved prototype sessions
 test-audio/          Licensed short audio fixture and attribution
@@ -102,7 +94,7 @@ muscle-data.js       Medical-class source fixture
 redesign.css         Responsive visual system
 memphis.css          Green, yellow, pink, and aqua character-led art direction
 server.py            Local server, source ingestion, transcription, and Anki export
-vercel.json          Production deployment configuration
+deploy/              nginx, systemd, and server setup/deploy scripts for AWS
 ```
 
 ## Verification
@@ -131,15 +123,34 @@ Run the browser-side checks with `node --test tests\*.test.js`.
 
 ## Deployment
 
-The repository is configured for Vercel:
+Syllabloom runs on a single Ubuntu 24.04 EC2 instance: nginx serves the static site and terminates HTTPS, and `server.py` serves `/api/*` on 127.0.0.1:4174 under systemd. Neon (database) and Clerk (sign-in) stay hosted services. Large source documents are uploaded to `SYLLABLOOM_UPLOAD_DIR` on local disk, deleted as soon as they are read, and swept nightly if abandoned.
 
-```powershell
-npx vercel
-npx vercel --prod
-```
+1. Launch an EC2 instance (Ubuntu 24.04, t3.small or larger) with an Elastic IP. The security group should allow only ports 22, 80, and 443.
+2. Clone the repository on the server and run `sudo deploy/setup-server.sh`.
+3. Edit `/etc/syllabloom.env` (copy of `deploy/syllabloom.env.example`) and the `server_name` lines in `/etc/nginx/sites-available/syllabloom`.
+4. Run `sudo deploy/deploy.sh`. Run it again after each `git pull` to update.
+5. Point your domain's A record at the Elastic IP, then run `sudo certbot --nginx -d your-domain.com`.
+6. In Clerk, add the new domain and update the canonical/Open Graph URLs in the HTML pages, `sitemap.xml`, and `robots.txt`.
 
-The `.vercel` directory is intentionally excluded because it contains machine-specific project linkage.
+Setting `SYLLABLOOM_ENV` (e.g. `production`) turns on hosted behavior: sign-in is required, `/api/*` is routed through `api/routes.py`, and the Python server refuses to serve static files.
 
 ## Status
 
 This is a beta product. Account-owned course and study workspaces sync through Neon; original lecture media remains device-local. Real student testing should focus on cross-device account isolation, source faithfulness, media capture, import behavior, and whether the daily plan feels achievable.
+
+### AWS beta handoff
+
+This branch includes the latest beta import/OCR fixes, legacy PPT/PPTW support,
+durable batch recovery, source coverage, first-use study flow, billing and product events.
+Use the existing Clerk development instance with `SYLLABLOOM_PUBLIC_BETA_AUTH=1`.
+Do not reset the founder snapshot, subscription prices, or database during migration.
+Copy the existing secrets securely into `/etc/syllabloom.env`; the example contains
+placeholders and disables billing until the AWS configuration is verified.
+
+Before redirecting students, test sign-in, a large PDF and legacy PowerPoint import,
+interrupted generation recovery, study and Anki export. Set `SYLLABLOOM_APP_URL`
+to the actual HTTPS origin at cutover and register `/api/stripe-webhook` there with
+its own signing secret. Verify checkout return URLs and the customer portal.
+The existing Vercel beta is not changed by pushing this AWS branch; retain it for rollback.
+The deploy script starts the nightly cleanup timer after the API health check succeeds.
+Health is a liveness check, not proof of working billing or external services.

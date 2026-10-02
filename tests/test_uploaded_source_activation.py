@@ -15,7 +15,7 @@ class UploadedSourceActivationContractTests(unittest.TestCase):
         self.assertIn("persistClassProfile();", self.app)
         self.assertIn("const sourceCards = sourceCardsFromLibrary();", self.app)
         self.assertIn("syncLectureCards([...retainedLectureCards, ...sourceCards]);", self.app)
-        self.assertIn("const wasSampleClass = state.classMode === 'sample';", self.app)
+        self.assertIn("const wasSampleClass = state.classMode === 'sample' || state.className === 'Untitled class';", self.app)
         self.assertIn("setClassLabels(inferredClassName, 'Term not set');", self.app)
         self.assertIn("state.calendarEvents = [];", self.app)
 

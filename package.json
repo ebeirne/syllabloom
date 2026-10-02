@@ -1,8 +1,7 @@
 {
   "name": "syllabloom-study-director",
   "private": true,
-  "dependencies": {
-    "@vercel/blob": "^2.8.0",
-    "jose": "^6.2.12"
+  "devDependencies": {
+    "fake-indexeddb": "^6.2.5"
   }
 }

@@ -8,8 +8,6 @@ import re
 import tempfile
 from http import HTTPStatus
 from pathlib import Path
-from urllib.parse import parse_qs, unquote, urlsplit
-from urllib.request import Request, urlopen
 
 from api.ai_card_generation import (
     CHUNKS_PER_BATCH,
@@ -20,13 +18,15 @@ from api.ai_card_generation import (
     _source_chunks,
 )
 from api.ai_source_cards import generate_source_cards, generate_source_cards_batch
-from api._common import JsonHandler
+from api._common import JsonHandler, deployment_env
+from api.source_storage import resolve_pathname
+from api.legacy_powerpoint import PowerPointReadError
+from api.source_coverage import study_sections
 from api.user_data import authenticated_user, require_authenticated_beta_request
 from server import NoSelectableTextError, SOURCE_SUFFIXES, extract_source_text, source_summary
 
 
 MAX_INLINE_REQUEST_BYTES = 4 * 1024 * 1024
-MAX_SOURCE_BYTES = 100 * 1024 * 1024
 
 
 def _source_summary(
@@ -59,6 +59,7 @@ def _source_preflight(path: Path, filename: str, kind: str) -> dict:
         error.file_fingerprint = _file_fingerprint(path)
         raise error
     summary = source_summary(path, filename, kind, extracted=(text, units))
+    summary['studySections'] = study_sections(text, units)
     _apply_file_identity(summary, _file_fingerprint(path))
     summary["draftCards"] = []
     needs_cards = (
@@ -97,7 +98,7 @@ def _source_preflight(path: Path, filename: str, kind: str) -> dict:
         "requiresCards": True,
         "unitLabel": units.get("unitLabel", "sections"),
         "unitCount": units.get("unitCount", 0),
-        "unitsWithText": len(slide_numbers) if suffix == ".pptx" else sum(
+        "unitsWithText": len(slide_numbers) if suffix in {".ppt", ".pptw", ".pptx"} else sum(
             1 for page in (units.get("pageTexts") or []) if str(page).strip()
         ) if suffix == ".pdf" else units.get("unitCount", 0),
         "lowTextPages": low_text_pages,
@@ -122,6 +123,7 @@ def _source_summary_from_ocr(
         raise SourceTextLimitError()
     units = {"unitLabel": "pages", "unitCount": len(page_texts), "pageTexts": page_texts, "ocrUsed": True}
     summary = source_summary(Path(filename), filename, kind, extracted=(text, units))
+    summary['studySections'] = study_sections(text, units)
     if not re.fullmatch(r"[a-f0-9]{64}", str(file_fingerprint)):
         raise ValueError("The original PDF could not be verified for this OCR import. Upload it again.")
     _apply_file_identity(summary, file_fingerprint)
@@ -142,6 +144,24 @@ def _source_summary_from_ocr(
         "ocrUsed": True,
     }
     return {"source": summary, "extractedText": text, "extractedUnits": units}
+
+
+def _prepare_sections(body):
+    sections = body.get('sections')
+    if not isinstance(sections, list) or not 1 <= len(sections) <= 100:
+        raise ValueError('Choose one to 100 readable sections.')
+    if any(not isinstance(row, dict) or not isinstance(row.get('text'), str) or not row['text'].strip() for row in sections):
+        raise ValueError('Each selected section needs readable text.')
+    text = '\n\n'.join(row['text'] for row in sections)
+    if len(text) > MAX_SOURCE_TEXT_CHARS:
+        raise SourceTextLimitError()
+    units = {'selectedSections': sections, 'unitLabel': 'sections', 'unitCount': len(sections)}
+    chunks = _source_chunks(text, str(body.get('filename') or 'sections.txt'), units)
+    return {'extractedText': text, 'extractedUnits': units,
+            'fingerprint': hashlib.sha256(text.encode()).hexdigest(),
+            'preflight': {'requiresCards': True, 'inputCharacters': len(text), 'chunkCount': len(chunks),
+                          'batchCount': (len(chunks) + CHUNKS_PER_BATCH - 1) // CHUNKS_PER_BATCH,
+                          'unitLabel': 'sections', 'unitCount': len(sections)}}
 
 
 def _generate_source_batch(body: object, user_id: str) -> dict:
@@ -166,7 +186,13 @@ def _generate_source_batch(body: object, user_id: str) -> dict:
         raise ValueError("The source changed during import. Please upload it again.")
     if not isinstance(batch_index, int) or isinstance(batch_index, bool):
         raise ValueError("The card-generation batch is invalid.")
-    return generate_source_cards_batch(text, filename, kind, units, user_id, batch_index, question_style)
+    generate = lambda: generate_source_cards_batch(text, filename, kind, units, user_id, batch_index, question_style)
+    if body.get("durable") is True:
+        from api.source_jobs import run_batch
+        identity = {"version": 1, "text": fingerprint, "units": units, "filename": filename,
+                    "kind": kind, "batch": batch_index, "style": question_style}
+        return run_batch(user_id, identity, generate, restart=body.get("restartUncertain") is True)
+    return generate()
 
 
 def _file_fingerprint(path: Path) -> str:
@@ -193,76 +219,12 @@ def _apply_file_identity(summary: dict, file_fingerprint: str) -> None:
         event["sourceId"] = file_id
 
 
-def _private_blob_url(value: object, pathname: str) -> str:
-    url = str(value or "")
-    parsed = urlsplit(url)
-    if (
-        parsed.scheme != "https"
-        or not parsed.hostname
-        or not parsed.hostname.endswith(".private.blob.vercel-storage.com")
-        or parsed.username
-        or parsed.password
-        or parsed.port
-        or unquote(parsed.path) != f"/{pathname}"
-        or not parsed.query
-    ):
-        raise ValueError("The temporary upload link is invalid.")
-    return url
-
-def _blob_api_delete_url(value: object, pathname: str) -> str:
-    url = str(value or "")
-    parsed = urlsplit(url)
-    query = parse_qs(parsed.query)
-    if (
-        parsed.scheme != "https"
-        or parsed.hostname != "vercel.com"
-        or parsed.username
-        or parsed.password
-        or parsed.port
-        or parsed.path.rstrip("/") != "/api/blob"
-        or query.get("pathname") != [pathname]
-        or not query.get("vercel-blob-delegation")
-        or not query.get("vercel-blob-signature")
-    ):
-        raise ValueError("The temporary upload link is invalid.")
-    return url
-
 def _source_path(value: object, user_id: str) -> str:
     pathname = str(value or "")
-    pattern = rf"source-uploads/{re.escape(user_id)}/[a-f0-9-]{{36}}\.(?:pdf|pptx|docx|txt)"
+    pattern = rf"source-uploads/{re.escape(user_id)}/[a-f0-9-]{{36}}\.(?:pdf|ppt|pptw|pptx|docx|txt)"
     if not re.fullmatch(pattern, pathname):
         raise ValueError("The temporary upload path is invalid.")
     return pathname
-
-
-def _download_temporary_source(url: str, path: Path) -> None:
-    with urlopen(url, timeout=30) as response:
-        if response.status != 200:
-            raise ValueError("The temporary document could not be downloaded.")
-        expected_size = int(response.headers.get("Content-Length", "0") or 0)
-        if expected_size > MAX_SOURCE_BYTES:
-            raise ValueError("Each document can be up to 100 MB in this beta.")
-        written = 0
-        with path.open("wb") as temporary:
-            while True:
-                chunk = response.read(1024 * 1024)
-                if not chunk:
-                    break
-                written += len(chunk)
-                if written > MAX_SOURCE_BYTES:
-                    raise ValueError("Each document can be up to 100 MB in this beta.")
-                temporary.write(chunk)
-        if expected_size and written != expected_size:
-            raise ValueError("The temporary document upload was incomplete. Please retry.")
-
-
-def _delete_temporary_source(url: str) -> None:
-    try:
-        request = Request(url, method="DELETE")
-        with urlopen(request, timeout=5) as response:
-            response.read(1024)
-    except Exception as exc:
-        print(f"Temporary source cleanup failed: {type(exc).__name__}", flush=True)
 
 
 class handler(JsonHandler):
@@ -271,7 +233,6 @@ class handler(JsonHandler):
             return
         content_type = self.headers.get("Content-Type", "")
         temporary_path = None
-        delete_url = None
         try:
             content_length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
@@ -285,12 +246,15 @@ class handler(JsonHandler):
                 self.send_json({"error": "The temporary upload request is invalid."}, HTTPStatus.BAD_REQUEST)
                 return
             user_id = authenticated_user(self.headers)
-            if os.environ.get("VERCEL_ENV", "").strip() and not user_id:
+            if deployment_env() and not user_id:
                 self.send_json({"error": "Sign in before adding course materials."}, HTTPStatus.UNAUTHORIZED)
                 return
             try:
                 body = json.loads(self.rfile.read(content_length).decode("utf-8"))
                 operation = body.get("operation") if isinstance(body, dict) else None
+                if operation == "prepare-sections":
+                    self.send_json(_prepare_sections(body))
+                    return
                 if operation == "inspect-text":
                     result = _source_summary_from_ocr(
                         Path(str(body.get("filename") or "source.pdf")).name,
@@ -308,7 +272,8 @@ class handler(JsonHandler):
                         result = _generate_source_batch(body, user_id or "local-development")
                     except CardGenerationError as exc:
                         self.send_json(
-                            {"error": exc.public_message, "retryable": exc.retryable}, exc.status
+                            {"error": exc.public_message, "retryable": exc.retryable,
+                             "errorCode": getattr(exc, "code", "")}, exc.status
                         )
                         return
                     except ValueError as exc:
@@ -327,18 +292,17 @@ class handler(JsonHandler):
                     self.send_json({"result": result})
                     return
                 pathname = _source_path(body.get("pathname"), user_id or "")
-                source_url = _private_blob_url(body.get("sourceUrl"), pathname)
-                delete_url = _blob_api_delete_url(body.get("deleteUrl"), pathname)
+                uploaded_path = resolve_pathname(pathname, user_id or "")
                 filename = Path(str(body.get("filename") or "source.txt")).name
                 suffix = Path(filename).suffix.lower()
                 if suffix not in SOURCE_SUFFIXES or not pathname.endswith(suffix):
-                    raise ValueError("Use a DOCX, PPTX, PDF, or TXT source.")
+                    raise ValueError("Use a DOCX, PowerPoint, PDF, or TXT source.")
                 kind = str(body.get("kind") or "auto")
                 if kind not in {"auto", "material", "syllabus", "assessment"}:
                     kind = "auto"
-                with tempfile.NamedTemporaryFile(prefix="syllabloom-source-", suffix=suffix, delete=False) as temporary:
-                    temporary_path = Path(temporary.name)
-                _download_temporary_source(source_url, temporary_path)
+                if not uploaded_path.is_file():
+                    raise ValueError("The temporary document was not found. Please retry the upload.")
+                temporary_path = uploaded_path
                 result = (
                     _source_preflight(temporary_path, filename, kind)
                     if operation == "inspect"
@@ -356,6 +320,8 @@ class handler(JsonHandler):
                     "errorCode": "NO_SELECTABLE_TEXT",
                     "fileFingerprint": getattr(exc, "file_fingerprint", ""),
                 }, HTTPStatus.UNPROCESSABLE_ENTITY)
+            except PowerPointReadError as exc:
+                self.send_json({"error": str(exc), "retryable": False}, HTTPStatus.UNPROCESSABLE_ENTITY)
             except CardGenerationError as exc:
                 self.send_json({"error": exc.public_message}, exc.status)
             except (ValueError, json.JSONDecodeError, UnicodeDecodeError) as exc:
@@ -366,8 +332,6 @@ class handler(JsonHandler):
             finally:
                 if temporary_path is not None:
                     temporary_path.unlink(missing_ok=True)
-                if delete_url:
-                    _delete_temporary_source(delete_url)
             return
 
         if content_length > MAX_INLINE_REQUEST_BYTES:
@@ -395,7 +359,7 @@ class handler(JsonHandler):
         filename = Path(upload.filename or "source.txt").name
         suffix = Path(filename).suffix.lower()
         if suffix not in SOURCE_SUFFIXES:
-            self.send_json({"error": "Use a DOCX, PPTX, PDF, or TXT source."}, HTTPStatus.BAD_REQUEST)
+            self.send_json({"error": "Use a DOCX, PowerPoint, PDF, or TXT source."}, HTTPStatus.BAD_REQUEST)
             return
 
         try:
@@ -428,6 +392,8 @@ class handler(JsonHandler):
                 "errorCode": "NO_SELECTABLE_TEXT",
                 "fileFingerprint": getattr(exc, "file_fingerprint", ""),
             }, HTTPStatus.UNPROCESSABLE_ENTITY)
+        except PowerPointReadError as exc:
+            self.send_json({"error": str(exc), "retryable": False}, HTTPStatus.UNPROCESSABLE_ENTITY)
         except CardGenerationError as exc:
             self.send_json({"error": exc.public_message}, exc.status)
         except Exception as exc:

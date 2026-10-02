@@ -9,10 +9,12 @@ import os
 import posixpath
 import re
 import sqlite3
+import sys
 import tempfile
 import threading
 import time
 import zipfile
+from api.legacy_powerpoint import PowerPointReadError
 from collections.abc import Callable
 from datetime import date, datetime, timezone
 from http import HTTPStatus
@@ -21,7 +23,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from xml.etree import ElementTree
 
-from api._common import clerk_auth_config
+from api._common import clerk_auth_config, deployment_env
 
 
 ROOT = Path(__file__).resolve().parent
@@ -33,8 +35,9 @@ MODEL_PATH = Path(
 )
 MAX_UPLOAD_BYTES = 1024 * 1024 * 1024
 ALLOWED_SUFFIXES = {".wav", ".mp3", ".m4a", ".webm", ".ogg", ".flac", ".mp4", ".mov"}
-SOURCE_SUFFIXES = {".docx", ".pptx", ".pdf", ".txt"}
+SOURCE_SUFFIXES = {".docx", ".ppt", ".pptw", ".pptx", ".pdf", ".txt"}
 DATA_DIR = ROOT / "data"
+HOSTED = bool(deployment_env())
 SESSIONS_DIR = DATA_DIR / "sessions"
 SOURCE_LIBRARY_PATH = DATA_DIR / "source-library.json"
 
@@ -88,7 +91,10 @@ def extract_source_text(path: Path, suffix: str) -> tuple[str, dict]:
                 if line:
                     lines.append(line)
         return "\n".join(lines), {"unitLabel": "paragraphs", "unitCount": len(lines)}
-    if suffix == ".pptx":
+    if suffix in {".ppt", ".pptw", ".pptx"}:
+        if not zipfile.is_zipfile(path):
+            from api.legacy_powerpoint import extract_legacy_powerpoint
+            return extract_legacy_powerpoint(path)
         namespaces = {
             "a": "http://schemas.openxmlformats.org/drawingml/2006/main",
             "p": "http://schemas.openxmlformats.org/presentationml/2006/main",
@@ -202,8 +208,16 @@ def extract_source_text(path: Path, suffix: str) -> tuple[str, dict]:
         with pdfplumber.open(path) as document:
             pages = []
             for page in document.pages:
-                normalized_page = page.dedupe_chars(tolerance=1)
-                pages.append((normalized_page.extract_text(x_tolerance=2, y_tolerance=3) or "").strip())
+                normalized_page = None
+                try:
+                    normalized_page = page.dedupe_chars(tolerance=1)
+                    pages.append((normalized_page.extract_text(x_tolerance=2, y_tolerance=3) or "").strip())
+                finally:
+                    # pdfplumber caches page layouts. Release each page instead
+                    # of retaining an entire large lecture's object graph.
+                    if normalized_page is not None:
+                        normalized_page.close()
+                    page.close()
         return "\n".join(page for page in pages if page), {
             "unitLabel": "pages",
             "unitCount": len(pages),
@@ -980,9 +994,11 @@ def _pdf_paragraphs(page_text: str) -> list[str]:
             flush()
             paragraphs.append(line.rstrip(":"))
             continue
-        last_word = re.findall(r"[A-Za-z]+", current.lower())[-1] if current else ""
-        last_token = re.findall(r"[A-Za-z]+", current)[-1] if current else ""
-        next_token = re.findall(r"[A-Za-z]+", line)[0] if line else ""
+        current_tokens = re.findall(r"[A-Za-z]+", current)
+        next_tokens = re.findall(r"[A-Za-z]+", line)
+        last_token = current_tokens[-1] if current_tokens else ""
+        last_word = last_token.lower()
+        next_token = next_tokens[0] if next_tokens else ""
         continuation = (
             bool(current)
             and not re.search(r"[.!?]$", current)
@@ -2275,7 +2291,7 @@ def source_summary(
     else:
         compiled = compile_study_material(text, filename)
     generated = card_generator(text, filename, resolved_kind, units) if card_generator and not is_syllabus and not is_admin_form else None
-    structured_cards = draft_cards_from_structured_slides(text, filename) if suffix == ".pptx" and not is_syllabus else []
+    structured_cards = draft_cards_from_structured_slides(text, filename) if suffix in {".ppt", ".pptw", ".pptx"} and not is_syllabus else []
     draft_cards = generated["cards"] if generated is not None else (structured_cards or compiled["cards"])
     concepts = generated["concepts"] if generated is not None else compiled["concepts"]
     calendar = syllabus_calendar(
@@ -3217,8 +3233,33 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
             self.wfile.write(line)
             self.wfile.flush()
 
+    def dispatch_hosted_api(self, method: str) -> bool:
+        """On a hosted deployment, serve /api/* from the api package. nginx serves the static site."""
+        if not HOSTED:
+            return False
+        from api.routes import resolve
+
+        handler_class = resolve(urlparse(self.path).path)
+        if handler_class is None:
+            self.send_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
+            return True
+        method_handler = getattr(handler_class, f"do_{method}", None)
+        if method_handler is None:
+            self.send_json({"error": "Method not allowed."}, HTTPStatus.METHOD_NOT_ALLOWED)
+            return True
+        endpoint = handler_class.__new__(handler_class)
+        endpoint.__dict__ = self.__dict__  # share this request's socket files and headers
+        method_handler(endpoint)
+        return True
+
     def do_GET(self) -> None:
+        if self.dispatch_hosted_api("GET"):
+            return
         request_path = urlparse(self.path).path
+        if request_path == "/api/billing-access":
+            from api.billing import handle_api
+            handle_api(self, self.command)
+            return
         if request_path == "/api/user-data":
             from api.user_data import handle_request
 
@@ -3241,7 +3282,7 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
                 or os.environ.get("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY")
                 or ""
             ).strip()
-            self.send_json(clerk_auth_config(publishable_key, os.environ.get("VERCEL_ENV", "")))
+            self.send_json(clerk_auth_config(publishable_key, deployment_env()))
             return
         if request_path == "/api/sources":
             self.send_json({"sources": read_source_library()})
@@ -3259,6 +3300,8 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_PUT(self) -> None:
+        if self.dispatch_hosted_api("PUT"):
+            return
         request_path = urlparse(self.path).path
         if request_path == "/api/user-data":
             from api.user_data import handle_request
@@ -3268,7 +3311,17 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
         self.send_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:
+        if self.dispatch_hosted_api("POST"):
+            return
         request_path = urlparse(self.path).path
+        if request_path == "/api/billing-access":
+            from api.billing import handle_api
+            handle_api(self, "POST")
+            return
+        if request_path == "/api/stripe-webhook":
+            from api.billing import handle_webhook
+            handle_webhook(self)
+            return
         if request_path == "/api/export-anki":
             self.handle_anki_export()
             return
@@ -3348,6 +3401,9 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
                 temporary_path.unlink(missing_ok=True)
 
     def handle_anki_export(self) -> None:
+        from api.billing import require_access
+        if not require_access(self):
+            return
         try:
             content_length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
@@ -3369,6 +3425,9 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
             self.send_json({"error": "Anki package export failed locally."}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
     def handle_source_upload(self) -> None:
+        from api.billing import require_access
+        if not require_access(self):
+            return
         try:
             content_length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
@@ -3392,7 +3451,7 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
         filename = Path(upload.filename or "source.txt").name
         suffix = Path(filename).suffix.lower()
         if suffix not in SOURCE_SUFFIXES:
-            self.send_json({"error": "Use a DOCX, PPTX, PDF, or TXT source."}, HTTPStatus.BAD_REQUEST)
+            self.send_json({"error": "Use a DOCX, PowerPoint, PDF, or TXT source."}, HTTPStatus.BAD_REQUEST)
             return
         kind_value = form.getfirst("kind", "auto")
         temporary_path = None
@@ -3437,6 +3496,8 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
                 "errorCode": "NO_SELECTABLE_TEXT",
                 "fileFingerprint": getattr(exc, "file_fingerprint", ""),
             }, HTTPStatus.UNPROCESSABLE_ENTITY)
+        except PowerPointReadError as exc:
+            self.send_json({"error": str(exc), "retryable": False}, HTTPStatus.UNPROCESSABLE_ENTITY)
         except CardGenerationError as exc:
             self.send_json({"error": exc.public_message}, exc.status)
         except Exception as exc:
@@ -3447,6 +3508,9 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
                 temporary_path.unlink(missing_ok=True)
 
     def handle_source_batch(self) -> None:
+        from api.billing import require_access
+        if not require_access(self):
+            return
         try:
             content_length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
@@ -3475,6 +3539,7 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    sys.modules.setdefault("server", sys.modules[__name__])  # api handlers import this file as "server"
     host = os.environ.get("SYLLABLOOM_HOST", os.environ.get("ROUNDS_HOST", "127.0.0.1"))
     port = int(os.environ.get("SYLLABLOOM_PORT", os.environ.get("ROUNDS_PORT", "4174")))
     print(f"Syllabloom listening on http://{host}:{port}", flush=True)

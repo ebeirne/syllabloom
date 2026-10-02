@@ -6,6 +6,14 @@ function file(name, size = 2048) {
   return { name, size };
 }
 
+test('legacy PowerPoint files are queued without requiring conversion', () => {
+  for (const extension of ['ppt', 'pptw']) {
+    const [item] = createQueueItems([file(`lecture.${extension}`)]);
+    assert.equal(item.status, 'queued');
+    assert.equal(item.error, '');
+  }
+});
+
 test('creates a mixed-document queue with a separately editable type per file', () => {
   const items = createQueueItems([
     file('lecture-6.pdf'),
@@ -31,7 +39,7 @@ test('marks empty, unsupported, and oversized files before submission', () => {
 
   assert.deepEqual(items.map(item => item.status), ['failed', 'failed', 'failed']);
   assert.match(items[0].error, /empty/i);
-  assert.match(items[1].error, /DOCX, PPTX, PDF, or TXT/i);
+  assert.match(items[1].error, /DOCX, PowerPoint, PDF, or TXT/i);
   assert.match(items[2].error, /up to 100 MB/i);
   assert.ok(items.every(item => !item.retryable));
 });

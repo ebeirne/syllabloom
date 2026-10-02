@@ -4,12 +4,12 @@
   const savedAccount = storedJson('syllabloom-account', {});
   const cachedAccountUserId = savedAccount.userId || '';
   const savedClassProfile = storedJson('syllabloom-class-profile', {
-    mode: 'sample',
-    className: 'Human Anatomy',
-    term: 'Fall 2023',
-    syllabusName: 'Anatomy syllabus example',
-    useDemoSyllabus: true,
-    includeSampleMaterial: true
+    mode: 'custom',
+    className: 'Untitled class',
+    term: 'Term not set',
+    syllabusName: 'No syllabus added',
+    useDemoSyllabus: false,
+    includeSampleMaterial: false
   });
   const savedSources = storedJson('syllabloom-sources', []);
   let classProfileOwnerId = savedClassProfile.ownerUserId || cachedAccountUserId;
@@ -160,12 +160,12 @@
     reviewHistory: savedReviewHistory,
     planCorrections: 0,
     setupStep: 1,
-    className: savedClassProfile.className || 'Human Anatomy',
-    classTerm: savedClassProfile.term || 'Fall 2023',
-    classMode: savedClassProfile.mode || 'sample',
+    className: savedClassProfile.className || 'Untitled class',
+    classTerm: savedClassProfile.term || 'Term not set',
+    classMode: savedClassProfile.mode || 'custom',
     syllabusName: savedClassProfile.syllabusName || 'No syllabus added',
     useDemoSyllabus: Boolean(savedClassProfile.useDemoSyllabus),
-    includeSampleMaterial: savedClassProfile.includeSampleMaterial !== false,
+    includeSampleMaterial: savedClassProfile.includeSampleMaterial === true,
     assessmentIndex: 0,
     assessmentScore: 0,
     quickCheckQuestions: [],
@@ -180,7 +180,7 @@
     sources: Array.isArray(savedSources) ? savedSources : [],
     latestSessionId: null,
     anki: { ...defaultAnkiPreferences, ...storedJson('syllabloom-anki-preferences', {}) },
-    calendarEvents: storedJson('syllabloom-calendar-events', initialCalendarEvents),
+    calendarEvents: storedJson('syllabloom-calendar-events', savedClassProfile.mode === 'sample' ? initialCalendarEvents : []),
     calendarCursor: new Date(),
     showFederalHolidays: localStorage.getItem('syllabloom-show-federal-holidays') !== 'false',
     dailyStudyMinutes: Number(savedCourseState.dailyStudyMinutes) || 35,
@@ -232,6 +232,39 @@
   let sourcePdfLibraryPromise = null;
   let calendarImportOcrText = '';
   let sourceQueueItems = [];
+  const importStore = window.SyllabloomImportStore.createStore();
+  let importOwner = '';
+  let importRestore = Promise.resolve();
+
+  async function persistImportQueue(owner = importOwner, items = sourceQueueItems) {
+    try { await importStore.save(owner, items); }
+    catch (_) {
+      if (owner === importOwner) {
+        sourceBatchFeedback = 'This browser could not save import recovery. Keep this tab open until the import finishes.';
+        renderSourceQueue();
+      }
+    }
+  }
+
+  function restoreImportQueue(owner) {
+    if (owner === importOwner) return;
+    const anonymousItems = !importOwner && owner ? sourceQueueItems : [];
+    importOwner = owner;
+    sourceQueueItems = [];
+    importRestore = (async () => {
+      try {
+        const items = owner ? await importStore.load(owner) : [];
+        if (owner !== importOwner) return;
+        sourceQueueItems = [...items, ...anonymousItems];
+        if (anonymousItems.length) await persistImportQueue(owner, sourceQueueItems);
+        if (sourceQueueItems.length) sourceBatchFeedback = 'Your unfinished import was restored and is ready to continue.';
+        renderSourceQueue();
+      } catch (_) {
+        if (owner === importOwner) { sourceQueueItems=anonymousItems; renderSourceQueue(); showToast('Import recovery storage is unavailable on this browser. Keep this tab open.'); }
+      }
+    })();
+  }
+
   let sourceBatchRunning = false;
   let sourceBatchProgress = null;
   let sourceBatchFeedback = '';
@@ -293,12 +326,12 @@
     if (!data || data.schemaVersion !== 1) return false;
     cloudSyncApplying = true;
     cloudSyncDirty = false;
-    state.classMode = data.classProfile?.mode || 'sample';
-    state.className = data.classProfile?.className || 'Human Anatomy';
-    state.classTerm = data.classProfile?.term || 'Fall 2023';
+    state.classMode = data.classProfile?.mode || 'custom';
+    state.className = data.classProfile?.className || 'Untitled class';
+    state.classTerm = data.classProfile?.term || 'Term not set';
     state.syllabusName = data.classProfile?.syllabusName || 'No syllabus added';
     state.useDemoSyllabus = Boolean(data.classProfile?.useDemoSyllabus);
-    state.includeSampleMaterial = data.classProfile?.includeSampleMaterial !== false;
+    state.includeSampleMaterial = data.classProfile?.includeSampleMaterial === true;
     classProfileOwnerId = cloudSyncUserId;
     state.sources = Array.isArray(data.sources) ? data.sources : [];
     state.lectureCards = [];
@@ -1308,8 +1341,9 @@
       return { pageTexts, text };
     } finally {
       if (worker) await worker.terminate().catch(() => {});
-      if (pdf) await pdf.destroy().catch(() => {});
-      else await loadingTask.destroy().catch(() => {});
+      // PDF.js owns document/worker teardown on the loading task. The document
+      // proxy no longer exposes destroy in PDF.js 6.
+      await loadingTask.destroy().catch(() => {});
     }
   }
 
@@ -1728,6 +1762,7 @@
 
   function activateCourseTopic(topicName, action) {
     if (action === 'study') {
+      shortStudy = null;
       state.studyFocusConcept = topicName;
       state.studyIndex = 0;
       navigate('study');
@@ -1775,8 +1810,8 @@
     avatar.alt = state.account.imageUrl ? `${signedInName} profile photo` : 'Syllabloom account mark';
     document.querySelector('#profileIdentityHeading').textContent = signedInName;
     document.querySelector('#profileEmail').textContent = emailText;
-    document.querySelector('#profileTierBadge').textContent = 'Free beta';
-    document.querySelector('#profileTierName').textContent = 'Free beta';
+    window.SyllabloomBilling?.render();
+    // Plan labels are supplied by the server-owned billing state.
     document.querySelector('#profileTierDescription').textContent = '1 active class, course-source imports, lecture storage, and Anki export.';
     document.querySelector('#profileClassUsage').textContent = `${used} of ${betaClassLimit}`;
     document.querySelector('#manageClerkProfile').textContent = state.account.signedIn ? 'Account & security' : 'Sign in';
@@ -1793,17 +1828,11 @@
   }
 
   function syncBillingSummary() {
-    document.querySelector('#billingTierBadge').textContent = 'Free beta';
-    document.querySelector('#billingCurrentDescription').textContent = 'One active class, with ready cards you can study here or export to Anki.';
-    document.querySelector('#billingCurrentPrice').textContent = '$0';
-    document.querySelector('#billingCurrentCadence').textContent = 'during beta';
-    document.querySelector('#billingManageAccount').textContent = state.account.signedIn ? 'Account & security' : 'Sign in';
+    window.SyllabloomBilling?.render();
   }
 
   function renderBillingPage() {
-    syncBillingSummary();
-    document.querySelector('#billingConnectionStatus').textContent = 'Free beta · 1 class';
-    document.querySelector('#billingFinePrint').textContent = 'There is no paid plan or checkout during this beta. You can join without payment details.';
+    window.SyllabloomBilling?.refresh();
   }
 
   async function detectRuntimeCapabilities() {
@@ -1969,6 +1998,7 @@
     const savedUsage = Math.max(0, Number(state.account.classesUsed) || 0);
     const hasActiveCustomClass = state.classMode === 'custom'
       && !state.includeSampleMaterial
+      && (state.sources.length > 0 || state.className !== 'Untitled class')
       && (!state.account.signedIn || !classProfileOwnerId || classProfileOwnerId === state.account.userId);
     return Math.max(savedUsage, hasActiveCustomClass ? 1 : 0);
   }
@@ -2004,6 +2034,9 @@
     const cardCount = approvedLectureCards().length;
     const quickCheckCount = custom ? rotatingQuickCheckQuestions().length : assessmentQuestions.length;
     const approved = approvedLectureCards().length;
+    document.querySelectorAll('[data-start-quick-check]').forEach(button => {
+      button.textContent = custom && !cardCount ? 'Add your first lecture' : 'Start quick check';
+    });
     const firstConcept = concepts[0] || 'your new material';
     const sourceTotal = state.includeSampleMaterial ? 3 : state.sources.length;
     const next = nextExamEvent();
@@ -2029,9 +2062,17 @@
     heroImage.alt = custom
       ? 'A college student and the Syllabloom study companion organizing class cards'
       : 'A medical student and a small green study companion sorting anatomy flashcards';
+    const returnSource = [...state.sources].reverse().find(item => item.draftCards?.length);
+    document.querySelector('#returnStudyPanel').hidden = !custom || !returnSource;
+    const moreStudy = document.querySelector('#moreStudyOptions');
+    const hasReturn = Boolean(custom && returnSource);
+    if (moreStudy.dataset.hasReturn !== String(hasReturn)) moreStudy.open = !hasReturn;
+    moreStudy.dataset.hasReturn = String(hasReturn);
+    moreStudy.querySelector('summary').hidden = !hasReturn;
+    if(returnSource) { document.querySelector('#returnStudyTitle').textContent = 'Continue studying'; document.querySelector('#returnStudyDescription').textContent = `${returnSource.name} · a five-card session, ready when you are.`; }
     document.querySelector('#todayHeroCopy').textContent = custom
       ? latestSource
-        ? `${cardCount} ready card${cardCount === 1 ? '' : 's'} across your class. Latest source: ${latestSource.name} (${latestSource.draftCards?.length || 0} cards). Start with a quick check, then study here or export to Anki.`
+        ? `${cardCount} ready card${cardCount === 1 ? '' : 's'} across your class. Latest source: ${latestSource.name} (${latestSource.draftCards?.length || 0} cards). Continue a short study session, or add your next lecture.`
         : 'Add your first slides, notes, syllabus, or authorized assessment to build a ready study set.'
       : 'One focused pass through upper-limb attachments, built around the questions you still miss.';
     if (!custom) {
@@ -2150,14 +2191,17 @@
       return;
     }
     prepareNewClassSetup();
+    setClassLabels('Untitled class', 'Term not set');
+    persistClassProfile();
     state.creatingClass = true;
-    openOnboarding(1);
+    window.SyllabloomEvents?.track('onboarding_started');
+    closeOnboarding('push');
   }
 
   function classIsReadyForCurrentUser() {
     const savedOwnerId = classProfileOwnerId || cachedAccountUserId;
     const profileBelongsToUser = !state.account.signedIn || !savedOwnerId || savedOwnerId === state.account.userId;
-    return profileBelongsToUser && (localStorage.getItem('rounds-onboarded') === '1' || state.classMode === 'custom');
+    return profileBelongsToUser && (localStorage.getItem('rounds-onboarded') === '1' || (state.classMode === 'custom' && state.sources.length > 0));
   }
 
   function updateMarketingStartLabels() {
@@ -2209,8 +2253,9 @@
     app.inert = false;
     app.setAttribute('aria-hidden', 'false');
     document.body.classList.remove('marketing-mode');
-    navigate('home', null);
-    syncShellHistory('app', 'home', historyMode);
+    const destination = state.sources.some(item => item.draftCards?.length) ? 'home' : 'source';
+    navigate(destination, null);
+    syncShellHistory('app', destination, historyMode);
   }
 
   function showLanding(historyMode = 'push') {
@@ -2266,6 +2311,8 @@
   }
 
   function navigate(view, historyMode = 'push') {
+    if (view === 'study' && !shortStudy && !state.studyFocusConcept && state.sources.some(item=>item.draftCards?.length)) { startShortStudy(); return; }
+    if (view !== 'study') shortStudy = null;
     const previousView = state.view;
     if (view !== 'study') state.studyFocusConcept = '';
     state.view = view;
@@ -2404,7 +2451,25 @@
     document.querySelector('#skippedCount').textContent = skippedFromSample + state.lectureCards.filter(card => card.reviewStatus === 'skipped').length;
   }
 
+  let shortStudy = null;
+  function startShortStudy(sourceId, excluded = []) {
+    const sourceItem = state.sources.find(item => item.id === sourceId) || [...state.sources].reverse().find(item => item.draftCards?.length);
+    if (!sourceItem) { navigate('source'); return; }
+    const all = window.SyllabloomCardSet.sourceCards([sourceItem]).filter(card => window.SyllabloomSourceStudy.isUsableCard(card));
+    const cards = all.map(card => state.lectureCards.find(saved => saved.sourceKey === lectureCardKey(card) || window.SyllabloomCardSet.contentKey(saved) === window.SyllabloomCardSet.contentKey(card))).filter(card => card && card.reviewStatus === 'approved');
+    shortStudy = { sourceId: sourceItem.id, cards: window.SyllabloomSourceExperience.chooseSession(cards, state.reviewHistory, excluded), rated: new Set(), complete: false };
+    state.studyIndex = 0; state.studyFocusConcept = '';
+    if (shortStudy.cards.length) window.SyllabloomEvents?.track('study_started', {cards:shortStudy.cards.length});
+    navigate('study');
+  }
+  function finishShortStudy() {
+    if (!shortStudy || shortStudy.rated.size < shortStudy.cards.length || shortStudy.complete) return false;
+    shortStudy.complete = true;
+    window.SyllabloomEvents?.track('study_completed', {cards:shortStudy.cards.length});
+    renderStudy(); document.querySelector('#shortStudyComplete').focus(); return true;
+  }
   function studyCards() {
+    if (shortStudy) return shortStudy.cards.map(card => ({directCard:state.lectureCards.find(saved=>saved.id===card.id) || card}));
     const approved = [];
     if (state.includeSampleMaterial) {
       Object.entries(state.statuses).forEach(([key, status]) => {
@@ -2891,9 +2956,10 @@
     exportButton.disabled = true;
     exportButton.textContent = 'Building package…';
     try {
+      const exportToken = await window.SyllabloomAuth?.getToken?.();
       const response = await fetch('/api/export-anki', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(exportToken ? { Authorization: `Bearer ${exportToken}` } : {}) },
         body: JSON.stringify({ cards: approved, preferences: state.anki })
       });
       if (!response.ok) {
@@ -2910,6 +2976,7 @@
       link.download = filename;
       document.body.appendChild(link);
       link.click();
+      window.SyllabloomEvents?.track('anki_exported', {cards:approved.length});
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       showToast(`${approved.length} ready card${approved.length === 1 ? '' : 's'} exported to Anki`);
@@ -2923,11 +2990,14 @@
 
   function renderStudy({ preserveRatingReceipt = false } = {}) {
     const cards = studyCards();
-    const hasCards = cards.length > 0;
+    const complete = Boolean(shortStudy?.complete);
+    document.querySelector('#shortStudyComplete').hidden = !complete;
+    if(complete) document.querySelector('#shortStudySummary').textContent = `You reviewed ${shortStudy.cards.length} cards. Your ratings are saved. Come back for the next short session or add your next lecture.`;
+    const hasCards = cards.length > 0 && !complete;
     const focusBanner = document.querySelector('#studyFocusBanner');
     focusBanner.hidden = !state.studyFocusConcept;
     if (state.studyFocusConcept) document.querySelector('#studyFocusName').textContent = state.studyFocusConcept;
-    document.querySelector('#studyEmpty').hidden = hasCards;
+    document.querySelector('#studyEmpty').hidden = hasCards || complete;
     document.querySelector('#studyMeta').hidden = !hasCards;
     document.querySelector('#studyProgressTrack').hidden = !hasCards;
     document.querySelector('#studyCardStage').hidden = !hasCards;
@@ -3787,7 +3857,7 @@
     const processing = sourceItem.sample
       ? 'example'
       : sourceItem.storage === 'session'
-        ? 'cards saved in this browser; original file not stored'
+        ? 'study content saved; original file not stored'
         : 'saved in this browser';
     const classification = sourceItem.classificationReason && sourceItem.classificationReason !== 'Manually selected'
       ? ` · ${sourceItem.classificationReason}`
@@ -3877,11 +3947,21 @@
     const study = window.SyllabloomSourceStudy;
     const concepts = study ? study.cleanConcepts(sourceItem.concepts) : (Array.isArray(sourceItem.concepts) ? sourceItem.concepts : []);
     const notes = study ? study.cleanNotes(sourceItem.notes) : (Array.isArray(sourceItem.notes) ? sourceItem.notes : []);
-    const cards = window.SyllabloomCardSet.sourceCards([sourceItem]).filter(card => !study || study.isUsableCard(card));
+    const cards = window.SyllabloomCardSet.sourceCards([sourceItem]).filter(card => !study || study.isUsableCard(card)).map(card => state.lectureCards.find(saved => saved.sourceKey === lectureCardKey(card)) || card);
     panel.hidden = false;
+    panel.dataset.sourceId = sourceItem.id;
+    const startButton = document.querySelector('#startSourceStudy');
+    startButton.disabled = !cards.length;
+    startButton.textContent = `Study ${Math.min(5, cards.length)} cards`;
+    document.querySelector('#sourceCardPreviews').innerHTML = cards.slice(0,3).map((card,index) => `<article class="source-card-preview"><small>CARD ${index+1}</small><h3>${escapeHtml(card.front)}</h3><details><summary>Show answer</summary><p>${escapeHtml(card.back)}</p><small>${escapeHtml(card.sourceLocation || 'Source passage')}</small>${card.sourceQuote ? `<blockquote>${escapeHtml(card.sourceQuote)}</blockquote>` : '<p>Check this answer in your original source.</p>'}</details></article>`).join('');
+    const rows = window.SyllabloomSourceExperience.coverage(sourceItem,cards);
+    const readable = rows.filter(row=>row.readable);
+    document.querySelector('#sourceCoverageSummary').textContent = rows.length ? `${readable.filter(row=>row.count).length} of ${readable.length} readable sections have cited cards. ${rows.length-readable.length} section${rows.length-readable.length === 1 ? ' has' : 's have'} no readable text.` : 'Re-upload this source once to enable section coverage. Existing cards will be kept.';
+    document.querySelector('#sourceCoverageRows').innerHTML = rows.map((row,index) => `<label class="coverage-row"><input type="checkbox" data-coverage-index="${index}" ${row.readable ? '' : 'disabled'}><span><strong>${escapeHtml(row.label)}: ${escapeHtml(row.status)}</strong><small>${escapeHtml(row.title)}</small>${row.lowText || row.imageWarning ? '<small>Limited text or visual content: check the original.</small>' : ''}</span></label>`).join('');
+    document.querySelector('#generateSelectedSections').hidden = !readable.length;
     document.querySelector('#sourceStudyOutputEyebrow').textContent = sourceItem.name;
     document.querySelector('#sourceStudyOutputTitle').textContent = `${cards.length} ready card${cards.length === 1 ? '' : 's'} from this source`;
-    document.querySelector('#sourceStudyOutputSummary').textContent = `${concepts.length} concept${concepts.length === 1 ? '' : 's'} and ${notes.length} note section${notes.length === 1 ? '' : 's'} were traced back to the uploaded file.`;
+    document.querySelector('#sourceStudyOutputSummary').textContent = 'Preview the questions, check their source passages, then try a short session. Edit anything that needs work.';
     document.querySelector('#sourceStudyConcepts').innerHTML = concepts.length
       ? concepts.slice(0, 12).map(concept => `<span>${escapeHtml(concept.name || concept)}</span>`).join('')
       : '<p>No named concepts were found.</p>';
@@ -4005,7 +4085,7 @@
     const cards = sourceCardsFromLibrary();
     if (cards.length) {
       const latestSource = cardSources[cardSources.length - 1];
-      const hadSampleIdentity = state.classMode === 'sample' || (state.className === 'Human Anatomy' && state.classTerm === 'Fall 2023');
+      const hadSampleIdentity = state.className === 'Untitled class' || state.classMode === 'sample' || (state.className === 'Human Anatomy' && state.classTerm === 'Fall 2023');
       state.includeSampleMaterial = false;
       state.classMode = 'custom';
       state.useDemoSyllabus = false;
@@ -4102,8 +4182,8 @@
           <div class="source-queue-kind">
             <span class="source-queue-kind-label">Document type</span>
             <div class="source-kind-picker source-queue-kind-picker" data-themed-select-picker>
-              <select class="source-kind-native" data-source-queue-kind="${escapeHtml(item.id)}" aria-hidden="true" tabindex="-1">${optionMarkup}</select>
-              <button class="source-kind-trigger" type="button" aria-label="Document type for ${escapeHtml(item.name)}" aria-haspopup="listbox" aria-expanded="false" aria-controls="${menuId}" ${sourceBatchRunning ? 'disabled' : ''}>
+              <select class="source-kind-native" data-source-queue-kind="${escapeHtml(item.id)}" aria-hidden="true" tabindex="-1" ${item.targetSourceId ? 'disabled' : ''}>${optionMarkup}</select>
+              <button class="source-kind-trigger" type="button" aria-label="Document type for ${escapeHtml(item.name)}" aria-haspopup="listbox" aria-expanded="false" aria-controls="${menuId}" ${sourceBatchRunning || item.targetSourceId ? 'disabled' : ''}>
                 <span data-select-current>${escapeHtml(options.find(option => option[0] === item.kind)?.[1] || 'Auto-detect')}</span>
                 <span class="source-kind-trigger-arrow" aria-hidden="true"></span>
               </button>
@@ -4112,6 +4192,7 @@
           </div>
           <div class="source-queue-state">
             <span class="source-queue-status ${statusClass}">${statusLabel}</span>
+            ${item.restartRequired ? `<button type="button" data-restart-source="${escapeHtml(item.id)}" ${sourceBatchRunning ? 'disabled' : ''}>Restart unfinished batch</button>` : ''}
             ${item.error ? '<small>' + escapeHtml(item.error) + '</small>' : item.preflightLabel ? '<small class="is-meta">' + escapeHtml(item.preflightLabel) + '</small>' : ''}
           </div>
           <button class="source-queue-remove" type="button" data-remove-queued-source="${escapeHtml(item.id)}" aria-label="Remove ${escapeHtml(item.name)} from this batch" ${sourceBatchRunning ? 'disabled' : ''}>×</button>
@@ -4126,7 +4207,7 @@
       ? 'Adding documents…'
       : sourceQueueItems.some(item => item.status === 'queued')
         ? 'Add ' + processable.length + (processable.length === 1 ? ' document' : ' documents')
-        : processable.length === 1 ? 'Retry failed document' : 'Retry failed documents';
+        : 'Resume import';
 
     const current = sourceQueueItems.find(item => item.status === 'processing');
     if (sourceBatchRunning && current && sourceBatchProgress) {
@@ -4139,13 +4220,15 @@
     initializeThemedSelectPickers();
   }
 
-  function queueSourceFiles(files) {
+  async function queueSourceFiles(files) {
+    await importRestore;
     const selected = window.SyllabloomSourceBatch.createQueueItems(
       files,
       document.querySelector('#sourceKind').value
     );
     sourceQueueItems = [...sourceQueueItems, ...selected];
     sourceBatchFeedback = '';
+    await persistImportQueue();
     renderSourceQueue();
     if (selected.length) {
       showToast(selected.length === 1
@@ -4160,34 +4243,59 @@
       item.status === 'queued' || (item.status === 'failed' && item.retryable)
     );
     if (!processable) return;
+    if (!state.account.signedIn) { window.dispatchEvent(new CustomEvent('syllabloom:auth-request', {detail:{intent:'upload'}})); return; }
+    await importRestore;
+    const owner = importOwner;
+    const workingQueue = sourceQueueItems;
+    const assertOwner = () => { if (owner !== importOwner) throw new Error('Account changed. Sign back in to resume this import.'); };
 
     sourceBatchRunning = true;
     const questionStyle = normalizedQuestionStyle(state.anki.questionStyle);
     sourceBatchProgress = null;
     sourceBatchFeedback = '';
     renderSourceQueue();
-    const result = await window.SyllabloomSourceBatch.processQueue(
-      sourceQueueItems,
-      item => uploadSource(item.file, item.kind, {
-        silent: true,
-        manageButton: false,
-        queueItem: item,
-        questionStyle,
-        onProgress: message => {
-          item.progressLabel = message;
+    let result;
+    try {
+      const access = await window.SyllabloomBilling?.ensureAccess();
+      assertOwner();
+      if (access && !access.access) { showToast('Choose a plan before generating cards. Your upload list is saved.'); navigate('billing'); return; }
+      window.SyllabloomEvents?.track('upload_started', {files:workingQueue.filter(item=>item.status==='queued' || item.retryable).length});
+      await persistImportQueue(owner, workingQueue);
+      result = await window.SyllabloomSourceBatch.processQueue(
+        workingQueue,
+        item => uploadSource(item.file, item.kind, {
+          silent: true,
+          manageButton: false,
+          queueItem: item,
+          assertOwner,
+          checkpoint: () => persistImportQueue(owner, workingQueue),
+          questionStyle,
+          onProgress: message => {
+            item.progressLabel = message;
+            renderSourceQueue();
+          }
+        }),
+        async (item, details) => {
+          await persistImportQueue(owner, workingQueue);
+          assertOwner();
+          if (item.status === 'processing') {
+            sourceBatchProgress = { current: details.index + 1, total: details.total };
+          }
           renderSourceQueue();
         }
-      }),
-      (item, details) => {
-        if (item.status === 'processing') {
-          sourceBatchProgress = { current: details.index + 1, total: details.total };
-        }
-        renderSourceQueue();
-      }
-    );
-
+      );
+    } catch (error) {
+      if (owner === importOwner) showToast(error.message || 'Import paused. Resume to continue.');
+      return;
+    } finally {
+      sourceBatchRunning = false;
+      await persistImportQueue(owner, workingQueue);
+      renderSourceQueue();
+    }
+    if (owner !== importOwner) return;
     const completed = sourceQueueItems.filter(item => item.status === 'done');
-    const added = completed.filter(item => !item.duplicateSkipped);
+    const added = completed.filter(item => !item.duplicateSkipped && !item.targetSourceId);
+    const expanded = completed.filter(item => item.targetSourceId && !item.duplicateSkipped);
     const duplicateSkipped = completed.filter(item => item.duplicateSkipped).length;
     const remainingItems = sourceQueueItems.filter(item => item.status !== 'done');
     const cardCount = added.reduce((total, item) => total + (item.result?.draftCards?.length || 0), 0);
@@ -4196,11 +4304,13 @@
     const calendarWarningCount = added.reduce((total, item) => total + (item.result?.calendarWarnings?.length || 0), 0);
     const contentDocumentCount = added.filter(item => item.result?.kind !== 'syllabus').length;
     sourceQueueItems = remainingItems;
+    await persistImportQueue();
     sourceBatchRunning = false;
     sourceBatchProgress = null;
     const remaining = sourceQueueItems.length;
     const feedbackParts = [];
     if (added.length) feedbackParts.push(added.length + ' document' + (added.length === 1 ? '' : 's') + ' added');
+    if (expanded.length) feedbackParts.push(`${expanded.reduce((total,item)=>total+(item.addedCardCount || 0),0)} additional unique cards added; existing cards kept`);
     if (duplicateSkipped) feedbackParts.push(duplicateSkipped + ' exact duplicate' + (duplicateSkipped === 1 ? '' : 's') + ' skipped without reprocessing');
     if (cardCount) feedbackParts.push(cardCount + ' source-based card' + (cardCount === 1 ? '' : 's') + ' ready');
     if (noteCount) feedbackParts.push(noteCount + ' note section' + (noteCount === 1 ? '' : 's') + ' added');
@@ -4216,17 +4326,19 @@
       : result.succeeded + ' document' + (result.succeeded === 1 ? '' : 's') + ' processed');
   }
 
-  function uploadLargeSourceFile(url, file, contentType, onProgress = () => {}) {
+  function uploadLargeSourceFile(url, file, contentType, authorization, onProgress = () => {}) {
     return new Promise((resolve, reject) => {
       const request = new XMLHttpRequest();
       request.open('PUT', url);
+      request.timeout = 10 * 60 * 1000;
+      request.addEventListener('timeout', () => reject(new Error('The upload timed out. Check your connection and retry.')));
       request.setRequestHeader('Content-Type', contentType);
+      if (authorization) request.setRequestHeader('Authorization', authorization);
       request.upload.addEventListener('progress', event => {
         if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
       });
       request.addEventListener('load', () => {
-        if (request.status >= 200 && request.status < 300) resolve();
-        else reject(new Error('The document upload did not finish. Check your connection and retry.'));
+        resolve(new Response(request.responseText, { status: request.status }));
       });
       request.addEventListener('error', () => reject(new Error('The document upload was interrupted. Check your connection and retry.')));
       request.addEventListener('abort', () => reject(new Error('The document upload was cancelled.')));
@@ -4238,42 +4350,46 @@
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       const error = new Error(payload.error || fallback);
-      error.code = payload.errorCode || '';
+      error.code = payload.code || payload.errorCode || '';
+      if (response.status === 402 && error.code === 'subscription_required') {
+        location.hash = '#billing';
+        window.SyllabloomBilling?.refresh();
+      }
       error.retryable = payload.retryable === undefined
         ? response.status < 500
         : payload.retryable !== false;
       error.fileFingerprint = payload.fileFingerprint || '';
+      error.restartRequired = error.code === 'BATCH_RESTART_REQUIRED';
       throw error;
     }
     return payload;
   }
 
-  async function uploadLargeSource(file, kind, token, onProgress = () => {}) {
-    const ticketResponse = await fetch('/api/source-upload-url', {
+  function sourceRequest(url, options, assertOwner = () => {}, transport) {
+    const auth = { getToken: async settings => {
+      const token = await window.SyllabloomAuth?.getToken?.(settings);
+      assertOwner();
+      return token;
+    } };
+    return window.SyllabloomSourceBatch.authenticatedRequest(url, options, auth, transport);
+  }
+
+  async function uploadLargeSource(file, kind, onProgress = () => {}, request = sourceRequest) {
+    const ticketResponse = await request('/api/source-upload-url', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filename: file.name, size: file.size })
     });
-    const ticket = await ticketResponse.json();
-    if (!ticketResponse.ok) throw new Error(ticket.error || 'The secure upload could not be prepared.');
-    try {
-      await uploadLargeSourceFile(ticket.uploadUrl, file, ticket.contentType, onProgress);
-      const response = await fetch('/api/source', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          filename: file.name,
-          kind,
-          operation: 'inspect',
-          pathname: ticket.pathname,
-          sourceUrl: ticket.sourceUrl,
-          deleteUrl: ticket.deleteUrl
-        })
-      });
-      return await checkedSourceResponse(response, 'The document could not be read.');
-    } finally {
-      fetch(ticket.deleteUrl, { method: 'DELETE', mode: 'cors' }).catch(() => {});
-    }
+    const ticket = await checkedSourceResponse(ticketResponse, 'The secure upload could not be prepared.');
+    const uploaded = await request(ticket.uploadUrl, {
+      method: 'PUT', headers: { 'Content-Type': ticket.contentType }, body: file
+    }, (url, init) => uploadLargeSourceFile(url, init.body, init.headers['Content-Type'], init.headers.Authorization, onProgress));
+    await checkedSourceResponse(uploaded, 'The document upload did not finish.');
+    const response = await request('/api/source', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: file.name, kind, operation: 'inspect', pathname: ticket.pathname })
+    });
+    return await checkedSourceResponse(response, 'The document could not be read.');
   }
 
   async function uploadSource(file, kind = 'auto', options = {}) {
@@ -4281,7 +4397,17 @@
     const priorText = label.textContent;
     const manageButton = options.manageButton !== false;
     const queueItem = options.queueItem || null;
+    if (queueItem?.targetSourceId) {
+      if (!queueItem.inspectionCache) throw new Error('Select the source sections again to prepare this request.');
+      kind = queueItem.inspectionCache.kind;
+    }
     const questionStyle = normalizedQuestionStyle(options.questionStyle || state.anki.questionStyle);
+    const request = async (url, init, transport) => {
+      options.assertOwner?.();
+      const response = await sourceRequest(url, init, options.assertOwner, transport);
+      options.assertOwner?.();
+      return response;
+    };
     let lastProgressLabel = '';
     let lastProgressAt = 0;
     const reportProgress = message => {
@@ -4312,9 +4438,9 @@
       const inspectOcrText = async (pageTexts, fileFingerprint) => {
         const text = pageTexts.filter(page => page.trim()).join('\n');
         reportProgress('Updating the source preview with on-device OCR…');
-        const response = await fetch('/api/source', {
+        const response = await request('/api/source', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             operation: 'inspect-text',
             filename: file.name,
@@ -4327,40 +4453,47 @@
         return checkedSourceResponse(response, 'The scanned PDF could not be prepared.');
       };
 
-      try {
-        if (!isLocalDevelopment && file.size > 3 * 1024 * 1024) {
-          payload = await uploadLargeSource(file, kind, token, percent => {
-            reportProgress(`Uploading securely… ${percent}%`);
-          });
-        } else {
-          reportProgress('Inspecting the source before card generation…');
-          const body = new FormData();
-          body.append('source', file, file.name);
-          body.append('kind', kind);
-          body.append('questionStyle', questionStyle);
-          body.append('inspect', '1');
-          const response = await fetch('/api/source', {
-            method: 'POST',
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-            body
-          });
-          payload = await checkedSourceResponse(response, 'The document could not be read.');
+      const inspected = queueItem?.inspectionCache;
+      if (inspected?.kind === kind) {
+        payload = structuredClone(inspected.payload);
+      } else {
+        try {
+          if (!isLocalDevelopment && file.size > 3 * 1024 * 1024) {
+            payload = await uploadLargeSource(file, kind, percent => {
+              reportProgress(`Uploading securely… ${percent}%`);
+            }, request);
+          } else {
+            reportProgress('Inspecting the source before card generation…');
+            const body = new FormData();
+            body.append('source', file, file.name);
+            body.append('kind', kind);
+            body.append('questionStyle', questionStyle);
+            body.append('inspect', '1');
+            const response = await request('/api/source', {
+              method: 'POST',
+              body
+            });
+            payload = await checkedSourceResponse(response, 'The document could not be read.');
+          }
+        } catch (inspectError) {
+          if (inspectError?.code !== 'NO_SELECTABLE_TEXT' || !String(file.name || '').toLowerCase().endsWith('.pdf')) throw inspectError;
+          reportProgress('No text layer · reading scanned pages on this device…');
+          const reading = await readPdfTextOnDevice(file, [], [], reportProgress);
+          payload = await inspectOcrText(reading.pageTexts, inspectError.fileFingerprint);
         }
-      } catch (inspectError) {
-        if (inspectError?.code !== 'NO_SELECTABLE_TEXT' || !String(file.name || '').toLowerCase().endsWith('.pdf')) throw inspectError;
-        reportProgress('No text layer · reading scanned pages on this device…');
-        const reading = await readPdfTextOnDevice(file, [], [], reportProgress);
-        payload = await inspectOcrText(reading.pageTexts, inspectError.fileFingerprint);
-      }
 
-      if (String(file.name || '').toLowerCase().endsWith('.pdf')) {
-        const lowTextPages = payload.source?.preflight?.lowTextPages || [];
-        if (lowTextPages.length) {
-          const reading = await readPdfTextOnDevice(file, lowTextPages, payload.extractedUnits?.pageTexts || [], reportProgress);
-          payload = await inspectOcrText(reading.pageTexts, payload.source.fileFingerprint);
+        if (String(file.name || '').toLowerCase().endsWith('.pdf')) {
+          const lowTextPages = payload.source?.preflight?.lowTextPages || [];
+          if (lowTextPages.length) {
+            const reading = await readPdfTextOnDevice(file, lowTextPages, payload.extractedUnits?.pageTexts || [], reportProgress);
+            payload = await inspectOcrText(reading.pageTexts, payload.source.fileFingerprint);
+          }
         }
+        if (queueItem && payload?.source) queueItem.inspectionCache = { kind, payload: structuredClone(payload) };
       }
       if (!payload?.source) throw new Error('The source preview did not contain readable course material.');
+      options.assertOwner?.();
+      await options.checkpoint?.();
       const detectedKind = payload.source.kind || kind;
       if (queueItem && payload.source.preflight && !payload.source.preflight.requiresCards) {
         const preflight = payload.source.preflight;
@@ -4371,10 +4504,12 @@
         options.onProgress?.(queueItem.preflightLabel);
       }
 
-      const duplicate = state.sources.find(item =>
+      window.SyllabloomEvents?.track('extraction_succeeded', {fileType:file.name.split('.').pop().toLowerCase()});
+      const duplicate = !queueItem?.targetSourceId && state.sources.find(item =>
         item.fileFingerprint && item.fileFingerprint === payload.source.fileFingerprint
       );
       if (duplicate) {
+        if (!duplicate.studySections?.length && payload.source.studySections?.length) { duplicate.studySections=payload.source.studySections; persistClassSources(); renderSourceStudyOutput(duplicate); }
         if (queueItem) {
           queueItem.duplicateSkipped = true;
           queueItem.progressLabel = 'Exact duplicate · skipped';
@@ -4396,10 +4531,11 @@
           queueItem.preflightLabel = `${preflight.unitCount} ${preflight.unitLabel} · ${preflight.inputCharacters.toLocaleString()} readable characters · ${batchCount} card batch${batchCount === 1 ? '' : 'es'}${imageGap}`;
           options.onProgress?.(queueItem.preflightLabel);
         }
+        const identity = window.SyllabloomSourceBatch.generationKey(payload.source, file.name, questionStyle);
         const cache = queueItem?.generationCache;
-        const batchCache = cache?.fingerprint === payload.source.fileFingerprint && cache?.questionStyle === questionStyle
+        const batchCache = cache?.identity === identity
           ? cache
-          : { fingerprint: payload.source.fileFingerprint, questionStyle, results: [] };
+          : { identity, results: [] };
         if (queueItem) queueItem.generationCache = batchCache;
         const generatedCards = [];
         const generatedConcepts = [];
@@ -4407,13 +4543,17 @@
           let result = batchCache.results[batchIndex];
           if (!result) {
             reportProgress(`Preparing card batch ${batchIndex + 1} of ${batchCount}…`);
+            if (queueItem) queueItem.activeBatchIndex = batchIndex;
+            await options.checkpoint?.();
             let response;
             try {
-              response = await fetch('/api/source', {
+              response = await request('/api/source', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   operation: 'generate-batch',
+                  durable: true,
+                  restartUncertain: queueItem?.restartUncertain === true && queueItem?.restartBatchIndex === batchIndex,
                   filename: file.name,
                   kind: detectedKind,
                   extractedText: text,
@@ -4425,13 +4565,21 @@
               });
             } catch (error) {
               // The request may have reached the model before the connection failed.
-              error.retryable = false;
+              error.retryable = true;
+              error.message = 'Connection interrupted. Choose Resume import to recover the saved batch result.';
               throw error;
             }
-            const batchPayload = await checkedSourceResponse(response, 'This card batch could not finish.');
+            let batchPayload;
+            try { batchPayload = await checkedSourceResponse(response, 'This card batch could not finish. Choose Resume import to recover its result.'); }
+            catch (error) {
+              if (response.status >= 500 && !error.restartRequired) error.retryable = true;
+              throw error;
+            }
             result = batchPayload.result;
             if (!result || !Array.isArray(result.cards)) throw new Error('The card batch returned an incomplete result.');
             batchCache.results[batchIndex] = result;
+            if (queueItem?.restartBatchIndex === batchIndex) queueItem.restartUncertain = false;
+            await options.checkpoint?.();
           }
           generatedCards.push(...(result.cards || []));
           generatedConcepts.push(...(result.concepts || []));
@@ -4468,16 +4616,20 @@
         };
       }
 
+      options.assertOwner?.();
       delete payload.extractedText;
       delete payload.extractedUnits;
       const previousSource = state.sources.find(item => item.id === payload.source.id);
-      payload.source = window.SyllabloomCardSet.mergeSource(previousSource, payload.source);
+      payload.source = queueItem?.targetSourceId
+        ? window.SyllabloomSourceExperience.mergeAdditional(state.sources.find(item=>item.id===queueItem.targetSourceId), payload.source, window.SyllabloomCardSet)
+        : window.SyllabloomCardSet.mergeSource(previousSource, payload.source);
+      if(queueItem) queueItem.addedCardCount = Math.max(0,(payload.source.draftCards?.length || 0)-(previousSource?.draftCards?.length || 0));
       if (detectedKind === 'syllabus') {
         state.useDemoSyllabus = false;
         state.syllabusName = payload.source.name;
       }
       const wasUsingSample = state.includeSampleMaterial;
-      const wasSampleClass = state.classMode === 'sample';
+      const wasSampleClass = state.classMode === 'sample' || state.className === 'Untitled class';
       state.includeSampleMaterial = false;
       state.classMode = 'custom';
       state.useDemoSyllabus = false;
@@ -4538,6 +4690,8 @@
       renderStudy();
       updateAssessmentIntro();
       renderSourceStudyOutput(detectedKind === 'syllabus' ? null : payload.source);
+      if(payload.source.draftCards?.length) window.SyllabloomEvents?.track('generation_succeeded', {cards:queueItem?.addedCardCount ?? payload.source.draftCards.length});
+      if(detectedKind !== 'syllabus') document.querySelector('#sourceStudyOutput').scrollIntoView({behavior:'smooth',block:'start'});
       if (detectedKind !== 'syllabus' && (payload.source.draftCards || []).length
         && ankiDesktopSettings.autoSync && ankiDesktopSettings.ownerId === state.account.userId) {
         sendReadyCardsToDesktop({ automatic: true });
@@ -4561,6 +4715,7 @@
       }
       return payload.source;
     } catch (error) {
+      window.SyllabloomEvents?.track('import_failed', {reason:'unknown',fileType:file.name.split('.').pop().toLowerCase()});
       if (!options.silent) showToast(error.message);
       throw error;
     } finally {
@@ -4780,12 +4935,18 @@
     }
   });
   document.querySelector('[data-clear-study-focus]').addEventListener('click', () => {
+    shortStudy = null;
     state.studyFocusConcept = '';
     state.studyIndex = 0;
     renderStudy();
   });
   document.querySelectorAll('[data-go]').forEach(button => button.addEventListener('click', () => navigate(button.dataset.go)));
   document.querySelectorAll('[data-start-quick-check]').forEach(button => button.addEventListener('click', () => {
+    if (!state.includeSampleMaterial && !approvedLectureCards().length) {
+      navigate('source');
+      document.querySelector('#sourceUploadLabel')?.focus();
+      return;
+    }
     navigate('quick-check');
     startQuickCheck();
   }));
@@ -4934,11 +5095,13 @@
   });
   window.addEventListener('syllabloom:auth-change', event => {
     const detail = event.detail || {};
+    if (state.account.userId !== (detail.userId || '')) shortStudy = null;
     state.account.signedIn = Boolean(detail.signedIn);
     state.account.email = detail.email || '';
     state.account.userId = detail.userId || '';
     state.account.displayName = detail.displayName || '';
     state.account.imageUrl = detail.imageUrl || '';
+    restoreImportQueue(state.account.userId);
     if (state.account.signedIn && state.account.userId) {
       const usageByUser = storedJson('syllabloom-class-usage-by-user', {});
       const hasScopedUsage = Object.prototype.hasOwnProperty.call(usageByUser, state.account.userId);
@@ -5232,19 +5395,30 @@
     if (!select || sourceBatchRunning) return;
     const item = sourceQueueItems.find(entry => entry.id === select.dataset.sourceQueueKind);
     if (item) item.kind = select.value;
+    persistImportQueue();
   });
   document.querySelector('#sourceQueueList').addEventListener('click', event => {
+    const restart = event.target.closest('[data-restart-source]');
+    if (restart && !sourceBatchRunning) {
+      const item = sourceQueueItems.find(entry => entry.id === restart.dataset.restartSource);
+      if (item) { item.restartUncertain = true; item.restartBatchIndex = item.activeBatchIndex; item.restartRequired = false; item.retryable = true; }
+      persistImportQueue();
+      addQueuedSources();
+      return;
+    }
     const removeButton = event.target.closest('[data-remove-queued-source]');
     if (!removeButton || sourceBatchRunning) return;
     const item = sourceQueueItems.find(entry => entry.id === removeButton.dataset.removeQueuedSource);
     sourceQueueItems = sourceQueueItems.filter(entry => entry.id !== removeButton.dataset.removeQueuedSource);
     sourceBatchFeedback = item ? item.name + ' removed from the import list.' : '';
+    persistImportQueue();
     renderSourceQueue();
   });
   document.querySelector('#sourceQueueAdd').addEventListener('click', addQueuedSources);
   document.querySelector('#sourceQueueClear').addEventListener('click', () => {
     if (sourceBatchRunning) return;
     sourceQueueItems = [];
+    persistImportQueue();
     sourceBatchFeedback = '';
     renderSourceQueue();
   });
@@ -5284,6 +5458,7 @@
     card.reviewStatus = action === 'approve' ? 'approved' : 'skipped';
     saveLectureReview();
     renderLectureDraftQueue();
+    renderHomeForActiveClass();
     showToast(action === 'approve' ? 'Card added to the ready set' : 'Card left out');
     if (action === 'approve' && ankiDesktopSettings.autoSync && ankiDesktopSettings.ownerId === state.account.userId) {
       sendReadyCardsToDesktop({ automatic: true });
@@ -5400,6 +5575,47 @@
     }
   });
 
+  document.querySelectorAll('[data-export-ready]').forEach(button=>button.addEventListener('click',exportApprovedCards));
+  document.querySelector('#startSourceStudy').addEventListener('click',()=>startShortStudy(document.querySelector('#sourceStudyOutput').dataset.sourceId));
+  document.querySelector('#continueSourceStudy').addEventListener('click',()=>startShortStudy());
+  document.querySelector('#studyFiveMore').addEventListener('click',()=>startShortStudy(shortStudy?.sourceId, shortStudy?.cards.map(card=>card.id) || []));
+  document.querySelector('#optionalClassSettings').addEventListener('click',()=>{
+    document.querySelector('#quickClassName').value=state.className;
+    document.querySelector('#quickClassTerm').value=state.classTerm;
+    document.querySelector('#quickClassSettings').showModal();
+  });
+  document.querySelector('#closeQuickClassSettings').addEventListener('click',()=>document.querySelector('#quickClassSettings').close());
+  document.querySelector('#quickClassSettingsForm').addEventListener('submit',event=>{
+    event.preventDefault();setClassLabels(document.querySelector('#quickClassName').value.trim() || 'Untitled class',document.querySelector('#quickClassTerm').value.trim() || 'Term not set');persistClassProfile();document.querySelector('#quickClassSettings').close();showToast('Class settings saved');
+  });
+  document.querySelector('#sourceAnkiSettings').addEventListener('click',()=>openAnkiSettings(false));
+  window.addEventListener('syllabloom:billing-change', event => {
+    const access=event.detail;
+    document.querySelector('#sourceAccessNote').textContent=access?.lifetime ? 'Your free lifetime access is confirmed. No payment details needed.' : access?.access ? 'Your plan is active. Generation is subject to the beta usage limits.' : 'Your plan is checked before generation. Monthly $12, or $108 billed yearly ($9/month equivalent); confirmed free accounts keep their access.';
+  });
+  document.querySelector('#generateSelectedSections').addEventListener('click',async event=>{
+    const button=event.currentTarget, feedback=document.querySelector('#coverageFeedback');
+    if(sourceBatchRunning) { feedback.textContent='Let the current import finish first.'; return; }
+    const sourceId=document.querySelector('#sourceStudyOutput').dataset.sourceId;
+    const original=state.sources.find(item=>item.id===sourceId);
+    const sections=[...document.querySelectorAll('[data-coverage-index]:checked')].map(input=>original?.studySections?.[Number(input.dataset.coverageIndex)]).filter(section=>section?.text?.trim()).map(({label,text})=>({label,text}));
+    if(!sections.length) {feedback.textContent='Select a readable section first.';return;}
+    const owner=importOwner; button.disabled=true; feedback.textContent='Preparing selected sections...';
+    try {
+      const response=await sourceRequest('/api/source',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operation:'prepare-sections',filename:original.name,sections})},()=>{ if(owner!==importOwner) throw new Error('Account changed. Try again.'); });
+      const prepared=await checkedSourceResponse(response,'Could not prepare these sections.');
+      if(owner!==importOwner) throw new Error('Account changed. Try again.');
+      const file=new File([prepared.extractedText],original.name,{type:'text/plain'});
+      const item=window.SyllabloomSourceBatch.createQueueItems([file],original.kind)[0];
+      item.targetSourceId=sourceId;
+      item.inspectionCache={kind:original.kind,payload:{source:{...original,draftCards:[],fingerprint:prepared.fingerprint,fileFingerprint:'sections-'+prepared.fingerprint,preflight:prepared.preflight},extractedText:prepared.extractedText,extractedUnits:prepared.extractedUnits}};
+      sourceQueueItems.push(item); await persistImportQueue();renderSourceQueue();
+      window.SyllabloomEvents?.track('coverage_requested',{sections:sections.length});
+      feedback.textContent='Selected sections are in the import queue.';
+      await addQueuedSources();
+    } catch(error) {feedback.textContent=error.message || 'Try again.';} finally {button.disabled=false;}
+  });
+
   document.querySelector('#showAnswer').addEventListener('click', () => {
     hideRatingReceipt();
     resetRatingControls();
@@ -5415,6 +5631,7 @@
     if (!item || button.disabled) return;
     const rating = button.dataset.rating;
     const persisted = recordStudyRating(item, rating);
+    shortStudy?.rated.add(studyCardKey(item));
     document.querySelectorAll('.rating').forEach(control => {
       control.disabled = true;
       control.classList.toggle('is-recorded', control === button);
@@ -5428,6 +5645,7 @@
       showMissExplanation(item);
       return;
     }
+    if (finishShortStudy()) return;
     window.setTimeout(() => {
       state.studyIndex = (state.studyIndex + 1) % cards.length;
       renderStudy({ preserveRatingReceipt: true });
@@ -5446,6 +5664,7 @@
   });
 
   document.querySelector('#continueAfterMiss').addEventListener('click', () => {
+    if (finishShortStudy()) return;
     const cards = studyCards();
     state.studyIndex = (state.studyIndex + 1) % cards.length;
     renderStudy();

@@ -7,6 +7,7 @@ import psycopg
 
 from api._common import JsonHandler
 from api.user_data import _database_url
+from api.source_jobs import SCHEMA as SOURCE_JOBS_SCHEMA
 
 
 class handler(JsonHandler):
@@ -23,6 +24,8 @@ class handler(JsonHandler):
         cutoff = datetime.now(timezone.utc).date() - timedelta(days=90)
         try:
             with psycopg.connect(database_url, connect_timeout=5) as connection:
+                connection.execute(SOURCE_JOBS_SCHEMA)
+                connection.execute("DELETE FROM syllabloom_source_jobs WHERE updated_at < now() - interval '7 days' OR (state='complete' AND updated_at < now() - interval '24 hours')")
                 connection.execute(
                     """
                     CREATE TABLE IF NOT EXISTS syllabloom_ai_usage_daily (
@@ -38,6 +41,9 @@ class handler(JsonHandler):
                     (cutoff,),
                 )
                 deleted = max(0, result.rowcount)
+                from api.product_events import SCHEMA
+                connection.execute(SCHEMA)
+                connection.execute("DELETE FROM syllabloom_product_events WHERE created_at < now()-interval '90 days'")
             self.send_json({"ok": True, "deletedUsageRows": deleted})
         except Exception as exc:
             print(f"AI usage cleanup failed: {type(exc).__name__}", flush=True)

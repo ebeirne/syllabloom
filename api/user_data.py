@@ -13,7 +13,7 @@ import psycopg
 from jwt import PyJWKClient
 from psycopg.types.json import Jsonb
 
-from api._common import clerk_auth_config
+from api._common import clerk_auth_config, deployment_env
 
 
 MAX_USER_DATA_BYTES = 4 * 1024 * 1024
@@ -93,8 +93,8 @@ def authenticated_user(headers: Any) -> str | None:
 
 
 def _runtime_auth_configured() -> bool:
-    vercel_env = os.environ.get("VERCEL_ENV", "").strip()
-    if not vercel_env:
+    environment = deployment_env()
+    if not environment:
         return True
     allow_public_beta_auth = (os.environ.get("SYLLABLOOM_PUBLIC_BETA_AUTH") or "").strip().lower() in {
         "1",
@@ -104,7 +104,7 @@ def _runtime_auth_configured() -> bool:
     return bool(
         clerk_auth_config(
             _publishable_key(),
-            vercel_env,
+            environment,
             allow_test_key_in_production=allow_public_beta_auth,
         )["configured"]
     )
@@ -112,7 +112,7 @@ def _runtime_auth_configured() -> bool:
 
 def require_authenticated_beta_request(request: Any, action: str) -> bool:
     """Require a Clerk user for hosted operations while keeping localhost QA usable."""
-    if not os.environ.get("VERCEL_ENV", "").strip():
+    if not deployment_env():
         return True
     if not _runtime_auth_configured():
         request.send_json(
@@ -121,7 +121,8 @@ def require_authenticated_beta_request(request: Any, action: str) -> bool:
         )
         return False
     if authenticated_user(request.headers):
-        return True
+        from api.billing import require_access
+        return require_access(request)
     request.send_json({"error": f"Sign in before {action}."}, HTTPStatus.UNAUTHORIZED)
     return False
 
@@ -183,9 +184,8 @@ def normalize_user_data(value: Any) -> dict[str, Any]:
 
 
 def _database_url() -> str:
-    if (os.environ.get("VERCEL_ENV") or "").strip().lower() == "preview":
-        # Never let a Preview deployment silently fall back to the shared
-        # Production connection supplied by the Neon integration.
+    if deployment_env().lower() in {"preview", "staging"}:
+        # Never let a staging deployment silently fall back to the production database.
         return (os.environ.get("SYLLABLOOM_PREVIEW_DATABASE_URL") or "").strip()
     return (os.environ.get("DATABASE_URL") or "").strip()
 
