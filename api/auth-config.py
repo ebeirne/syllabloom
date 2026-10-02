@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 
-from api._common import JsonHandler, clerk_auth_config
+from api._common import JsonHandler, clerk_auth_config, deployment_env
 
 
 class handler(JsonHandler):
@@ -21,7 +21,7 @@ class handler(JsonHandler):
         self.send_json(
             clerk_auth_config(
                 publishable_key,
-                os.environ.get("VERCEL_ENV", ""),
+                deployment_env(),
                 allow_test_key_in_production=allow_public_beta_auth,
             )
         )

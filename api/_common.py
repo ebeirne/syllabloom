@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 import json
+import os
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler
 
 
+def deployment_env() -> str:
+    """Name of the hosted environment (e.g. "production"); empty for local development."""
+    return (os.environ.get("SYLLABLOOM_ENV") or os.environ.get("VERCEL_ENV") or "").strip()
+
+
 def clerk_auth_config(
     publishable_key: str,
-    vercel_env: str = "",
+    environment: str = "",
     allow_test_key_in_production: bool = False,
 ) -> dict[str, object]:
     key = str(publishable_key or "").strip()
@@ -20,7 +26,7 @@ def clerk_auth_config(
 
     test_key_in_production = (
         mode == "test"
-        and str(vercel_env or "").strip().lower() == "production"
+        and str(environment or "").strip().lower() == "production"
         and not allow_test_key_in_production
     )
     return {

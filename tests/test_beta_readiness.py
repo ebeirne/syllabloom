@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import unittest
 from pathlib import Path
 
@@ -20,13 +19,14 @@ class BetaReadinessContractTests(unittest.TestCase):
         self.assertNotIn("20 live lecture hours", page)
 
     def test_baseline_security_headers_are_configured(self) -> None:
-        config = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))
-        catch_all = next(item for item in config["headers"] if item["source"] == "/(.*)")
-        headers = {item["key"]: item["value"] for item in catch_all["headers"]}
-        self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
-        self.assertEqual(headers["X-Frame-Options"], "DENY")
-        self.assertIn("microphone=(self)", headers["Permissions-Policy"])
-        self.assertIn("max-age=63072000", headers["Strict-Transport-Security"])
+        config = (ROOT / "deploy" / "nginx.conf").read_text(encoding="utf-8")
+        for header in (
+            'X-Content-Type-Options "nosniff"',
+            'X-Frame-Options "DENY"',
+            "microphone=(self)",
+            "max-age=63072000",
+        ):
+            self.assertIn(header, config)
 
     def test_generated_source_surfaces_are_dynamic(self) -> None:
         page = (ROOT / "index.html").read_text(encoding="utf-8")

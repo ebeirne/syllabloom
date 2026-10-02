@@ -9,6 +9,7 @@ import os
 import posixpath
 import re
 import sqlite3
+import sys
 import tempfile
 import threading
 import time
@@ -21,7 +22,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from xml.etree import ElementTree
 
-from api._common import clerk_auth_config
+from api._common import clerk_auth_config, deployment_env
 
 
 ROOT = Path(__file__).resolve().parent
@@ -35,6 +36,7 @@ MAX_UPLOAD_BYTES = 1024 * 1024 * 1024
 ALLOWED_SUFFIXES = {".wav", ".mp3", ".m4a", ".webm", ".ogg", ".flac", ".mp4", ".mov"}
 SOURCE_SUFFIXES = {".docx", ".pptx", ".pdf", ".txt"}
 DATA_DIR = ROOT / "data"
+HOSTED = bool(deployment_env())
 SESSIONS_DIR = DATA_DIR / "sessions"
 SOURCE_LIBRARY_PATH = DATA_DIR / "source-library.json"
 
@@ -3217,7 +3219,28 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
             self.wfile.write(line)
             self.wfile.flush()
 
+    def dispatch_hosted_api(self, method: str) -> bool:
+        """On a hosted deployment, serve /api/* from the api package. nginx serves the static site."""
+        if not HOSTED:
+            return False
+        from api.routes import resolve
+
+        handler_class = resolve(urlparse(self.path).path)
+        if handler_class is None:
+            self.send_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
+            return True
+        method_handler = getattr(handler_class, f"do_{method}", None)
+        if method_handler is None:
+            self.send_json({"error": "Method not allowed."}, HTTPStatus.METHOD_NOT_ALLOWED)
+            return True
+        endpoint = handler_class.__new__(handler_class)
+        endpoint.__dict__ = self.__dict__  # share this request's socket files and headers
+        method_handler(endpoint)
+        return True
+
     def do_GET(self) -> None:
+        if self.dispatch_hosted_api("GET"):
+            return
         request_path = urlparse(self.path).path
         if request_path == "/api/user-data":
             from api.user_data import handle_request
@@ -3241,7 +3264,7 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
                 or os.environ.get("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY")
                 or ""
             ).strip()
-            self.send_json(clerk_auth_config(publishable_key, os.environ.get("VERCEL_ENV", "")))
+            self.send_json(clerk_auth_config(publishable_key, deployment_env()))
             return
         if request_path == "/api/sources":
             self.send_json({"sources": read_source_library()})
@@ -3259,6 +3282,8 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_PUT(self) -> None:
+        if self.dispatch_hosted_api("PUT"):
+            return
         request_path = urlparse(self.path).path
         if request_path == "/api/user-data":
             from api.user_data import handle_request
@@ -3268,6 +3293,8 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
         self.send_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:
+        if self.dispatch_hosted_api("POST"):
+            return
         request_path = urlparse(self.path).path
         if request_path == "/api/export-anki":
             self.handle_anki_export()
@@ -3475,6 +3502,7 @@ class SyllabloomHandler(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    sys.modules.setdefault("server", sys.modules[__name__])  # api handlers import this file as "server"
     host = os.environ.get("SYLLABLOOM_HOST", os.environ.get("ROUNDS_HOST", "127.0.0.1"))
     port = int(os.environ.get("SYLLABLOOM_PORT", os.environ.get("ROUNDS_PORT", "4174")))
     print(f"Syllabloom listening on http://{host}:{port}", flush=True)

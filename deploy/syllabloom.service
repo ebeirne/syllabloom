@@ -1,0 +1,22 @@
+[Unit]
+Description=Syllabloom API
+After=network.target
+
+[Service]
+User=syllabloom
+Group=syllabloom
+WorkingDirectory=/opt/syllabloom/app
+EnvironmentFile=/etc/syllabloom.env
+ExecStart=/opt/syllabloom/venv/bin/python server.py
+Restart=always
+RestartSec=3
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/syllabloom
+
+[Install]
+WantedBy=multi-user.target

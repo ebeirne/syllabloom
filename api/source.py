@@ -8,8 +8,6 @@ import re
 import tempfile
 from http import HTTPStatus
 from pathlib import Path
-from urllib.parse import parse_qs, unquote, urlsplit
-from urllib.request import Request, urlopen
 
 from api.ai_card_generation import (
     CHUNKS_PER_BATCH,
@@ -20,13 +18,13 @@ from api.ai_card_generation import (
     _source_chunks,
 )
 from api.ai_source_cards import generate_source_cards, generate_source_cards_batch
-from api._common import JsonHandler
+from api._common import JsonHandler, deployment_env
+from api.source_storage import resolve_pathname
 from api.user_data import authenticated_user, require_authenticated_beta_request
 from server import NoSelectableTextError, SOURCE_SUFFIXES, extract_source_text, source_summary
 
 
 MAX_INLINE_REQUEST_BYTES = 4 * 1024 * 1024
-MAX_SOURCE_BYTES = 100 * 1024 * 1024
 
 
 def _source_summary(
@@ -193,40 +191,6 @@ def _apply_file_identity(summary: dict, file_fingerprint: str) -> None:
         event["sourceId"] = file_id
 
 
-def _private_blob_url(value: object, pathname: str) -> str:
-    url = str(value or "")
-    parsed = urlsplit(url)
-    if (
-        parsed.scheme != "https"
-        or not parsed.hostname
-        or not parsed.hostname.endswith(".private.blob.vercel-storage.com")
-        or parsed.username
-        or parsed.password
-        or parsed.port
-        or unquote(parsed.path) != f"/{pathname}"
-        or not parsed.query
-    ):
-        raise ValueError("The temporary upload link is invalid.")
-    return url
-
-def _blob_api_delete_url(value: object, pathname: str) -> str:
-    url = str(value or "")
-    parsed = urlsplit(url)
-    query = parse_qs(parsed.query)
-    if (
-        parsed.scheme != "https"
-        or parsed.hostname != "vercel.com"
-        or parsed.username
-        or parsed.password
-        or parsed.port
-        or parsed.path.rstrip("/") != "/api/blob"
-        or query.get("pathname") != [pathname]
-        or not query.get("vercel-blob-delegation")
-        or not query.get("vercel-blob-signature")
-    ):
-        raise ValueError("The temporary upload link is invalid.")
-    return url
-
 def _source_path(value: object, user_id: str) -> str:
     pathname = str(value or "")
     pattern = rf"source-uploads/{re.escape(user_id)}/[a-f0-9-]{{36}}\.(?:pdf|pptx|docx|txt)"
@@ -235,43 +199,12 @@ def _source_path(value: object, user_id: str) -> str:
     return pathname
 
 
-def _download_temporary_source(url: str, path: Path) -> None:
-    with urlopen(url, timeout=30) as response:
-        if response.status != 200:
-            raise ValueError("The temporary document could not be downloaded.")
-        expected_size = int(response.headers.get("Content-Length", "0") or 0)
-        if expected_size > MAX_SOURCE_BYTES:
-            raise ValueError("Each document can be up to 100 MB in this beta.")
-        written = 0
-        with path.open("wb") as temporary:
-            while True:
-                chunk = response.read(1024 * 1024)
-                if not chunk:
-                    break
-                written += len(chunk)
-                if written > MAX_SOURCE_BYTES:
-                    raise ValueError("Each document can be up to 100 MB in this beta.")
-                temporary.write(chunk)
-        if expected_size and written != expected_size:
-            raise ValueError("The temporary document upload was incomplete. Please retry.")
-
-
-def _delete_temporary_source(url: str) -> None:
-    try:
-        request = Request(url, method="DELETE")
-        with urlopen(request, timeout=5) as response:
-            response.read(1024)
-    except Exception as exc:
-        print(f"Temporary source cleanup failed: {type(exc).__name__}", flush=True)
-
-
 class handler(JsonHandler):
     def do_POST(self) -> None:
         if not require_authenticated_beta_request(self, "adding course materials"):
             return
         content_type = self.headers.get("Content-Type", "")
         temporary_path = None
-        delete_url = None
         try:
             content_length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
@@ -285,7 +218,7 @@ class handler(JsonHandler):
                 self.send_json({"error": "The temporary upload request is invalid."}, HTTPStatus.BAD_REQUEST)
                 return
             user_id = authenticated_user(self.headers)
-            if os.environ.get("VERCEL_ENV", "").strip() and not user_id:
+            if deployment_env() and not user_id:
                 self.send_json({"error": "Sign in before adding course materials."}, HTTPStatus.UNAUTHORIZED)
                 return
             try:
@@ -327,8 +260,7 @@ class handler(JsonHandler):
                     self.send_json({"result": result})
                     return
                 pathname = _source_path(body.get("pathname"), user_id or "")
-                source_url = _private_blob_url(body.get("sourceUrl"), pathname)
-                delete_url = _blob_api_delete_url(body.get("deleteUrl"), pathname)
+                uploaded_path = resolve_pathname(pathname, user_id or "")
                 filename = Path(str(body.get("filename") or "source.txt")).name
                 suffix = Path(filename).suffix.lower()
                 if suffix not in SOURCE_SUFFIXES or not pathname.endswith(suffix):
@@ -336,9 +268,9 @@ class handler(JsonHandler):
                 kind = str(body.get("kind") or "auto")
                 if kind not in {"auto", "material", "syllabus", "assessment"}:
                     kind = "auto"
-                with tempfile.NamedTemporaryFile(prefix="syllabloom-source-", suffix=suffix, delete=False) as temporary:
-                    temporary_path = Path(temporary.name)
-                _download_temporary_source(source_url, temporary_path)
+                if not uploaded_path.is_file():
+                    raise ValueError("The temporary document was not found. Please retry the upload.")
+                temporary_path = uploaded_path
                 result = (
                     _source_preflight(temporary_path, filename, kind)
                     if operation == "inspect"
@@ -366,8 +298,6 @@ class handler(JsonHandler):
             finally:
                 if temporary_path is not None:
                     temporary_path.unlink(missing_ok=True)
-                if delete_url:
-                    _delete_temporary_source(delete_url)
             return
 
         if content_length > MAX_INLINE_REQUEST_BYTES:

@@ -4216,11 +4216,12 @@
       : result.succeeded + ' document' + (result.succeeded === 1 ? '' : 's') + ' processed');
   }
 
-  function uploadLargeSourceFile(url, file, contentType, onProgress = () => {}) {
+  function uploadLargeSourceFile(url, file, contentType, token, onProgress = () => {}) {
     return new Promise((resolve, reject) => {
       const request = new XMLHttpRequest();
       request.open('PUT', url);
       request.setRequestHeader('Content-Type', contentType);
+      if (token) request.setRequestHeader('Authorization', `Bearer ${token}`);
       request.upload.addEventListener('progress', event => {
         if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
       });
@@ -4256,24 +4257,19 @@
     });
     const ticket = await ticketResponse.json();
     if (!ticketResponse.ok) throw new Error(ticket.error || 'The secure upload could not be prepared.');
-    try {
-      await uploadLargeSourceFile(ticket.uploadUrl, file, ticket.contentType, onProgress);
-      const response = await fetch('/api/source', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          filename: file.name,
-          kind,
-          operation: 'inspect',
-          pathname: ticket.pathname,
-          sourceUrl: ticket.sourceUrl,
-          deleteUrl: ticket.deleteUrl
-        })
-      });
-      return await checkedSourceResponse(response, 'The document could not be read.');
-    } finally {
-      fetch(ticket.deleteUrl, { method: 'DELETE', mode: 'cors' }).catch(() => {});
-    }
+    // The server deletes the temporary file once it has been read.
+    await uploadLargeSourceFile(ticket.uploadUrl, file, ticket.contentType, token, onProgress);
+    const response = await fetch('/api/source', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        filename: file.name,
+        kind,
+        operation: 'inspect',
+        pathname: ticket.pathname
+      })
+    });
+    return await checkedSourceResponse(response, 'The document could not be read.');
   }
 
   async function uploadSource(file, kind = 'auto', options = {}) {
