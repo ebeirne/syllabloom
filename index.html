@@ -4,22 +4,22 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light" />
-  <title>Syllabloom: Course Files to Editable Anki Cards</title>
-  <meta name="description" content="Add a syllabus, slides, or notes. Syllabloom turns them into source-linked cards you can review, edit, study, and export to Anki." />
+  <title>Syllabloom: Lecture Material to Editable Anki Cards</title>
+  <meta name="description" content="Turn lecture PDFs, slides, and notes into editable, source-linked cards you can check, study, and export to Anki." />
   <meta name="theme-color" content="#f8f1df" />
   <link rel="canonical" href="https://syllabloom-beta.vercel.app/" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Syllabloom" />
-  <meta property="og:title" content="Syllabloom: Course Files to Editable Anki Cards" />
-  <meta property="og:description" content="Keep one class organized, check every card against its source, and export the cards you want to Anki." />
+  <meta property="og:title" content="Syllabloom: Lecture Material to Editable Anki Cards" />
+  <meta property="og:description" content="Turn real class material into source-linked cards you can inspect, edit, study, and export to Anki." />
   <meta property="og:url" content="https://syllabloom-beta.vercel.app/" />
   <meta property="og:image" content="https://syllabloom-beta.vercel.app/assets/rounds-study-scene-general.png" />
   <meta property="og:image:width" content="1536" />
   <meta property="og:image:height" content="1024" />
-  <meta property="og:image:alt" content="A college student organizing course material and study cards with Syllabloom." />
+  <meta property="og:image:alt" content="A student organizing lecture material and study cards with Syllabloom." />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Syllabloom: Course Files to Editable Anki Cards" />
-  <meta name="twitter:description" content="Keep one class organized, check every card against its source, and export the cards you want to Anki." />
+  <meta name="twitter:title" content="Syllabloom: Lecture Material to Editable Anki Cards" />
+  <meta name="twitter:description" content="Turn real class material into source-linked cards you can inspect, edit, study, and export to Anki." />
   <meta name="twitter:image" content="https://syllabloom-beta.vercel.app/assets/rounds-study-scene-general.png" />
   <script type="application/ld+json">
     {
@@ -27,15 +27,15 @@
       "@type": "WebApplication",
       "name": "Syllabloom",
       "url": "https://syllabloom-beta.vercel.app/",
-      "description": "A one-class study workspace that turns course materials into editable, source-linked cards for study or Anki export.",
+      "description": "A one-class study workspace that turns lecture PDFs, slides, and notes into editable, source-linked cards for study or Anki export.",
       "applicationCategory": "EducationalApplication",
       "operatingSystem": "Web",
-      "isAccessibleForFree": true,
+      "isAccessibleForFree": false,
       "offers": {
         "@type": "Offer",
-        "price": "0",
+        "price": "12",
         "priceCurrency": "USD",
-        "description": "Free student beta for one active class. No paid plan or checkout during beta."
+        "description": "One active class. $12 monthly or $108 billed annually. Ten new members receive free lifetime access."
       }
     }
   </script>
@@ -3544,6 +3544,7 @@
   <link rel="stylesheet" href="redesign.css?v=20260925-question-style-1">
   <link rel="stylesheet" href="memphis.css?v=20260925-card-quality-guard-1">
   <link rel="stylesheet" href="seo-pages.css?v=20260923-seo-guides-1">
+  <link rel="stylesheet" href="product-flow.css?v=20260930-flow-3">
 </head>
 <body>
   <section id="landing" class="marketing-home" aria-label="Syllabloom home page">
@@ -3556,7 +3557,7 @@
       <nav aria-label="Home page navigation">
         <a href="#how-it-works">How it works</a>
         <a href="#anki-first">Anki</a>
-        <a href="#made-for-class">Your class</a>
+        <a href="#made-for-class">Med students</a>
         <a href="#pricing">Pricing</a>
       </nav>
       <div class="marketing-nav-actions">
@@ -3568,17 +3569,17 @@
     <main>
       <section class="marketing-hero">
         <div class="marketing-hero-copy">
-          <p class="marketing-beta-kicker">Free student beta <span>·</span> one class <span>·</span> $0</p>
-          <h1>Turn your course files into editable study cards.</h1>
-          <p>Add a syllabus, slides, or notes. Syllabloom creates source-linked cards you can check, edit, study here, or export to Anki.</p>
+          <p class="marketing-beta-kicker">Lecture material <span>→</span> study tools</p>
+          <h1>Turn tonight's lecture into cards you can trust.</h1>
+          <p>Upload a PDF, slide deck, or notes. Syllabloom drafts source-linked cards you can inspect, edit, study here, or export to Anki before the exam grind starts.</p>
           <div class="marketing-hero-actions">
-            <button class="button primary marketing-primary-cta" data-start-onboarding>Start my free class</button>
+            <button class="button primary marketing-primary-cta" data-start-onboarding>Start my class</button>
             <button class="marketing-link-button" data-open-sample>Preview a sample class <span aria-hidden="true"></span></button>
           </div>
           <div class="marketing-trust-line">
-            <span>One active class</span>
-            <span>No payment details</span>
-            <span>Editable Anki export</span>
+            <span>Built for one hard class</span>
+            <span>Check your free-access eligibility</span>
+            <span>Editable, source-linked Anki export</span>
           </div>
         </div>
         <div class="marketing-hero-visual" aria-label="A student turning lecture material into an organized Anki deck">
@@ -3587,30 +3588,30 @@
       </section>
 
       <section class="marketing-statement" aria-label="What Syllabloom does">
-        <p>Keep your course materials, cards, deadlines, and study history together for one class.</p>
+        <p>Keep the lecture file, the card, and the source proof together, so reviewing the deck does not become another messy study task.</p>
         <div class="statement-path" aria-label="Syllabloom workflow summary">
-          <span>Class material</span><b>→</b><span>Source-matched cards</span><b>→</b><span>Anki</span><b>→</b><span>Recall</span><b>↺</b>
+          <span>Lecture file</span><b>→</b><span>Source-linked cards</span><b>→</b><span>Edit</span><b>→</b><span>Anki or study</span><b>↺</b>
         </div>
       </section>
 
       <section id="how-it-works" class="marketing-section workflow-section">
         <div class="marketing-section-heading">
-          <h2>From course material to your next study session.</h2>
-          <p>Syllabloom prepares the cards, records how you answer, and uses that history to plan what you should study next.</p>
+          <h2>From class material to a usable deck.</h2>
+          <p>Syllabloom is for the part students keep putting off: turning real lecture material into cards worth reviewing.</p>
         </div>
         <div class="workflow-loop" role="list" aria-label="Syllabloom learning loop">
-          <article class="loop-step" role="listitem"><span>1</span><h3>Add the course details</h3><p>Start with the syllabus, your next exam date, and the files you study from.</p></article>
+          <article class="loop-step" role="listitem"><span>1</span><h3>Upload one lecture</h3><p>Start with the slides, PDF or notes you need to study next.</p></article>
           <b class="loop-arrow" aria-hidden="true">→</b>
-          <article class="loop-step" role="listitem"><span>2</span><h3>Add class material</h3><p>Use slides and notes to create cards. You can also save lecture audio or video on this device.</p></article>
+          <article class="loop-step" role="listitem"><span>2</span><h3>Preview your cards</h3><p>Read three real questions and reveal their answers before you study.</p></article>
           <b class="loop-arrow" aria-hidden="true">→</b>
-          <article class="loop-step" role="listitem"><span>3</span><h3>Review the cards</h3><p>Check each card against its source. Edit it or leave it out if it isn't useful.</p></article>
+          <article class="loop-step" role="listitem"><span>3</span><h3>Check the source</h3><p>Open the source quote, fix weak wording, and delete anything that is not worth studying.</p></article>
           <b class="loop-arrow" aria-hidden="true">→</b>
-          <article class="loop-step loop-step-anki" role="listitem"><span>4</span><h3>Study here or in Anki</h3><p>Use the built-in study view, or export with your preferred format, deck, tags, and limits.</p></article>
+          <article class="loop-step loop-step-anki" role="listitem"><span>4</span><h3>Study five cards</h3><p>Finish a short session here, or export your ready cards to Anki.</p></article>
           <b class="loop-arrow" aria-hidden="true">→</b>
-          <article class="loop-step" role="listitem"><span>5</span><h3>Use your results</h3><p>Your answers show which topics need more work.</p></article>
+          <article class="loop-step" role="listitem"><span>5</span><h3>Repeat next lecture</h3><p>The real test is whether you come back with the next file instead of making cards by hand.</p></article>
           <div class="loop-return">
             <span aria-hidden="true">↺</span>
-            <div><strong>Your next plan reflects what happened.</strong><small>Syllabloom uses missed answers, card edits, review history, and the next exam date to set priorities.</small></div>
+            <div><strong>The loop gets sharper each time.</strong><small>Your edits, missed answers, review history, and exam date help Syllabloom focus the next session.</small></div>
             <div class="loop-character-stage">
               <img class="loop-companion character-cutout" src="assets/rounds-mascot-loop.webp" width="900" height="900" loading="lazy" decoding="async" alt="The Syllabloom companion carrying study cards around the learning loop" />
             </div>
@@ -3620,10 +3621,10 @@
 
       <section id="anki-first" class="anki-first-section">
         <div class="anki-first-copy">
-          <h2>Keep using the Anki setup you already know.</h2>
-          <p>Syllabloom handles the work before import: finding testable ideas, drafting focused prompts, linking each card to its source, and letting you review the full set.</p>
+          <h2>Keep using the Anki setup you already trust.</h2>
+          <p>Syllabloom handles the work before import: finding testable ideas, drafting focused prompts, linking each card to its source, and giving you control before anything enters your deck.</p>
           <ul>
-            <li><span>✓</span><div><strong>Basic or cloze</strong><small>Choose the format during class setup.</small></div></li>
+            <li><span>✓</span><div><strong>Basic or cloze</strong><small>Change the format in optional class settings.</small></div></li>
             <li><span>✓</span><div><strong>Your deck structure</strong><small>Keep deck names, nested tags, and daily new-card limits.</small></div></li>
             <li><span>✓</span><div><strong>You choose what goes in</strong><small>Use the set as written, or edit and leave out cards before export.</small></div></li>
           </ul>
@@ -3651,24 +3652,24 @@
 
       <section id="made-for-class" class="marketing-section class-section">
         <div class="marketing-section-heading">
-          <h2>Keep each class and its study history separate.</h2>
+          <h2>Start where the pain is obvious: dense, exam-heavy classes.</h2>
           <div class="class-heading-copy">
-            <p>Whether you're studying economics, chemistry, psychology, law, or a language, the course has its own sources, deadlines, and review history.</p>
+            <p>Medical, pre-health, anatomy, biology, chemistry, and nursing students already live in lecture PDFs and Anki decks. Syllabloom is built around that existing behavior first.</p>
             <div class="class-memory-note">
               <span aria-hidden="true">↺</span>
-              <div><strong>One workspace per class.</strong><small>Your sources and study history don't get mixed together.</small></div>
+              <div><strong>One workspace per class.</strong><small>Your lecture sources, card edits, and review history do not get mixed together.</small></div>
             </div>
           </div>
         </div>
-        <div class="subject-strip" aria-label="Example subjects"><span>Biology</span><span>Economics</span><span>Chemistry</span><span>Psychology</span><span>Law</span><span>Languages</span></div>
+        <div class="subject-strip" aria-label="Example subjects"><span>Anatomy</span><span>Biology</span><span>Nursing</span><span>Chemistry</span><span>Pre-med</span><span>Psychology</span></div>
         <div class="class-feature-grid">
           <article class="class-feature class-feature-large">
             <div class="feature-illustration feature-lecture">
               <span></span><span></span><span></span><i>REC</i>
               <img class="lecture-companion character-cutout" src="assets/rounds-mascot-listening.webp" width="900" height="900" loading="lazy" decoding="async" alt="The Syllabloom companion listening and taking notes during a lecture" />
             </div>
-            <h3>Save lecture recordings with the class.</h3>
-            <p>Name and save audio or video on this device alongside the course files. Lecture transcription and recording-based cards are not included in this beta.</p>
+            <h3>Save recordings beside the materials.</h3>
+            <p>Name and save audio or video on this device alongside the lecture files. Lecture transcription and recording-based cards are not included in this beta.</p>
           </article>
           <article class="class-feature">
             <div class="feature-illustration feature-syllabus" aria-hidden="true">
@@ -3702,47 +3703,34 @@
                 </div>
               </div>
             </div>
-            <h3>Use the syllabus to plan.</h3>
-            <p>Course dates and learning objectives help Syllabloom decide which new material to prepare first.</p>
+            <h3>Use the syllabus for priority.</h3>
+            <p>Course dates and learning objectives help Syllabloom decide which material needs attention first.</p>
           </article>
           <article class="class-feature">
             <div class="feature-illustration feature-check"><strong>Quick check</strong><span>Set a real baseline</span></div>
-            <h3>Spend more time on what you miss.</h3>
-            <p>A short starting check and your study answers show which topics need another pass.</p>
+            <h3>Find the weak spots earlier.</h3>
+            <p>A short starting check and your study answers show which topics need another pass before the exam week pileup.</p>
           </article>
         </div>
       </section>
 
       <section id="pricing" class="pricing-section" aria-labelledby="pricingTitle">
-        <div class="pricing-heading">
-          <div>
-            <h2 id="pricingTitle">Try every beta feature with one class.</h2>
-            <p>Add a syllabus and course materials, review and study your cards, then export them to Anki. The beta is free and has no checkout.</p>
-          </div>
-          <div class="pricing-note">
-            <img class="pricing-companion character-cutout" src="assets/rounds-mascot-celebrate.webp" width="900" height="900" loading="lazy" decoding="async" alt="The Syllabloom companion holding finished study cards" />
-            <span>Free during beta</span>
-          </div>
+        <div class="pricing-heading"><div><h2 id="pricingTitle">Your lecture material. Your reviewed deck.</h2>
+        <p>One active class, editable flashcards, source checks, study practice, syllabus dates, and Anki export.</p></div></div>
+        <p class="pricing-footnote">The first 10 new members after our founder group receive free access for life. Sign in to check your eligibility. Existing founder and test accounts do not use these spots.</p>
+        <div class="pricing-board">
+          <article class="price-plan"><header><div><h3>Monthly</h3><p>Billed each month</p></div><strong>$12<span>/mo</span></strong></header>
+          <p>All available card review, source check, study, and export tools for one active class.</p><button class="button price-action" data-open-billing>Choose monthly</button></article>
+          <article class="price-plan"><header><div><h3>Yearly</h3><p>$108 billed annually</p></div><strong>$9<span>/mo</span></strong></header>
+          <p>Save $36 per year compared with monthly billing.</p><button class="button primary price-action" data-open-billing>Choose yearly</button></article>
         </div>
-        <div class="pricing-board beta-pricing-board">
-          <article class="price-plan price-plan-free">
-            <header><div><h3>Free beta</h3><p>Use Syllabloom with one active class.</p></div><strong>$0</strong></header>
-            <ul>
-              <li>1 active class</li>
-              <li>Slides, documents, and syllabus mapping</li>
-              <li>Editable cards and Anki export</li>
-              <li>On-device lecture recording library</li>
-            </ul>
-            <button class="button price-action" data-start-onboarding>Start my free class</button>
-          </article>
-        </div>
-        <p class="pricing-footnote">One active class per account. No payment details or paid upgrade during beta. Slide and document processing, card editing, in-app study, and Anki export are available to test. Audio/video stays on this device; lecture transcription is not included yet.</p>
+        <p class="pricing-footnote">Prices in USD. Subscriptions renew until canceled. Audio/video stays on your device; hosted lecture transcription is not included yet. Review generated material before studying it.</p>
       </section>
 
       <section class="marketing-final-cta">
         <div>
-          <h2>Start with the class that needs the most work.</h2>
-          <p>Add the course files, check the cards Syllabloom creates, and study here or in Anki.</p>
+          <h2>Start with the lecture you least want to turn into cards.</h2>
+          <p>Add the file, check the cards Syllabloom creates, and study here or in Anki.</p>
         </div>
         <img class="cta-companion character-cutout" src="assets/rounds-mascot-celebrate.webp" width="900" height="900" loading="lazy" decoding="async" alt="The Syllabloom companion celebrating with a pencil, a book, and finished study cards" />
         <button class="button primary" data-start-onboarding>Get started</button>
@@ -3751,7 +3739,7 @@
 
     <footer class="marketing-footer">
       <div class="marketing-logo"><span class="brand-mark"><img src="assets/syllabloom-mark.svg" width="48" height="48" alt="" /></span><span>Syllabloom</span></div>
-      <p>Turn course files into cards you can check, study, and export to Anki.</p>
+      <p>Turn lecture material into cards you can check, study, and export to Anki.</p>
       <button class="marketing-text-button" data-open-sample>Open the working prototype</button>
       <nav class="marketing-legal-links" aria-label="Legal information"><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></nav>
       <nav class="marketing-footer-guide-list" aria-label="Study guides">
@@ -3768,7 +3756,7 @@
       <aside class="onboarding-side">
         <div class="brand"><span class="brand-mark"><img src="assets/syllabloom-mark.svg" width="48" height="48" alt="" /></span><span>Syllabloom</span></div>
         <h2>Set up your class.</h2>
-        <p>In six steps, you'll add the syllabus, course materials, study preferences, and Anki settings.</p>
+        <p>In six steps, you'll add the class details, lecture materials, study preferences, and Anki settings.</p>
         <div class="onboarding-character-stage" aria-live="polite">
           <span class="memphis-orb" aria-hidden="true"></span>
           <span class="memphis-squiggle" aria-hidden="true"></span>
@@ -3835,11 +3823,11 @@
           </div>
           <div class="setup-material-actions">
             <label for="onboardingMaterials" class="button primary" role="button" tabindex="0">Add slides, notes, or readings</label>
-            <input id="onboardingMaterials" type="file" accept=".docx,.pptx,.pdf,.txt" multiple hidden />
+            <input id="onboardingMaterials" type="file" accept=".docx,.ppt,.pptw,.pptx,.pdf,.txt" multiple hidden />
             <button id="useSampleMaterial" class="button" type="button">Use anatomy example</button>
           </div>
           <div id="onboardingMaterialList" class="setup-material-list" aria-live="polite"></div>
-          <p class="setup-source-help">PowerPoint, Word, PDF, or text. Add only course files you are allowed to use. You can remove any file before opening the class.</p>
+          <p class="setup-source-help">PowerPoint, Word, PDF, or text. Add only class files you are allowed to use. You can remove any file before opening the class.</p>
           <div class="setup-actions"><button class="button setup-back">Back</button><div class="setup-actions-right"><button class="button primary setup-next">Continue</button></div></div>
         </div>
 
@@ -4034,7 +4022,7 @@
               </div>
               <div id="sourceGate" class="source-gate waiting">
                 <strong>Waiting for a lecture</strong>
-                <span>When processing is available, Syllabloom prepares source-matched cards and holds uncertain results for review.</span>
+                <span>When processing is available, Syllabloom prepares source-linked cards and holds uncertain results for review.</span>
               </div>
               <div id="lastLectureMarkers" class="last-lecture-markers" hidden></div>
             </section>
@@ -4097,6 +4085,7 @@
       </section>
 
       <section id="home" class="page active">
+        <section id="returnStudyPanel" class="surface surface-pad return-study" hidden><div><span>YOUR NEXT SESSION</span><h1 id="returnStudyTitle">Continue studying</h1><p id="returnStudyDescription"></p></div><div class="flow-actions"><button id="continueSourceStudy" class="button primary">Continue studying</button><button class="button" data-go="source">Add next lecture</button></div></section>
         <header class="app-toolbar">
           <div class="breadcrumbs"><span data-class-name>Human Anatomy</span><b>/</b><strong>Today</strong></div>
           <div class="toolbar-actions">
@@ -4105,6 +4094,7 @@
           </div>
         </header>
 
+        <details id="moreStudyOptions" class="more-study-options" open><summary>More ways to study</summary>
         <div class="study-workspace">
           <main class="study-plan-pane">
             <header class="pane-heading friendly-heading">
@@ -4182,7 +4172,7 @@
             </section>
 
             <section class="anki-queue-bar">
-              <div><strong>Anki queue</strong><span>Review source-matched cards before you export them.</span></div>
+              <div><strong>Anki queue</strong><span>Review source-linked cards before you export them.</span></div>
               <div class="queue-counts">
                 <span><b id="homeCardCount">576</b> cards</span>
                 <span><b id="approvedCount">0</b> ready</span>
@@ -4229,6 +4219,7 @@
             </section>
           </aside>
         </div>
+        </details>
       </section>
 
       <section id="quick-check" class="page" aria-labelledby="quickCheckPageTitle">
@@ -4274,35 +4265,23 @@
         <div class="page-head">
           <div>
             <h1>Class materials</h1>
-            <p class="page-description">Manage the syllabus, slides, notes, readings, and assessments for this class. You can add, replace, or remove files at any time.</p>
+            <p class="page-description">Upload a lecture, check your cards, then start studying.</p>
           </div>
-          <button id="addClassFromSource" class="button">Add another class</button>
+
         </div>
 
         <section class="source-import surface character-story-panel materials-story-panel">
           <img class="materials-mascot character-cutout" src="assets/syllabloom-mascot-materials.webp" width="1200" height="1200" alt="The Syllabloom companion checking a course source with a magnifying glass" />
           <div>
-            <h2>Add a source</h2>
-            <p>Add a syllabus, slide deck, reading, or assessment you're allowed to use. Syllabloom reads its structure before drafting cards.</p>
-            <p class="source-kind-hint">Syllabloom identifies each file as a syllabus, class material, or past assessment. Choose a type to override detection for the batch, or change individual files before adding them.</p>
-            <p class="source-kind-hint">There is no per-account file-count cap. Each source can be up to 100 MB and 192,000 readable characters. Larger sources are prepared in visible batches of up to four sections, subject to daily limits and the shared beta budget.</p>
-            <p class="source-kind-hint">Syllabloom checks what text it can read before generating anything. Scanned PDF pages can be read on this device; image-only slides may need speaker notes or descriptions to make useful cards.</p>
-            <p class="source-kind-hint">For card generation, extracted course text—not the uploaded file—is sent to OpenAI. Each draft includes its matching source passage for review. Avoid uploading sensitive personal details.</p>
-            <div class="question-style-control">
-              <label for="questionStyleMaterials">Front question style</label>
-              <select id="questionStyleMaterials" class="text-input question-style-select">
-                <option value="balanced">Balanced recall (recommended)</option>
-                <option value="direct">Direct recall</option>
-                <option value="explain">Explain why or how</option>
-                <option value="compare">Compare concepts</option>
-                <option value="apply">Apply a course example</option>
-              </select>
-              <p class="question-style-description" data-question-style-description="questionStyleMaterials" aria-live="polite">Focused retrieval questions with a source-supported mix of definitions, mechanisms, and cause/effect.</p>
-              <small>Applies to new cards only. Basic/Cloze is a separate Anki note format.</small>
-            </div>
-          </div>
+            <h2>Start with one lecture.</h2>
+            <p>Choose your slides, PDF or notes. Turn readable text into editable cards with source passages.</p>
           <div class="source-import-controls">
-            <div id="sourceKindPicker" class="source-kind-picker">
+            <label id="sourceUploadLabel" for="sourceUpload" class="button primary" role="button" tabindex="0">Choose documents</label>
+            <input id="sourceUpload" type="file" accept=".docx,.ppt,.pptw,.pptx,.pdf,.txt" multiple hidden />
+          </div>
+            <p class="source-kind-hint">Extracted text is sent to OpenAI to draft cards and saved with your signed-in workspace for source checks. Only upload material you are allowed to use, without sensitive personal information.</p>
+            <p id="sourceAccessNote" class="source-kind-hint" role="status">Your plan is checked before generation. Monthly $12, or $108 billed yearly ($9/month equivalent); confirmed free accounts keep their access.</p>
+            <details class="upload-options"><summary>Question style and file details</summary>            <div id="sourceKindPicker" class="source-kind-picker">
               <select id="sourceKind" class="source-kind source-kind-native" aria-hidden="true" tabindex="-1">
                 <option value="auto" selected>Auto-detect</option>
                 <option value="material">Class material</option>
@@ -4320,9 +4299,25 @@
                 <button class="source-kind-option" type="button" role="option" data-source-kind-value="assessment" aria-selected="false">Past assessment</button>
               </div>
             </div>
-            <label id="sourceUploadLabel" for="sourceUpload" class="button primary" role="button" tabindex="0">Choose documents</label>
-            <input id="sourceUpload" type="file" accept=".docx,.pptx,.pdf,.txt" multiple hidden />
+
+            <p>PDF, PPT, PPTW, PPTX, DOCX or TXT. Up to 100 MB and 192,000 readable characters per file. Generation is subject to daily limits and the shared beta budget. Image-only slides need readable notes or descriptions.</p>
+            <p>Unfinished imports stay on this device for 24 hours. Resume an interrupted import from this page.</p>
+            <div class="question-style-control">
+              <label for="questionStyleMaterials">Front question style</label>
+              <select id="questionStyleMaterials" class="text-input question-style-select">
+                <option value="balanced">Balanced recall (recommended)</option>
+                <option value="direct">Direct recall</option>
+                <option value="explain">Explain why or how</option>
+                <option value="compare">Compare concepts</option>
+                <option value="apply">Apply a course example</option>
+              </select>
+              <p class="question-style-description" data-question-style-description="questionStyleMaterials" aria-live="polite">Focused retrieval questions with a source-supported mix of definitions, mechanisms, and cause/effect.</p>
+              <small>Applies to new cards only. Basic/Cloze is a separate Anki note format.</small>
+            </div>
+          <button id="addClassFromSource" class="button">Add another class</button>
+            </details>
           </div>
+
         </section>
 
         <section id="sourceQueue" class="source-batch-queue surface" aria-labelledby="sourceQueueTitle" hidden>
@@ -4341,17 +4336,21 @@
           </footer>
         </section>
         <p id="sourceBatchFeedback" class="source-batch-feedback" role="status" aria-live="polite" hidden></p>
-        <div id="sourceLibrary" class="file-stack" aria-live="polite"></div>
         <section id="sourceStudyOutput" class="source-study-output surface" aria-labelledby="sourceStudyOutputTitle" hidden>
           <header>
             <div><span id="sourceStudyOutputEyebrow">LATEST SOURCE</span><h2 id="sourceStudyOutputTitle">Cards and notes are ready to review</h2><p id="sourceStudyOutputSummary"></p></div>
-            <button class="button primary" type="button" data-go="cards">Open ready cards</button>
+            <button id="startSourceStudy" class="button primary" type="button">Study five cards</button>
           </header>
+          <div id="sourceCardPreviews" class="source-card-previews"></div>
+          <div class="flow-actions"><button class="button" data-go="cards">Edit cards</button><button class="button" data-export-ready>Export class to Anki</button><button id="sourceAnkiSettings" class="text-button">Anki settings</button><button id="optionalClassSettings" class="text-button">Class settings</button></div>
+          <details class="source-coverage"><summary>Check source coverage</summary><p id="sourceCoverageSummary"></p><p>These counts show where cards cite readable text. They do not measure exam coverage or correctness. Check diagrams and your learning objectives separately.</p><div id="sourceCoverageRows"></div><button id="generateSelectedSections" class="button" type="button">Draft cards from selected sections</button><p id="coverageFeedback" role="status"></p></details>
+          <details class="source-notes-details"><summary>Concepts and source notes</summary>
           <div class="source-study-grid">
             <div><h3>Concepts found</h3><div id="sourceStudyConcepts" class="source-study-concepts"></div></div>
             <div><h3>Notes from the source</h3><div id="sourceStudyNotes" class="source-study-notes"></div></div>
-          </div>
+          </div></details>
         </section>
+        <div id="sourceLibrary" class="file-stack" aria-live="polite"></div>
         <div class="surface course-map sample-source-detail">
           <div><strong>0</strong><span>calendar dates in the sample syllabus</span></div>
           <div><strong>Upper limb</strong><span>Example syllabus focus</span></div>
@@ -4457,9 +4456,9 @@
         <section class="surface course-focus" aria-labelledby="courseFocusHeading">
           <div class="course-focus-main">
             <span class="course-focus-kicker" id="courseFocusHeading">NEXT STUDY MOVE</span>
-            <h2 id="courseFocusTitle">Add course material to get started</h2>
+            <h2 id="courseFocusTitle">Add lecture material to get started</h2>
             <p id="courseFocusReason">A syllabus adds course dates. Slides, notes, and readings add source-linked topics and cards.</p>
-            <button id="courseFocusAction" class="button primary" type="button" data-topic-action="source">Add course material</button>
+            <button id="courseFocusAction" class="button primary" type="button" data-topic-action="source">Add lecture material</button>
           </div>
           <aside class="course-milestone" aria-label="Next course milestone">
             <span>NEXT COURSE DATE</span>
@@ -4481,6 +4480,7 @@
       </section>
 
       <section id="profile" class="page account-page" aria-labelledby="profilePageTitle">
+
         <header class="account-page-head">
           <div>
             <p class="account-page-path">Account / Profile</p>
@@ -4492,7 +4492,7 @@
 
         <nav class="account-tabs" aria-label="Account pages">
           <button class="active" type="button" data-account-view="profile" aria-current="page">Profile</button>
-          <button type="button" data-account-view="billing">Beta access</button>
+          <button type="button" data-account-view="billing">Billing</button>
         </nav>
 
         <div class="profile-layout">
@@ -4520,7 +4520,7 @@
               <strong id="profileClassUsage">1 of 1</strong>
               <span>class used</span>
             </div>
-            <button class="button primary" type="button" data-open-billing>Beta access</button>
+            <button class="button primary" type="button" data-open-billing>Billing</button>
           </section>
 
           <section class="profile-card profile-classes" aria-labelledby="profileClassesHeading">
@@ -4549,43 +4549,44 @@
             </form>
           </section>
         </div>
+        <section class="surface surface-pad usage-preferences"><h2>Help improve the beta</h2><label><input id="usageMetricsEnabled" type="checkbox" checked> Share basic signed-in usage from this browser</label><p>Tracks steps such as importing and finishing a study set. No filenames, document text or answers. Events are kept for 90 days; billing records are separate.</p><details id="productReportPanel" hidden><summary>Product team: signed-in usage</summary><p>Last 30 days. Stage counts, not ordered conversion rates. Founder tests and research participants are shown separately. Return means studying on at least two UTC dates. Anonymous visits and refunds are not included.</p><button id="loadProductReport" class="button">Refresh report</button><div id="productReportOutput" role="status"></div><button id="checkBillingConfiguration" class="button">Check payment configuration</button><p id="billingConfigurationResult" role="status"></p></details></section>
       </section>
 
       <section id="billing" class="page account-page billing-page" aria-labelledby="billingPageTitle">
         <header class="account-page-head billing-page-head">
           <div>
-            <p class="account-page-path">Account / Beta access</p>
-            <h1 id="billingPageTitle">Your free beta access.</h1>
-            <p>Beta testing is free and limited to one active class per account. There is no subscription or checkout in this beta.</p>
+            <p class="account-page-path">Account / Billing</p>
+            <h1 id="billingPageTitle">Your plan. Your reviewed deck.</h1>
+            <p>Founders and the next 10 new members keep free access for life. Everyone else can choose monthly or yearly billing.</p>
           </div>
           <img class="account-page-companion character-cutout" src="assets/rounds-mascot-anki.webp" width="900" height="900" alt="The Syllabloom companion packing finished study cards" />
         </header>
 
         <nav class="account-tabs" aria-label="Account pages">
           <button type="button" data-account-view="profile">Profile</button>
-          <button class="active" type="button" data-account-view="billing" aria-current="page">Beta access</button>
+          <button class="active" type="button" data-account-view="billing" aria-current="page">Billing</button>
         </nav>
 
         <section class="billing-current-card" aria-labelledby="billingCurrentHeading">
           <div>
             <span id="billingTierBadge" class="tier-badge">Free</span>
-            <h2 id="billingCurrentHeading">Your beta access</h2>
+            <h2 id="billingCurrentHeading">Your access</h2>
             <p id="billingCurrentDescription">One active class, with ready cards you can study here or export to Anki.</p>
           </div>
-          <div class="billing-current-price"><strong id="billingCurrentPrice">$0</strong><span id="billingCurrentCadence">during beta</span></div>
+          <div class="billing-current-price"><strong id="billingCurrentPrice">—</strong><span id="billingCurrentCadence"></span></div>
           <button id="billingManageAccount" class="button" type="button">Account &amp; security</button>
         </section>
 
         <section class="billing-plans-shell" aria-labelledby="billingPlansHeading">
-          <header><div><p class="profile-card-label">Included</p><h2 id="billingPlansHeading">Everything in the beta</h2></div><span id="billingConnectionStatus" class="billing-status">Free beta</span></header>
-          <div id="billingPlanFallback" class="billing-plan-fallback beta-plan-fallback">
-            <article>
-              <span>One class</span><strong>$0</strong><p>Use every available beta feature with one active class at no cost.</p>
-              <ul><li>1 active class</li><li>Slide and document processing</li><li>Local audio/video library; no hosted transcription or cross-device media sync</li><li>Editable cards from readable course material; study here or export to Anki</li></ul>
-              <button class="button" type="button" disabled>Included in beta</button>
-            </article>
+          <header><div><p class="profile-card-label">Included</p><h2 id="billingPlansHeading">Choose your plan</h2></div><span id="billingConnectionStatus" class="billing-status">Checking access</span></header>
+          <div id="billingPlanFallback" class="billing-plan-fallback">
+            <article><span>Monthly</span><strong>$12 <small>/ month</small></strong><p>$12 billed each month.</p><button class="button" type="button" data-subscribe="monthly">Choose monthly</button></article>
+            <article><span>Yearly · save 25%</span><strong>$9 <small>/ month</small></strong><p>$108 billed once a year.</p><button class="button primary" type="button" data-subscribe="yearly">Choose yearly</button></article>
           </div>
-          <p id="billingFinePrint" class="billing-fine-print">No card details, paid plan, or payment provider is needed to join this beta.</p>
+          <p>Both plans include one active class, document processing, editable cards, source checks, study practice, syllabus dates, and Anki export. Hosted transcription is not included.</p>
+          <p id="billingFinePrint" class="billing-fine-print" aria-live="polite"></p>
+          <button id="refreshBilling" class="button" type="button">Refresh access</button>
+          <button id="manageSubscription" class="button" type="button" hidden>Manage or cancel subscription</button>
         </section>
       </section>
 
@@ -4712,6 +4713,7 @@
             <button class="button primary" type="button" data-go="source">Add class material</button>
           </section>
 
+          <section id="shortStudyComplete" class="surface surface-pad" hidden tabindex="-1"><h2>A small session, done.</h2><p id="shortStudySummary"></p><div class="flow-actions"><button id="studyFiveMore" class="button primary">Study five more</button><button class="button" data-go="source">Add next lecture</button><button class="text-button" data-export-ready>Export class to Anki</button></div></section>
           <div id="studyMeta" class="study-meta"><span id="studyPosition">Card 1 of 18</span><span id="studySection">Muscles of facial expression</span></div>
           <div id="studyProgressTrack" class="progress"><span id="studyProgress"></span></div>
 
@@ -4811,7 +4813,7 @@
       <button class="nav-button" data-view="knowledge"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h6"/></svg></span><span>Calendar</span></button>
       <button class="nav-button" data-view="study"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><path d="M12 3c.7 4.5 3 6.8 7 7.5-4 .7-6.3 3-7 7.5-.7-4.5-3-6.8-7-7.5 4-.7 6.3-3 7-7.5Z"/><path d="M18.5 16.5c.2 1.4.9 2.1 2.2 2.3-1.3.2-2 1-2.2 2.2-.2-1.2-.9-2-2.2-2.2 1.3-.2 2-1 2.2-2.3Z"/></svg></span><span>Study</span></button>
     </nav>
-    <footer class="app-legal-footer"><span>Free student beta · one class</span><nav aria-label="Legal information"><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></nav></footer>
+    <footer class="app-legal-footer"><span>Lecture material → reviewed cards · one active class</span><nav aria-label="Legal information"><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></nav></footer>
   </div>
 
   <dialog id="calendarScheduleImportDialog" class="calendar-import-dialog" aria-labelledby="calendarScheduleImportTitle">
@@ -4828,6 +4830,7 @@
     </form>
   </dialog>
 
+  <dialog id="quickClassSettings" aria-labelledby="quickClassSettingsTitle"><form id="quickClassSettingsForm" class="surface-pad"><h2 id="quickClassSettingsTitle">Class settings</h2><div class="form-field"><label for="quickClassName">Class name</label><input id="quickClassName" class="text-input" maxlength="100"></div><div class="form-field"><label for="quickClassTerm">Term</label><input id="quickClassTerm" class="text-input" maxlength="100"></div><div class="flow-actions"><button class="button primary" type="submit">Save</button><button id="closeQuickClassSettings" class="button" type="button">Cancel</button></div></form></dialog>
   <dialog id="ankiSettingsDialog" class="anki-settings-dialog" aria-labelledby="ankiSettingsTitle">
     <form id="ankiSettingsForm" class="anki-settings-form">
       <header class="anki-settings-head">
@@ -5029,8 +5032,8 @@
       <div class="account-dialog-copy">
         <span class="account-kicker">One class per beta account</span>
         <h1 id="classLimitTitle">Your one beta class is already in use.</h1>
-        <p>Free beta access includes one active class per account. Your current class stays available, with its materials, study tools, and Anki export.</p>
-        <div class="class-limit-meter"><span><b></b></span><strong id="classLimitReadout">1 of 1 free class used</strong></div>
+        <p>Your plan includes one active class per account. Your current class stays available, with its materials, study tools, and Anki export.</p>
+        <div class="class-limit-meter"><span><b></b></span><strong id="classLimitReadout">1 of 1 active class used</strong></div>
         <div class="account-dialog-actions">
           <button class="button primary" type="button" data-see-pricing>See beta access</button>
           <button class="button" type="button" data-close-class-limit>Keep studying this class</button>
@@ -5064,14 +5067,18 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="muscle-data.js?v=20260921-loop"></script>
-  <script src="auth.js?v=20260923-sign-out-restart-1"></script>
+  <script src="auth.js?v=20260930-legacy-ppt-1"></script>
   <script src="calendar-features.js?v=20260922-schedule-import-1"></script>
   <script src="card-set.js?v=20260922-card-management-1"></script>
   <script src="source-study.js?v=20260925-card-quality-guard-1"></script>
   <script src="anki-connect.js?v=20260924-anki-desktop-bridge-1"></script>
-  <script src="source-batch.js?v=20260922-source-batch-1"></script>
+  <script src="source-import-store.js?v=20260930-legacy-ppt-1"></script>
+  <script src="source-batch.js?v=20260930-legacy-ppt-1"></script>
   <script src="course-map.js?v=20260923-course-map-1"></script>
-  <script src="app.js?v=20260925-card-quality-guard-1"></script>
+  <script src="source-experience.js?v=20260930-flow-3"></script>
+  <script src="product-events.js?v=20260930-flow-3"></script>
+  <script src="app.js?v=20260930-flow-5"></script>
+  <script src="billing.js?v=20260930-flow-3"></script>
   <script type="module" src="motion-effects.js?v=20260921-motion-smooth-2"></script>
 </body>
 </html>

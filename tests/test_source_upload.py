@@ -48,6 +48,7 @@ def test_pathname_resolves_only_inside_the_upload_root_for_its_owner(tmp_path, m
 
 def test_routes_cover_every_endpoint_the_client_calls():
     for path in (
+        "/api/billing-access", "/api/stripe-webhook", "/api/product-events",
         "/api/auth-config", "/api/health", "/api/user-data", "/api/source", "/api/export-anki",
         "/api/source-upload-url", f"/api/source-upload/{NAME}", "/api/sessions/latest",
         "/api/transcribe-stream", "/api/source-upload-cleanup", "/api/ai-usage-cleanup",
@@ -175,3 +176,48 @@ def test_source_endpoint_routes_bounded_card_batches_without_a_new_function(monk
     request.do_POST()
 
     assert request.sent == [({"result": {"cards": [], "received": body, "userId": "user_test"}}, 200)]
+
+
+@pytest.mark.parametrize("extension", ["ppt", "pptw", "pptx", "pdf", "docx", "txt"])
+def test_aws_upload_preserves_all_supported_formats(extension, tmp_path, monkeypatch):
+    monkeypatch.setenv("SYLLABLOOM_UPLOAD_DIR", str(tmp_path))
+    for module in ("api.source-upload-url", "api.source-upload"):
+        monkeypatch.setattr(importlib.import_module(module), "authenticated_user", lambda _headers: USER)
+    body = json.dumps({"filename": "lecture." + extension, "size": 4}).encode()
+    ticket = _request("api.source-upload-url", {"Content-Length": str(len(body))}, body)
+    ticket.do_POST()
+    payload, status = ticket.sent[0]
+    assert status == 200
+    put = _request("api.source-upload", {"Content-Length": "4", "Content-Type": payload["contentType"]}, b"test", payload["uploadUrl"])
+    put.do_PUT()
+    assert put.sent[0][1] == 200
+    assert storage.resolve_pathname(payload["pathname"], USER).read_bytes() == b"test"
+
+
+def test_hosted_dispatch_billing_and_metrics(monkeypatch):
+    import server
+    from api import billing, product_events
+    monkeypatch.setattr(server, "HOSTED", True)
+    monkeypatch.setattr(billing, "handle_api", lambda req, method: req.send_json({"route": "billing"}))
+    monkeypatch.setattr(billing, "handle_webhook", lambda req: req.send_json({"route": "webhook"}))
+    monkeypatch.setattr(product_events, "handle", lambda req, method: req.send_json({"route": "events"}))
+    from http.client import HTTPConnection
+    from http.server import ThreadingHTTPServer
+    from threading import Thread
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.SyllabloomHandler)
+    worker = Thread(target=httpd.serve_forever, daemon=True)
+    worker.start()
+    try:
+        for method, path, expected in [("GET", "/api/billing-access", "billing"), ("POST", "/api/stripe-webhook", "webhook"), ("POST", "/api/product-events", "events"), ("GET", "/server.py", None)]:
+            connection = HTTPConnection("127.0.0.1", httpd.server_port)
+            connection.request(method, path)
+            response = connection.getresponse()
+            assert response.status == (200 if expected else 404)
+            body = json.loads(response.read())
+            if expected:
+                assert body["route"] == expected
+            connection.close()
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+        worker.join()

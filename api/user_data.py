@@ -121,7 +121,8 @@ def require_authenticated_beta_request(request: Any, action: str) -> bool:
         )
         return False
     if authenticated_user(request.headers):
-        return True
+        from api.billing import require_access
+        return require_access(request)
     request.send_json({"error": f"Sign in before {action}."}, HTTPStatus.UNAUTHORIZED)
     return False
 

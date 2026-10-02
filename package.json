@@ -1,0 +1,7 @@
+{
+  "name": "syllabloom-study-director",
+  "private": true,
+  "devDependencies": {
+    "fake-indexeddb": "^6.2.5"
+  }
+}

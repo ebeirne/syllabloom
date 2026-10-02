@@ -16,7 +16,7 @@ Syllabloom turns lectures, slides, syllabi, and course files into editable, sour
 - Anki preferences for limits, learning steps, lapses, ordering, burying, Easy Days, audio, timers, FSRS, and SM-2
 - Class calendar and new-card release planning around lectures, quizzes, assignments, and exams
 - Full profile hub with Clerk identity controls, current tier, active classes, and editable important dates
-- Dedicated billing page with a stable Syllabloom plan comparison and an isolated Clerk checkout dialog for live production billing
+- Dedicated billing page with server-verified lifetime access and Stripe subscription checkout (disabled until configured and verified)
 - Responsive student workspace and task-specific Syllabloom companion scenes
 - Real medical-class fixtures and regression reports
 
@@ -58,11 +58,11 @@ On the first signed-in visit, an unclaimed local workspace is saved to the accou
 
 ### Billing
 
-The billing page is wired to Clerk Billing for individual users. It checks the signed-in user's `student` Plan and keeps the product-owned comparison visible at every viewport. Clerk's pricing and Stripe checkout UI is isolated in a dialog and only mounts when the site uses a `pk_live_` production key. Test-mode deployments are explicitly labeled as a free beta and cannot present a live checkout. Account, payment-method, and statement management stays in Clerk's secure user profile.
+Keep Syllabloom on `syllabloom-beta.vercel.app` with its existing Clerk development instance. A custom domain or Clerk production migration is not part of this change. Direct Stripe Checkout handles subscriptions independently of Clerk Billing. Checkout remains disabled unless `SYLLABLOOM_BILLING_ENABLED=true`; the example configuration defaults to disabled billing and Stripe test mode.
 
-For development, enable Billing in the Clerk Dashboard and use Clerk's shared development gateway. Create a public `student` Plan with monthly and annual prices. Production needs a production Clerk instance connected to an independent Stripe account; a Stripe account attached to a development instance cannot be reused for production.
+Server-owned access grants keep the frozen `SYLLABLOOM_FOUNDER_IDS` snapshot free forever, separately from the next ten new users in Clerk signup order. Existing grants are retained. Paid access requires a current subscription to an allowed price: $12 USD monthly or $108 USD annually ($9/month equivalent). The browser cannot grant itself a plan, and a successful checkout return URL does not grant access.
 
-Clerk Billing currently processes payments through Stripe but manages Plans and Subscriptions separately from Stripe Billing. Before charging students, review the current tax, VAT, refund, country, and 3D Secure limitations in Clerk's Billing documentation.
+Before enabling billing, configure the server-only variables in `.env.example`, validate checkout in Stripe test mode, and verify signed notifications at `/api/stripe-webhook` and a dedicated cancellation portal configuration. Do not commit secrets or the private founder snapshot. Preview deployments cannot use live Stripe credentials and must retain their separate database. Creating Stripe product prices alone does not enable checkout or charge anyone.
 
 ### Optional local transcription
 
@@ -137,3 +137,20 @@ Setting `SYLLABLOOM_ENV` (e.g. `production`) turns on hosted behavior: sign-in i
 ## Status
 
 This is a beta product. Account-owned course and study workspaces sync through Neon; original lecture media remains device-local. Real student testing should focus on cross-device account isolation, source faithfulness, media capture, import behavior, and whether the daily plan feels achievable.
+
+### AWS beta handoff
+
+This branch includes the latest beta import/OCR fixes, legacy PPT/PPTW support,
+durable batch recovery, source coverage, first-use study flow, billing and product events.
+Use the existing Clerk development instance with `SYLLABLOOM_PUBLIC_BETA_AUTH=1`.
+Do not reset the founder snapshot, subscription prices, or database during migration.
+Copy the existing secrets securely into `/etc/syllabloom.env`; the example contains
+placeholders and disables billing until the AWS configuration is verified.
+
+Before redirecting students, test sign-in, a large PDF and legacy PowerPoint import,
+interrupted generation recovery, study and Anki export. Set `SYLLABLOOM_APP_URL`
+to the actual HTTPS origin at cutover and register `/api/stripe-webhook` there with
+its own signing secret. Verify checkout return URLs and the customer portal.
+The existing Vercel beta is not changed by pushing this AWS branch; retain it for rollback.
+The deploy script starts the nightly cleanup timer after the API health check succeeds.
+Health is a liveness check, not proof of working billing or external services.

@@ -1,0 +1,31 @@
+name: Upload and study regression checks
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  upload-study:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: syllabloom_test
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:test-only@localhost:5432/syllabloom_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: python -m pip install -r requirements.txt pytest pytest-subtests
+      - name: Document extraction, generation boundaries, authentication and study activation
+        run: python -m pytest tests/test_legacy_powerpoint.py tests/test_source_jobs.py tests/test_source_compiler.py tests/test_source_upload.py tests/test_source_batch.py tests/test_ai_card_generation.py tests/test_ai_usage.py tests/test_uploaded_source_activation.py tests/test_auth_navigation.py tests/test_billing.py tests/test_product_flow.py tests/test_product_events_db.py -q
+      - name: Interrupted imports, OCR, upload URLs and card handling
+        run: node --test tests/source_import_store.test.js tests/source_import_recovery.test.js tests/source_batch.test.js tests/source_pdf_ocr.test.js tests/card_set.test.js tests/source_study.test.js tests/source_experience.test.js tests/product_events.test.js

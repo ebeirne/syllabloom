@@ -27,4 +27,5 @@ systemctl reload nginx
 systemctl restart syllabloom
 sleep 2
 curl -fsS http://127.0.0.1:4174/api/health && echo
+systemctl enable --now syllabloom-cleanup.timer
 echo "Deployed."

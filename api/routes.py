@@ -19,6 +19,9 @@ ROUTES = {
     "sources": "api.sources",
     "transcribe": "api.transcribe",
     "transcribe-stream": "api.transcribe-stream",
+    "billing-access": "api.user-data",
+    "stripe-webhook": "api.user-data",
+    "product-events": "api.user-data",
     "user-data": "api.user-data",
 }
 ALIASES = {"sessions/latest": "session-latest"}

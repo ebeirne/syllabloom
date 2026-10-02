@@ -15,13 +15,15 @@ from pathlib import Path
 MAX_SOURCE_BYTES = 100 * 1024 * 1024
 EXPIRY_SECONDS = 24 * 60 * 60
 CONTENT_TYPES = {
+    "ppt": "application/vnd.ms-powerpoint",
+    "pptw": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     "pdf": "application/pdf",
     "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "txt": "text/plain",
 }
 PATHNAME_PATTERN = re.compile(
-    r"source-uploads/(?P<user>user_[A-Za-z0-9_-]{1,250})/(?P<name>[a-f0-9-]{36}\.(?:pdf|pptx|docx|txt))"
+    r"source-uploads/(?P<user>user_[A-Za-z0-9_-]{1,250})/(?P<name>[a-f0-9-]{36}\.(?:pdf|ppt|pptw|pptx|docx|txt))"
 )
 
 

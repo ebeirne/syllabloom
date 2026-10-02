@@ -8,7 +8,7 @@ from api._common import JsonHandler
 from api.source_storage import CONTENT_TYPES, MAX_SOURCE_BYTES, resolve_pathname
 from api.user_data import authenticated_user
 
-FILE_NAME = re.compile(r"/api/source-upload/([a-f0-9-]{36}\.(?:pdf|pptx|docx|txt))")
+FILE_NAME = re.compile(r"/api/source-upload/([a-f0-9-]{36}\.(?:pdf|ppt|pptw|pptx|docx|txt))")
 
 
 class handler(JsonHandler):

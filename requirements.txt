@@ -4,3 +4,5 @@ pdfplumber==0.11.9
 python-docx==1.2.0
 PyJWT[crypto]==2.13.0
 psycopg[binary]==3.3.6
+stripe==15.6.0
+olefile==0.47

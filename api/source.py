@@ -20,6 +20,8 @@ from api.ai_card_generation import (
 from api.ai_source_cards import generate_source_cards, generate_source_cards_batch
 from api._common import JsonHandler, deployment_env
 from api.source_storage import resolve_pathname
+from api.legacy_powerpoint import PowerPointReadError
+from api.source_coverage import study_sections
 from api.user_data import authenticated_user, require_authenticated_beta_request
 from server import NoSelectableTextError, SOURCE_SUFFIXES, extract_source_text, source_summary
 
@@ -57,6 +59,7 @@ def _source_preflight(path: Path, filename: str, kind: str) -> dict:
         error.file_fingerprint = _file_fingerprint(path)
         raise error
     summary = source_summary(path, filename, kind, extracted=(text, units))
+    summary['studySections'] = study_sections(text, units)
     _apply_file_identity(summary, _file_fingerprint(path))
     summary["draftCards"] = []
     needs_cards = (
@@ -95,7 +98,7 @@ def _source_preflight(path: Path, filename: str, kind: str) -> dict:
         "requiresCards": True,
         "unitLabel": units.get("unitLabel", "sections"),
         "unitCount": units.get("unitCount", 0),
-        "unitsWithText": len(slide_numbers) if suffix == ".pptx" else sum(
+        "unitsWithText": len(slide_numbers) if suffix in {".ppt", ".pptw", ".pptx"} else sum(
             1 for page in (units.get("pageTexts") or []) if str(page).strip()
         ) if suffix == ".pdf" else units.get("unitCount", 0),
         "lowTextPages": low_text_pages,
@@ -120,6 +123,7 @@ def _source_summary_from_ocr(
         raise SourceTextLimitError()
     units = {"unitLabel": "pages", "unitCount": len(page_texts), "pageTexts": page_texts, "ocrUsed": True}
     summary = source_summary(Path(filename), filename, kind, extracted=(text, units))
+    summary['studySections'] = study_sections(text, units)
     if not re.fullmatch(r"[a-f0-9]{64}", str(file_fingerprint)):
         raise ValueError("The original PDF could not be verified for this OCR import. Upload it again.")
     _apply_file_identity(summary, file_fingerprint)
@@ -140,6 +144,24 @@ def _source_summary_from_ocr(
         "ocrUsed": True,
     }
     return {"source": summary, "extractedText": text, "extractedUnits": units}
+
+
+def _prepare_sections(body):
+    sections = body.get('sections')
+    if not isinstance(sections, list) or not 1 <= len(sections) <= 100:
+        raise ValueError('Choose one to 100 readable sections.')
+    if any(not isinstance(row, dict) or not isinstance(row.get('text'), str) or not row['text'].strip() for row in sections):
+        raise ValueError('Each selected section needs readable text.')
+    text = '\n\n'.join(row['text'] for row in sections)
+    if len(text) > MAX_SOURCE_TEXT_CHARS:
+        raise SourceTextLimitError()
+    units = {'selectedSections': sections, 'unitLabel': 'sections', 'unitCount': len(sections)}
+    chunks = _source_chunks(text, str(body.get('filename') or 'sections.txt'), units)
+    return {'extractedText': text, 'extractedUnits': units,
+            'fingerprint': hashlib.sha256(text.encode()).hexdigest(),
+            'preflight': {'requiresCards': True, 'inputCharacters': len(text), 'chunkCount': len(chunks),
+                          'batchCount': (len(chunks) + CHUNKS_PER_BATCH - 1) // CHUNKS_PER_BATCH,
+                          'unitLabel': 'sections', 'unitCount': len(sections)}}
 
 
 def _generate_source_batch(body: object, user_id: str) -> dict:
@@ -164,7 +186,13 @@ def _generate_source_batch(body: object, user_id: str) -> dict:
         raise ValueError("The source changed during import. Please upload it again.")
     if not isinstance(batch_index, int) or isinstance(batch_index, bool):
         raise ValueError("The card-generation batch is invalid.")
-    return generate_source_cards_batch(text, filename, kind, units, user_id, batch_index, question_style)
+    generate = lambda: generate_source_cards_batch(text, filename, kind, units, user_id, batch_index, question_style)
+    if body.get("durable") is True:
+        from api.source_jobs import run_batch
+        identity = {"version": 1, "text": fingerprint, "units": units, "filename": filename,
+                    "kind": kind, "batch": batch_index, "style": question_style}
+        return run_batch(user_id, identity, generate, restart=body.get("restartUncertain") is True)
+    return generate()
 
 
 def _file_fingerprint(path: Path) -> str:
@@ -193,7 +221,7 @@ def _apply_file_identity(summary: dict, file_fingerprint: str) -> None:
 
 def _source_path(value: object, user_id: str) -> str:
     pathname = str(value or "")
-    pattern = rf"source-uploads/{re.escape(user_id)}/[a-f0-9-]{{36}}\.(?:pdf|pptx|docx|txt)"
+    pattern = rf"source-uploads/{re.escape(user_id)}/[a-f0-9-]{{36}}\.(?:pdf|ppt|pptw|pptx|docx|txt)"
     if not re.fullmatch(pattern, pathname):
         raise ValueError("The temporary upload path is invalid.")
     return pathname
@@ -224,6 +252,9 @@ class handler(JsonHandler):
             try:
                 body = json.loads(self.rfile.read(content_length).decode("utf-8"))
                 operation = body.get("operation") if isinstance(body, dict) else None
+                if operation == "prepare-sections":
+                    self.send_json(_prepare_sections(body))
+                    return
                 if operation == "inspect-text":
                     result = _source_summary_from_ocr(
                         Path(str(body.get("filename") or "source.pdf")).name,
@@ -241,7 +272,8 @@ class handler(JsonHandler):
                         result = _generate_source_batch(body, user_id or "local-development")
                     except CardGenerationError as exc:
                         self.send_json(
-                            {"error": exc.public_message, "retryable": exc.retryable}, exc.status
+                            {"error": exc.public_message, "retryable": exc.retryable,
+                             "errorCode": getattr(exc, "code", "")}, exc.status
                         )
                         return
                     except ValueError as exc:
@@ -264,7 +296,7 @@ class handler(JsonHandler):
                 filename = Path(str(body.get("filename") or "source.txt")).name
                 suffix = Path(filename).suffix.lower()
                 if suffix not in SOURCE_SUFFIXES or not pathname.endswith(suffix):
-                    raise ValueError("Use a DOCX, PPTX, PDF, or TXT source.")
+                    raise ValueError("Use a DOCX, PowerPoint, PDF, or TXT source.")
                 kind = str(body.get("kind") or "auto")
                 if kind not in {"auto", "material", "syllabus", "assessment"}:
                     kind = "auto"
@@ -288,6 +320,8 @@ class handler(JsonHandler):
                     "errorCode": "NO_SELECTABLE_TEXT",
                     "fileFingerprint": getattr(exc, "file_fingerprint", ""),
                 }, HTTPStatus.UNPROCESSABLE_ENTITY)
+            except PowerPointReadError as exc:
+                self.send_json({"error": str(exc), "retryable": False}, HTTPStatus.UNPROCESSABLE_ENTITY)
             except CardGenerationError as exc:
                 self.send_json({"error": exc.public_message}, exc.status)
             except (ValueError, json.JSONDecodeError, UnicodeDecodeError) as exc:
@@ -325,7 +359,7 @@ class handler(JsonHandler):
         filename = Path(upload.filename or "source.txt").name
         suffix = Path(filename).suffix.lower()
         if suffix not in SOURCE_SUFFIXES:
-            self.send_json({"error": "Use a DOCX, PPTX, PDF, or TXT source."}, HTTPStatus.BAD_REQUEST)
+            self.send_json({"error": "Use a DOCX, PowerPoint, PDF, or TXT source."}, HTTPStatus.BAD_REQUEST)
             return
 
         try:
@@ -358,6 +392,8 @@ class handler(JsonHandler):
                 "errorCode": "NO_SELECTABLE_TEXT",
                 "fileFingerprint": getattr(exc, "file_fingerprint", ""),
             }, HTTPStatus.UNPROCESSABLE_ENTITY)
+        except PowerPointReadError as exc:
+            self.send_json({"error": str(exc), "retryable": False}, HTTPStatus.UNPROCESSABLE_ENTITY)
         except CardGenerationError as exc:
             self.send_json({"error": exc.public_message}, exc.status)
         except Exception as exc:

@@ -8,6 +8,9 @@ from server import build_anki_package
 
 class handler(JsonHandler):
     def do_POST(self) -> None:
+        from api.billing import require_access
+        if not require_access(self):
+            return
         try:
             payload = self.read_json()
             cards = payload.get("cards") or []

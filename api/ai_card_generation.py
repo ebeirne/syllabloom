@@ -22,7 +22,9 @@ CHUNKS_PER_BATCH = 4
 QUESTION_STYLES = {"balanced", "direct", "explain", "compare", "apply"}
 MAX_SYNC_SOURCE_TEXT_CHARS = MAX_CHUNK_CHARS * CHUNKS_PER_BATCH
 MAX_CARDS_PER_CHUNK = 12
-MAX_OUTPUT_TOKENS_PER_CHUNK = 1_900
+# Twelve cards include questions, answers, exact source quotes and JSON syntax.
+# The old 1,900-token ceiling could truncate otherwise valid medical decks.
+MAX_OUTPUT_TOKENS_PER_CHUNK = 4_096
 REQUEST_TIMEOUT_SECONDS = 38
 _URL_RE = re.compile(r"\b(?:https?://|www\.)\S+", re.IGNORECASE)
 _ADMIN_INSTRUCTION_RE = re.compile(
@@ -94,6 +96,11 @@ class CardGenerationError(RuntimeError):
 class AIConfigurationError(CardGenerationError):
     status = HTTPStatus.SERVICE_UNAVAILABLE
     public_message = "AI card generation is not configured yet. Your document was not added."
+    retryable = True
+
+
+class IncompleteCardGenerationError(CardGenerationError):
+    public_message = "The AI response stopped before finishing this batch. Retry to continue; completed batches are kept."
     retryable = True
 
 
@@ -189,6 +196,16 @@ def _split_long_text(text: str, maximum: int) -> list[str]:
 
 
 def _source_units(text: str, filename: str, units: dict | None) -> list[tuple[str, str]]:
+    selected = units.get('selectedSections') if isinstance(units, dict) else None
+    if selected is not None:
+        if not isinstance(selected, list) or not 1 <= len(selected) <= 100:
+            raise ValueError('Choose between one and 100 readable source sections.')
+        if any(not isinstance(s, dict) or not re.fullmatch(r'(?:Page|Slide|Section) [1-9]\d{0,4}', str(s.get('label', '')))
+               or not isinstance(s.get('text'), str) for s in selected):
+            raise ValueError('The selected source sections are invalid.')
+        if text != '\n\n'.join(s['text'] for s in selected):
+            raise ValueError('The selected source text changed. Please try again.')
+        return [(s['label'], part) for s in selected for part in _split_long_text(s['text'], MAX_CHUNK_CHARS)]
     page_texts = units.get("pageTexts") if isinstance(units, dict) else None
     if isinstance(page_texts, list):
         pages = [(f"Page {index}", str(page or "").strip()) for index, page in enumerate(page_texts, start=1)]
@@ -203,8 +220,8 @@ def _source_units(text: str, filename: str, units: dict | None) -> list[tuple[st
             slides.extend((f"Slide {match.group(1)}", piece) for piece in _split_long_text(slide_text, MAX_CHUNK_CHARS))
         return slides
 
-    label = Path(filename or "Source document").name or "Source document"
-    return [(label, piece) for piece in _split_long_text(text, MAX_CHUNK_CHARS)]
+    from api.source_coverage import study_sections
+    return [(section["label"], section["text"]) for section in study_sections(text, {})]
 
 
 def _source_chunks(text: str, filename: str, units: dict | None) -> list[dict[str, str]]:
@@ -377,6 +394,10 @@ def _request_chunk(
                 raise CardGenerationError()
         payload = json.loads(raw.decode("utf-8"))
         if payload.get("status") not in {None, "completed"}:
+            reason = (payload.get("incomplete_details") or {}).get("reason")
+            print(f"Card provider incomplete: token_limit={reason == 'max_output_tokens'}", flush=True)
+            if payload.get("status") == "incomplete" and reason == "max_output_tokens":
+                raise IncompleteCardGenerationError()
             raise CardGenerationError()
         parsed = json.loads(_response_text(payload))
         cards = parsed.get("cards")
@@ -385,8 +406,10 @@ def _request_chunk(
         return cards[:MAX_CARDS_PER_CHUNK]
     except HTTPError as exc:
         # Do not surface upstream response text; it can contain account or request details.
+        print(f"Card provider HTTP status: {exc.code}", flush=True)
         raise CardGenerationError() from exc
     except (URLError, TimeoutError, OSError, UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError) as exc:
+        print(f"Card provider exchange failed: {type(exc).__name__}", flush=True)
         raise CardGenerationError() from exc
 
 
@@ -436,7 +459,7 @@ def _validated_card(raw: dict, chunk: dict, filename: str) -> dict | None:
     if len(answer_terms) >= 3 and len(answer_terms & quote_terms) < max(2, math.ceil(len(answer_terms) * 0.45)):
         return None
     stable_id = hashlib.sha256(f"{filename}\0{locator}\0{question}\0{answer}".encode("utf-8")).hexdigest()[:16]
-    citation = f"{filename} · {locator}" if locator.startswith(("Page ", "Slide ")) else filename
+    citation = f"{filename} · {locator}" if locator.startswith(("Page ", "Slide ", "Section ")) else filename
     return {
         "id": f"ai-{stable_id}",
         "muscle": concept,
@@ -446,11 +469,58 @@ def _validated_card(raw: dict, chunk: dict, filename: str) -> dict | None:
         "front": question,
         "back": answer,
         "source": citation,
-        "sourceLocation": locator if locator.startswith(("Page ", "Slide ")) else "",
+        "sourceLocation": locator if locator.startswith(("Page ", "Slide ", "Section ")) else "",
         "sourceQuote": quote,
         "generatedBy": "openai",
         "status": "ai-generated",
     }
+
+
+def _preserve_explicit_slide_facts(cards: list[dict], chunks: list[dict], filename: str, kind: str) -> list[dict]:
+    """Keep explicit anatomy fields even when the model omits a retrieval dimension.
+
+    Only the selected batch is inspected; unanswered assessment questions are never
+    filled in. Reuse the source parser, not model knowledge, for these exact facts.
+    """
+    if kind != "material" or Path(filename).suffix.lower() not in {".ppt", ".pptw", ".pptx"}:
+        return cards
+    from server import draft_cards_from_structured_slides
+
+    field_patterns = {
+        "attachment": r"attach|origin|insert",
+        "action": r"action|movement|function|\bdo\b",
+        "innervation": r"innerv|nerve",
+    }
+    for chunk in chunks:
+        sections = re.findall(r"(?ms)^\[(Slide \d+)\]\s*\n(.*?)(?=^\[|\Z)", chunk["text"])
+        for locator, section in sections:
+            for fact in draft_cards_from_structured_slides(f"{locator}\n{section}", filename):
+                answer = fact["back"]
+                # Reject missing values or values that are actually the next label.
+                if answer.upper() in {"ATTACHMENT", "ACTION", "INNERVATION"} or len(answer) < 3:
+                    continue
+                subject = fact["front"]
+                subject_terms = _terms(subject) - _terms("Where does attach What is the action innervates")
+                covered = any(
+                    card.get("sourceLocation") == locator
+                    and re.search(field_patterns[fact["field"]], card["front"], re.I)
+                    and subject_terms <= _terms(card["front"] + " " + card.get("concept", ""))
+                    and _terms(answer) <= _terms(card["back"])
+                    for card in cards
+                )
+                if covered:
+                    continue
+                # Copy the contiguous label/value passage verbatim from this slide.
+                passage = re.search(rf"(?im)^\s*{fact['field']}\s*\n\s*([^\n]+)", section)
+                if not passage or _normalize(passage.group(1)) != _normalize(answer):
+                    continue
+                identity = hashlib.sha256(f"{filename}\0{locator}\0{subject}\0{answer}".encode()).hexdigest()[:16]
+                cards.append({
+                    **fact, "id": f"source-{identity}", "concept": fact["section"],
+                    "sourceLocation": locator, "sourceQuote": passage.group(0).strip(),
+                    "generatedBy": "source-extraction", "status": "source-extracted",
+                })
+    return cards
 
 
 def generate_ai_cards(
@@ -510,6 +580,7 @@ def generate_ai_cards(
             seen.add(key_pair)
             cards.append(card)
 
+    cards = _preserve_explicit_slide_facts(cards, chunks, filename, kind)
     concepts = []
     concept_keys = set()
     for card in cards:

@@ -15,7 +15,7 @@
     get configured() { return configured; },
     get resolved() { return authResolved; },
     get signedIn() { return Boolean(clerk?.isSignedIn); },
-    getToken: async () => clerk?.session?.getToken?.() || null,
+    getToken: async options => clerk?.session?.getToken?.(options) || null,
     open: openDialog,
     openClerkProfile,
     signOutCurrentSession,
