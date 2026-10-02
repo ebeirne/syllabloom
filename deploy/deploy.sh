@@ -7,7 +7,7 @@ REPO="$(cd "$(dirname "$0")/.." && pwd)"
 
 # Python app: only what the API needs, never tests, data, or secrets.
 rsync -a --delete \
-  --include='server.py' --include='api/' --include='api/*.py' \
+  --include='server.py' --include='muscle-data.js' --include='api/' --include='api/*.py' \
   --include='requirements.txt' --include='assets/' --include='assets/**' \
   --exclude='*' \
   "$REPO/" /opt/syllabloom/app/
@@ -26,6 +26,7 @@ nginx -t
 systemctl reload nginx
 systemctl restart syllabloom
 sleep 2
-curl -fsS http://127.0.0.1:4174/api/health && echo
+curl --retry 10 --retry-connrefused --retry-delay 1 -fsS http://127.0.0.1:4174/api/health
+echo
 systemctl enable --now syllabloom-cleanup.timer
 echo "Deployed."
