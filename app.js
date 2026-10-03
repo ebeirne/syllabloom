@@ -2308,6 +2308,10 @@
       return;
     }
     showLanding('replace');
+    const section = document.getElementById(hashView);
+    if (section?.closest('#landing')) {
+      window.requestAnimationFrame(() => section.scrollIntoView({ behavior: 'auto', block: 'start' }));
+    }
   }
 
   function navigate(view, historyMode = 'push') {
@@ -4913,7 +4917,33 @@
   });
 
   window.addEventListener('popstate', event => {
-    restoreShellRoute(event.state?.syllabloom || { surface: 'landing' });
+    const route = event.state?.syllabloom || { surface: 'landing' };
+    restoreShellRoute(event.state?.syllabloom || route);
+    if (route.surface === 'landing') {
+      const section = document.getElementById(window.location.hash.slice(1));
+      if (section?.closest('#landing')) {
+        window.requestAnimationFrame(() => section.scrollIntoView({ behavior: 'auto', block: 'start' }));
+      }
+    }
+  });
+
+  document.querySelectorAll('.marketing-nav nav a[href^="#"]').forEach(link => {
+    link.addEventListener('click', event => {
+      const section = document.getElementById(link.hash.slice(1));
+      if (!section) return;
+      event.preventDefault();
+      const url = `${window.location.pathname}${window.location.search}${link.hash}`;
+      const currentRoute = shellRoute();
+      const snapshot = {
+        ...(window.history.state || {}),
+        syllabloom: { ...(currentRoute || {}), surface: 'landing' }
+      };
+      window.history[window.location.hash === link.hash ? 'replaceState' : 'pushState'](snapshot, '', url);
+      section.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        block: 'start'
+      });
+    });
   });
 
   document.addEventListener('visibilitychange', async () => {
