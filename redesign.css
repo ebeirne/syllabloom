@@ -991,6 +991,18 @@
   flex-direction: column;
 }
 
+.pricing-board > .price-plan:not(.price-plan-free):not(.price-plan-plus) {
+  background: var(--ink);
+  color: #fff;
+}
+
+.pricing-board > .price-plan:not(.price-plan-free):not(.price-plan-plus) h3,
+.pricing-board > .price-plan:not(.price-plan-free):not(.price-plan-plus) header > strong,
+.pricing-board > .price-plan:not(.price-plan-free):not(.price-plan-plus) p {
+  color: #fff !important;
+  opacity: 1;
+}
+
 .price-plan-free {
   background: var(--paper);
 }
@@ -5646,7 +5658,7 @@ textarea {
   margin: 14px auto 26px;
   padding: 9px 10px 9px 14px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 560px) minmax(0, 1fr);
   align-items: center;
   gap: 28px;
   background: rgba(255, 255, 255, 0.96);
@@ -5705,17 +5717,18 @@ textarea {
 
 .marketing-nav nav {
   justify-self: center;
+  width: 100%;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 34px;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .marketing-nav nav a {
   position: relative;
   padding: 9px 1px;
   color: #4f534d;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 720;
   text-decoration: none;
 }
