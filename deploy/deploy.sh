@@ -8,11 +8,11 @@ REPO="$(cd "$(dirname "$0")/.." && pwd)"
 # Python app: only what the API needs, never tests, data, or secrets.
 rsync -a --delete \
   --include='server.py' --include='muscle-data.js' --include='api/' --include='api/*.py' \
-  --include='requirements.txt' --include='assets/' --include='assets/**' \
+  --include='requirements.txt' --include='requirements-local.txt' --include='assets/' --include='assets/**' \
   --exclude='*' \
   "$REPO/" /opt/syllabloom/app/
 chown -R syllabloom:syllabloom /opt/syllabloom/app
-sudo -u syllabloom /opt/syllabloom/venv/bin/pip install --quiet -r /opt/syllabloom/app/requirements.txt
+sudo -u syllabloom /opt/syllabloom/venv/bin/pip install --quiet -r /opt/syllabloom/app/requirements-local.txt
 
 # Static site: an allowlist, so source files and the .git folder are never web-reachable.
 rsync -a --delete \

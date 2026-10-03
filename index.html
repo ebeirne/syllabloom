@@ -3669,7 +3669,7 @@
               <img class="lecture-companion character-cutout" src="assets/rounds-mascot-listening.webp" width="900" height="900" loading="lazy" decoding="async" alt="The Syllabloom companion listening and taking notes during a lecture" />
             </div>
             <h3>Save recordings beside the materials.</h3>
-            <p>Name and save audio or video on this device alongside the lecture files. Lecture transcription and recording-based cards are not included in this beta.</p>
+            <p>Name and save audio or video on this device. When the lecture worker is available, Syllabloom automatically prepares a timestamped transcript, key notes, visual checkpoints, and editable card drafts.</p>
           </article>
           <article class="class-feature">
             <div class="feature-illustration feature-syllabus" aria-hidden="true">
@@ -3724,7 +3724,7 @@
           <article class="price-plan"><header><div><h3>Yearly</h3><p>$108 billed annually</p></div><strong>$9<span>/mo</span></strong></header>
           <p>Save $36 per year compared with monthly billing.</p><button class="button primary price-action" data-open-billing>Choose yearly</button></article>
         </div>
-        <p class="pricing-footnote">Prices in USD. Subscriptions renew until canceled. Audio/video stays on your device; hosted lecture transcription is not included yet. Review generated material before studying it.</p>
+        <p class="pricing-footnote">Prices in USD. Subscriptions renew until canceled. Original audio/video stays in your device library; automatic processing uses a private temporary server copy when the lecture worker is available. Review generated material before studying it.</p>
       </section>
 
       <section class="marketing-final-cta">
@@ -4036,10 +4036,23 @@
               </div>
             </section>
 
+            <section id="lectureStudyPackage" class="lecture-study-package" hidden aria-labelledby="lectureStudyPackageTitle">
+              <header>
+                <div><span>Automatically prepared</span><h2 id="lectureStudyPackageTitle">Lecture study package</h2></div>
+                <p>Every note stays connected to the lecture moment that produced it.</p>
+              </header>
+              <div id="lectureChapters" class="lecture-chapters" hidden></div>
+              <div id="lectureKeyNotes" class="lecture-key-notes"></div>
+              <div id="lectureVisualSection" class="lecture-visual-section" hidden>
+                <div class="study-package-subhead"><h3>Visual checkpoints</h3><span>Selected when the video changes</span></div>
+                <div id="lectureVisuals" class="lecture-visuals"></div>
+              </div>
+            </section>
+
             <section id="transcriptPanel" class="transcript-panel transcript-collapsed">
               <div class="transcript-head">
                 <div><h2>Transcript</h2><span id="transcriptMeta">Waiting for audio</span></div>
-                <div class="transcript-actions"><button id="toggleTranscript">Show transcript</button><button id="copyTranscript" disabled>Copy</button></div>
+                <div class="transcript-actions"><input id="transcriptSearch" type="search" aria-label="Search transcript" placeholder="Search transcript" disabled /><button id="toggleTranscript">Show transcript</button><button id="copyTranscript" disabled>Copy</button></div>
               </div>
               <div id="transcriptWarnings" class="transcript-warnings" hidden></div>
               <div id="transcriptContent" class="transcript-content empty">
@@ -4583,7 +4596,7 @@
             <article><span>Monthly</span><strong>$12 <small>/ month</small></strong><p>$12 billed each month.</p><button class="button" type="button" data-subscribe="monthly">Choose monthly</button></article>
             <article><span>Yearly · save 25%</span><strong>$9 <small>/ month</small></strong><p>$108 billed once a year.</p><button class="button primary" type="button" data-subscribe="yearly">Choose yearly</button></article>
           </div>
-          <p>Both plans include one active class, document processing, editable cards, source checks, study practice, syllabus dates, and Anki export. Hosted transcription is not included.</p>
+          <p>Both plans include one active class, document processing, editable cards, source checks, study practice, syllabus dates, and Anki export. Automatic lecture processing appears when the deployment's transcription worker is configured.</p>
           <p id="billingFinePrint" class="billing-fine-print" aria-live="polite"></p>
           <button id="refreshBilling" class="button" type="button">Refresh access</button>
           <button id="manageSubscription" class="button" type="button" hidden>Manage or cancel subscription</button>

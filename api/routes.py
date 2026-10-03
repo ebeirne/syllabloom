@@ -11,6 +11,9 @@ ROUTES = {
     "auth-config": "api.auth-config",
     "export-anki": "api.export-anki",
     "health": "api.health",
+    "lecture-jobs": "api.lecture-jobs",
+    "lecture-upload": "api.lecture-upload",
+    "lecture-upload-url": "api.lecture-upload-url",
     "session-latest": "api.session-latest",
     "source": "api.source",
     "source-upload": "api.source-upload",
@@ -26,7 +29,7 @@ ROUTES = {
 }
 ALIASES = {"sessions/latest": "session-latest"}
 # Routes whose URL carries a trailing id, e.g. /api/source-upload/<uuid>.pdf
-PREFIX_ROUTES = {"source-upload"}
+PREFIX_ROUTES = {"source-upload", "lecture-upload", "lecture-jobs"}
 
 
 def resolve(path: str):
