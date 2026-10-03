@@ -16,7 +16,7 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
 python3 --version
 
 id -u syllabloom >/dev/null 2>&1 || useradd --system --home /opt/syllabloom --shell /usr/sbin/nologin syllabloom
-install -d -o syllabloom -g syllabloom /opt/syllabloom /opt/syllabloom/app /var/lib/syllabloom /var/lib/syllabloom/uploads
+install -d -o syllabloom -g syllabloom /opt/syllabloom /opt/syllabloom/app /var/lib/syllabloom /var/lib/syllabloom/uploads /var/lib/syllabloom/models
 install -d /var/www/syllabloom
 python3 -m venv /opt/syllabloom/venv
 chown -R syllabloom:syllabloom /opt/syllabloom

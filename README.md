@@ -79,7 +79,9 @@ $env:SYLLABLOOM_WHISPER_MODEL = "C:\path\to\whisper-small"
 python server.py
 ```
 
-Audio remains on the local machine in this mode. The local server turns transcript windows into timestamped concepts, notes, and provisional questions while preserving higher-confidence domain matches. The hosted beta records, imports, stores, and plays lecture media, but it does not claim the desktop server's local transcription or automatic card drafting.
+Audio remains on the local machine in this mode. The local server turns transcript windows into timestamped concepts, notes, and provisional questions while preserving higher-confidence domain matches.
+
+The AWS deployment can expose the same engine through authenticated background lecture jobs. Install `requirements-local.txt`, place the downloaded model at `SYLLABLOOM_WHISPER_MODEL`, and restart the service. `/api/health` keeps the hosted feature disabled until that directory exists. When enabled, the browser uploads a private temporary processing copy, polls the persisted job, and receives a searchable timestamped transcript, chapters, notes, card drafts, and deduplicated MP4 scene-change frames. The worker deletes the media copy at completion; abandoned media expires after 24 hours and private job results after seven days. The original media library remains in IndexedDB and does not become a cross-device cloud media library.
 
 ## Project structure
 

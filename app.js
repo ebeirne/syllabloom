@@ -189,6 +189,7 @@
     pendingClassSetup: false,
     pendingClassResume: false,
     cloudBeta: false,
+    hostedTranscription: false,
     missCounts: storedJson('syllabloom-miss-counts', {}),
     missedItem: null,
     account: {
@@ -1843,17 +1844,25 @@
       if (capabilities.mode !== 'beta-cloud') return;
 
       state.cloudBeta = true;
+      state.hostedTranscription = capabilities.transcription === true && capabilities.lectureJobs === true;
       document.documentElement.dataset.runtime = 'cloud-beta';
       document.querySelector('#cloudBetaNotice').hidden = false;
       document.querySelector('#useTestAudio').disabled = true;
-      document.querySelector('#useTestAudio').textContent = 'Sample needs desktop transcription';
+      document.querySelector('#useTestAudio').textContent = state.hostedTranscription
+        ? 'Sample available after sign-in'
+        : 'Sample needs desktop transcription';
       document.querySelector('#captureState').textContent = 'Ready to record or upload';
+      const betaNotice = document.querySelector('#cloudBetaNotice span');
+      if (state.hostedTranscription && betaNotice) {
+        betaNotice.textContent = 'Upload a lecture and Syllabloom will automatically prepare a timestamped transcript, key notes, visual checkpoints, and editable study cards. The temporary processing copy is deleted when the job finishes.';
+      }
       updateMediaStorageCopy();
       const captureStatus = document.querySelector('.capture-status');
-      captureStatus.querySelector('strong').textContent = 'Device library';
+      captureStatus.querySelector('strong').textContent = state.hostedTranscription ? 'Lecture processing ready' : 'Device library';
       captureStatus.querySelector('span:last-child').textContent = state.account.signedIn
         ? 'Per-user device library · no cloud media sync'
         : 'Local device library · sign in to separate by account';
+      resumeLatestLectureJob();
     } catch (_) {
       // The local prototype intentionally continues with the desktop feature set.
     }
@@ -3060,9 +3069,11 @@
   let pendingRemoveCardId = null;
   let activeRecordingTitle = '';
   let lastTranscript = '';
+  let restoringLectureJob = false;
   const MEDIA_DATABASE = 'syllabloom-media';
   const MEDIA_STORE = 'lectures';
   const MAX_MEDIA_BYTES = 500 * 1024 * 1024;
+  const LECTURE_JOB_STORAGE = 'syllabloom-latest-lecture-job';
   let mediaDatabasePromise = null;
 
   function currentMediaOwner() {
@@ -3687,13 +3698,61 @@
     context.fill();
   }
 
+  function seekLecture(seconds) {
+    const video = document.querySelector('#captureVideo');
+    const audio = document.querySelector('#captureAudio');
+    const player = !video.hidden && video.src ? video : audio;
+    if (!player?.src) return;
+    player.currentTime = Math.max(0, Number(seconds) || 0);
+    player.play().catch(() => {});
+  }
+
+  function renderLectureStudyPackage(result = {}) {
+    const section = document.querySelector('#lectureStudyPackage');
+    const chapters = Array.isArray(result.chapters) ? result.chapters : [];
+    const notes = Array.isArray(result.keyNotes)
+      ? result.keyNotes
+      : Array.isArray(result.notes) ? result.notes : [];
+    const visuals = Array.isArray(result.visualKeyframes) ? result.visualKeyframes : [];
+    section.hidden = !chapters.length && !notes.length && !visuals.length;
+
+    const chapterBox = document.querySelector('#lectureChapters');
+    chapterBox.hidden = chapters.length === 0;
+    chapterBox.innerHTML = chapters.map(chapter => `
+      <button type="button" data-lecture-seek="${Number(chapter.time) || 0}"><b>${clock(chapter.time)}</b> ${escapeHtml(chapter.title)}</button>
+    `).join('');
+
+    document.querySelector('#lectureKeyNotes').innerHTML = notes.length
+      ? notes.slice(0, 12).map(note => {
+        const heardAt = note.heardAt == null ? Number.NaN : Number(note.heardAt);
+        const lines = Array.isArray(note.lines) ? note.lines : [];
+        return `<article class="lecture-key-note">
+          ${Number.isFinite(heardAt) ? `<button type="button" data-lecture-seek="${heardAt}">Jump to ${clock(heardAt)}</button>` : '<span>Lecture note</span>'}
+          <strong>${escapeHtml(note.title || 'Key point')}</strong>
+          ${lines.slice(0, 4).map(line => `<p>${escapeHtml(line)}</p>`).join('')}
+        </article>`;
+      }).join('')
+      : '';
+
+    const visualSection = document.querySelector('#lectureVisualSection');
+    visualSection.hidden = visuals.length === 0;
+    document.querySelector('#lectureVisuals').innerHTML = visuals.map(frame => `
+      <button class="lecture-seek" type="button" data-lecture-seek="${Number(frame.time) || 0}">
+        <img src="${escapeHtml(frame.image || '')}" alt="Lecture video frame at ${clock(frame.time)}" loading="lazy" />
+        <span>${clock(frame.time)} · ${escapeHtml(frame.reason || 'visual checkpoint')}</span>
+      </button>
+    `).join('');
+  }
+
   function renderAudioResult(result) {
     lastTranscript = result.transcript;
     const warnings = result.qualityWarnings || [];
     document.querySelector('#captureState').textContent = 'Transcript ready';
     document.querySelector('#captureTimer').textContent = clock(result.durationSeconds);
-    document.querySelector('#transcriptMeta').textContent = `${clock(result.durationSeconds)} audio · ${result.processingSeconds}s local processing · ${warnings.length} term${warnings.length === 1 ? '' : 's'} to review`;
+    const processingLabel = result.processingMode === 'hosted-temporary' ? 'automatic processing' : 'local processing';
+    document.querySelector('#transcriptMeta').textContent = `${clock(result.durationSeconds)} audio · ${result.processingSeconds}s ${processingLabel} · ${warnings.length} term${warnings.length === 1 ? '' : 's'} to review`;
     document.querySelector('#copyTranscript').disabled = false;
+    document.querySelector('#transcriptSearch').disabled = false;
     drawWaveform(result.waveform || []);
 
     renderWarnings(warnings);
@@ -3701,16 +3760,128 @@
     const transcript = document.querySelector('#transcriptContent');
     transcript.classList.remove('empty');
     transcript.innerHTML = result.segments.map(segment => `
-      <div class="transcript-segment${segment.needsReview ? ' needs-review' : ''}">
+      <div class="transcript-segment${segment.needsReview ? ' needs-review' : ''}" data-lecture-seek="${Number(segment.start) || 0}">
         <span class="transcript-time">${clock(segment.start)}</span>
         <p>${escapeHtml(segment.text)}</p>
       </div>`).join('');
 
+    renderLectureStudyPackage(result);
     renderLectureInsights({
       concepts: result.detectedConcepts || [],
       notes: result.notes || [],
       cards: result.cards || []
     });
+  }
+
+  async function checkedLectureResponse(response, fallback) {
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || fallback);
+    return payload;
+  }
+
+  async function lectureFetch(url, options = {}) {
+    const token = await window.SyllabloomAuth?.getToken?.();
+    if (!token || !state.account.signedIn) throw new Error('Sign in before processing a lecture.');
+    return fetch(url, {
+      ...options,
+      headers: { Accept: 'application/json', ...(options.headers || {}), Authorization: `Bearer ${token}` }
+    });
+  }
+
+  function waitForLecturePoll(milliseconds) {
+    return new Promise(resolve => window.setTimeout(resolve, milliseconds));
+  }
+
+  function rememberLectureJob(job) {
+    localStorage.setItem(LECTURE_JOB_STORAGE, JSON.stringify({
+      id: job.id,
+      owner: state.account.userId,
+      title: job.title,
+      mediaId: job.mediaId || '',
+    }));
+  }
+
+  async function pollLectureJob(jobId, title) {
+    while (true) {
+      const response = await lectureFetch(`/api/lecture-jobs/${encodeURIComponent(jobId)}`, { cache: 'no-store' });
+      const payload = await checkedLectureResponse(response, 'Lecture progress could not be checked.');
+      const job = payload.job || {};
+      document.querySelector('#captureState').textContent = job.stage || 'Processing lecture';
+      document.querySelector('#transcriptMeta').textContent = `${title} · ${Number(job.progress) || 0}% complete`;
+      drawLectureProgress(Number(job.progress) || 0, 100);
+      if (job.status === 'ready' && job.result) return job.result;
+      if (job.status === 'failed') throw new Error(job.error || 'The lecture could not be processed.');
+      await waitForLecturePoll(1800);
+    }
+  }
+
+  async function processHostedLecture(blob, filename, markers, title, mediaId = '') {
+    document.querySelector('#captureState').textContent = 'Preparing secure upload';
+    const ticketResponse = await lectureFetch('/api/lecture-upload-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename, size: blob.size, type: blob.type })
+    });
+    const ticket = await checkedLectureResponse(ticketResponse, 'The lecture upload could not be prepared.');
+    const token = await window.SyllabloomAuth?.getToken?.();
+    const uploaded = await uploadLargeSourceFile(
+      ticket.uploadUrl,
+      blob,
+      ticket.contentType,
+      `Bearer ${token}`,
+      percent => {
+        document.querySelector('#captureState').textContent = `Uploading lecture · ${percent}%`;
+        document.querySelector('#transcriptMeta').textContent = `${filename} · secure temporary upload ${percent}%`;
+        drawLectureProgress(percent, 100);
+      }
+    );
+    await checkedLectureResponse(uploaded, 'The lecture upload did not finish.');
+    const createdResponse = await lectureFetch('/api/lecture-jobs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pathname: ticket.pathname, filename, title, markers })
+    });
+    const created = await checkedLectureResponse(createdResponse, 'The lecture job could not be started.');
+    const jobId = created.job?.id;
+    if (!jobId) throw new Error('The lecture job did not return an identifier.');
+    state.latestSessionId = jobId;
+    rememberLectureJob({ id: jobId, title, mediaId });
+    return pollLectureJob(jobId, title);
+  }
+
+  async function resumeLatestLectureJob() {
+    if (restoringLectureJob || !state.cloudBeta || !state.hostedTranscription || !state.account.signedIn) return;
+    const saved = storedJson(LECTURE_JOB_STORAGE, null);
+    if (!saved?.id || saved.owner !== state.account.userId) return;
+    restoringLectureJob = true;
+    setAudioBusy(true, 'Recovering lecture job');
+    document.querySelector('#lastLectureSummary').hidden = false;
+    document.querySelector('#lectureTitle').textContent = saved.title || 'Latest lecture';
+    document.querySelector('#lectureSubtitle').textContent = `${state.className} · recovering automatic study package`;
+    try {
+      if (saved.mediaId) {
+        const media = await getMediaAsset(saved.mediaId);
+        if (media?.blob) {
+          if (captureAudioUrl) URL.revokeObjectURL(captureAudioUrl);
+          captureAudioUrl = URL.createObjectURL(media.blob);
+          const videoPlayer = document.querySelector('#captureVideo');
+          const audioPlayer = document.querySelector('#captureAudio');
+          const isVideo = mediaLooksLikeVideo(media);
+          videoPlayer.hidden = !isVideo;
+          audioPlayer.hidden = isVideo;
+          (isVideo ? videoPlayer : audioPlayer).src = captureAudioUrl;
+        }
+      }
+      const result = await pollLectureJob(saved.id, saved.title || 'Latest lecture');
+      state.latestSessionId = saved.id;
+      renderAudioResult(result);
+      document.querySelector('#lectureSubtitle').textContent = `${state.className} · ${clock(result.durationSeconds)} lecture · recovered`;
+    } catch (error) {
+      if (/not found/i.test(error.message)) localStorage.removeItem(LECTURE_JOB_STORAGE);
+    } finally {
+      restoringLectureJob = false;
+      setAudioBusy(false);
+    }
   }
 
   async function processAudio(blob, filename, markers = [], options = {}) {
@@ -3723,8 +3894,11 @@
     document.querySelector('#lectureSubtitle').textContent = `${state.className} · checking source alignment`;
     document.querySelector('#transcriptMeta').textContent = `${filename} · checking for an audio track`;
     document.querySelector('#transcriptContent').className = 'transcript-content empty';
-    document.querySelector('#transcriptContent').innerHTML = '<p>Preparing a local, progressive transcript…</p>';
+    document.querySelector('#transcriptContent').innerHTML = `<p>Preparing ${state.cloudBeta ? 'automatic lecture processing' : 'a local, progressive transcript'}…</p>`;
     document.querySelector('#transcriptWarnings').hidden = true;
+    document.querySelector('#lectureStudyPackage').hidden = true;
+    document.querySelector('#transcriptSearch').value = '';
+    document.querySelector('#transcriptSearch').disabled = true;
     renderLectureInsights({});
     drawLectureProgress(0, 1);
     if (captureAudioUrl) URL.revokeObjectURL(captureAudioUrl);
@@ -3741,16 +3915,17 @@
     player.src = captureAudioUrl;
 
     let storageError = null;
+    let savedMediaAsset = null;
     if (options.persist !== false) {
       try {
-        await saveMediaAsset(blob, filename, options.origin || 'upload', markers, displayTitle);
+        savedMediaAsset = await saveMediaAsset(blob, filename, options.origin || 'upload', markers, displayTitle);
       } catch (error) {
         storageError = error;
         showToast(error.message || 'The lecture could not be saved');
       }
     }
 
-    if (state.cloudBeta) {
+    if (state.cloudBeta && !state.hostedTranscription) {
       document.querySelector('#captureState').textContent = storageError ? 'Preview only' : 'Saved to your library';
       document.querySelector('#lectureSubtitle').textContent = storageError
         ? `${state.className} · this file was not saved`
@@ -3764,6 +3939,24 @@
         : mediaStorageMessage();
       if (!storageError) showToast('Lecture saved to your library');
       setAudioBusy(false);
+      return;
+    }
+
+    if (state.cloudBeta) {
+      try {
+        const result = await processHostedLecture(blob, filename, markers, displayTitle, savedMediaAsset?.id || '');
+        renderAudioResult(result);
+        document.querySelector('#lectureSubtitle').textContent = `${state.className} · ${clock(result.durationSeconds)} lecture · study package ready`;
+        document.querySelector('#recordingSafety').textContent = 'The temporary processing copy was deleted. Your original remains in this device library.';
+        showToast(`${(result.notes || []).length} notes · ${(result.cards || []).length} card drafts · ${(result.visualKeyframes || []).length} visual checkpoints`);
+      } catch (error) {
+        document.querySelector('#captureState').textContent = 'Could not process lecture';
+        document.querySelector('#transcriptMeta').textContent = 'Your device copy is still available';
+        document.querySelector('#transcriptContent').innerHTML = `<div class="transcript-error"><strong>The study package could not be created.</strong><span>${escapeHtml(error.message)}</span></div>`;
+        showToast(error.message || 'Lecture processing failed');
+      } finally {
+        setAudioBusy(false);
+      }
       return;
     }
 
@@ -5166,6 +5359,7 @@
     }
     if (state.account.signedIn && state.account.userId) {
       initializeCloudWorkspace(state.account.userId);
+      resumeLatestLectureJob();
     } else {
       cloudSyncUserId = '';
       cloudSyncReady = false;
@@ -5314,6 +5508,20 @@
     if (!lastTranscript) return;
     await navigator.clipboard.writeText(lastTranscript);
     showToast('Transcript copied');
+  });
+  document.querySelector('#transcriptContent').addEventListener('click', event => {
+    const segment = event.target.closest('[data-lecture-seek]');
+    if (segment) seekLecture(segment.dataset.lectureSeek);
+  });
+  document.querySelector('#lectureStudyPackage').addEventListener('click', event => {
+    const target = event.target.closest('[data-lecture-seek]');
+    if (target) seekLecture(target.dataset.lectureSeek);
+  });
+  document.querySelector('#transcriptSearch').addEventListener('input', event => {
+    const query = event.currentTarget.value.trim().toLocaleLowerCase();
+    document.querySelectorAll('#transcriptContent .transcript-segment').forEach(segment => {
+      segment.classList.toggle('is-search-hidden', Boolean(query) && !segment.textContent.toLocaleLowerCase().includes(query));
+    });
   });
   document.querySelector('#toggleTranscript').addEventListener('click', () => {
     const panel = document.querySelector('#transcriptPanel');

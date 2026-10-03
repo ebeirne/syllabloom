@@ -1757,7 +1757,7 @@ def compile_lecture_window(text: str, filename: str, heard_at: float, window_num
         if not generated or not _usable_lecture_answer(generated[1]) or generated[0].lower() in seen:
             continue
         seen.add(generated[0].lower())
-        card_pairs.append(generated)
+        card_pairs.append((*generated, sentence))
         if len(card_pairs) >= 2:
             break
     if not card_pairs:
@@ -1784,8 +1784,11 @@ def compile_lecture_window(text: str, filename: str, heard_at: float, window_num
             "source": citation,
             "status": "provisional",
             "windowNumber": window_number,
+            "heardAt": round(heard_at, 2),
+            "sourceLocation": f"{int(heard_at // 60):02d}:{int(heard_at % 60):02d}",
+            "sourceQuote": source_sentence,
         }
-        for front, back in card_pairs
+        for front, back, source_sentence in card_pairs
     ]
     return {"concepts": [concept], "notes": [note], "cards": cards}
 
