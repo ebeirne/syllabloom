@@ -3806,9 +3806,12 @@
   }
 
   async function pollLectureJob(jobId, title) {
+    const owner = state.account.userId;
     while (true) {
+      if (!state.account.signedIn || state.account.userId !== owner) throw new Error('Sign in to the same account to recover this lecture.');
       const response = await lectureFetch(`/api/lecture-jobs/${encodeURIComponent(jobId)}`, { cache: 'no-store' });
       const payload = await checkedLectureResponse(response, 'Lecture progress could not be checked.');
+      if (!state.account.signedIn || state.account.userId !== owner) throw new Error('The signed-in account changed.');
       const job = payload.job || {};
       document.querySelector('#captureState').textContent = job.stage || 'Processing lecture';
       document.querySelector('#transcriptMeta').textContent = `${title} · ${Number(job.progress) || 0}% complete`;

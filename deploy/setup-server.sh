@@ -9,7 +9,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
   nginx certbot python3-certbot-nginx \
-  python3 python3-venv python3-pip libpq5 curl rsync \
+  python3 python3-venv python3-pip libpq5 curl rsync ffmpeg \
   ufw fail2ban unattended-upgrades
 
 # Ubuntu 24.04 ships Python 3.12, which the app requires (~=3.12).
