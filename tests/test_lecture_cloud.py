@@ -7,6 +7,15 @@ import pytest
 from api import lecture_cloud
 
 
+def test_evidence_spanning_segments_preserves_actual_passage():
+    segments = [{'start': 10, 'text': "Python doesn't require a"},
+                {'start': 12, 'text': 'declared type for this assignment.'}]
+    match = lecture_cloud.evidence_segment("[10.0s] Python doesn’t require a\ndeclared type", segments)
+    assert match['start'] == 10
+    assert match['evidence'] == "Python doesn't require a declared type for this assignment."
+    assert lecture_cloud.evidence_segment('Java always stores everything on the stack.', segments) is None
+
+
 def test_rejects_oversize_duration_before_provider(monkeypatch):
     info = {'format': {'duration': 10801}, 'streams': [{'codec_type': 'audio'}]}
     monkeypatch.setattr(lecture_cloud.subprocess, 'run', lambda *a, **kw: SimpleNamespace(stdout=json.dumps(info)))
