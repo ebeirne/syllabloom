@@ -3689,7 +3689,9 @@
       ? cards.slice(-3).map(card => `<div class="audio-card-mini"><span>${card.status === 'provisional' ? 'lecture · review' : `${escapeHtml(card.field)} · course document`}</span><strong>${escapeHtml(card.front)}</strong><p>${escapeHtml(card.back)}</p></div>`).join('')
       : 'No cards were drafted because no course terms matched.';
     document.querySelector('#reviewAudioCards').disabled = cards.length === 0;
-    syncLectureCards(cards);
+    const classCards = sourceCardsFromLibrary();
+    const classKeys = new Set(classCards.map(card => window.SyllabloomCardSet.contentKey(card)));
+    syncLectureCards([...classCards, ...cards.filter(card => !classKeys.has(window.SyllabloomCardSet.contentKey(card)))]);
     updateSourceGate(concepts);
   }
 
@@ -4257,12 +4259,14 @@
     document.querySelector('#sourceCoverageRows').innerHTML = rows.map((row,index) => `<label class="coverage-row"><input type="checkbox" data-coverage-index="${index}" ${row.readable ? '' : 'disabled'}><span><strong>${escapeHtml(row.label)}: ${escapeHtml(row.status)}</strong><small>${escapeHtml(row.title)}</small>${row.lowText || row.imageWarning ? '<small>Limited text or visual content: check the original.</small>' : ''}</span></label>`).join('');
     document.querySelector('#generateSelectedSections').hidden = !readable.length;
     document.querySelector('#sourceStudyOutputEyebrow').textContent = sourceItem.name;
-    document.querySelector('#sourceStudyOutputTitle').textContent = `${cards.length} ready card${cards.length === 1 ? '' : 's'} from this source`;
-    document.querySelector('#sourceStudyOutputSummary').textContent = 'Preview the questions, check their source passages, then try a short session. Edit anything that needs work.';
+    document.querySelector('#sourceStudyOutputTitle').textContent = sourceItem.studySheet ? 'Your illustrated study summary' : `${cards.length} ready card${cards.length === 1 ? '' : 's'} from this source`;
+    document.querySelector('#sourceStudyOutputSummary').textContent = sourceItem.studySheet ? `${cards.length} cloze drafts made from this summary. Check the cited facts, mask diagram labels, then review and export to Anki.` : 'Preview the questions, check their source passages, then try a short session. Edit anything that needs work.';
+    const sheetContainer = document.querySelector('#sourceIllustratedSheet');
+    if (sheetContainer) sheetContainer.innerHTML = sourceItem.studySheet ? sheetHtml(sourceItem.studySheet,sourceItem.id) : '';
     document.querySelector('#sourceStudyConcepts').innerHTML = concepts.length
       ? concepts.slice(0, 12).map(concept => `<span>${escapeHtml(concept.name || concept)}</span>`).join('')
       : '<p>No named concepts were found.</p>';
-    document.querySelector('#sourceStudyNotes').innerHTML = sourceItem.studySheet ? sheetHtml(sourceItem.studySheet, sourceItem.id) : notes.length
+    document.querySelector('#sourceStudyNotes').innerHTML = notes.length
       ? notes.slice(0, 8).map(note => `<article><span>${note.slideNumber ? `Slide ${note.slideNumber}` : note.pageNumber ? `Page ${note.pageNumber}` : 'Source note'}</span><strong>${escapeHtml(note.title)}</strong>${(note.lines || []).slice(0, 4).map(line => `<p>${escapeHtml(line)}</p>`).join('')}</article>`).join('')
       : '<p>No notes were created from this source.</p>';
   }

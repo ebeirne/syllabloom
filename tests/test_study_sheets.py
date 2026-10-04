@@ -52,6 +52,28 @@ def test_uncertain_paid_call_is_not_replayed(monkeypatch,tmp_path):
     assert 'not automatically retried' in read_job('user_one',job['id'])['error']
 
 
+def test_paid_steps_run_in_order_and_failed_image_preserves_text_without_cards(monkeypatch,tmp_path):
+    monkeypatch.setenv('SYLLABLOOM_UPLOAD_DIR',str(tmp_path))
+    monkeypatch.setattr('api.study_sheets.resume_sheet',lambda *a:None)
+    monkeypatch.setattr('api.ai_usage.reserve_ai_usage',lambda *a:None)
+    verified = sheet()
+    parsed = {'title':verified['title'],'overview':verified['overview'],'facts':verified['facts']}
+    calls=[]
+    def exchange(url,data,content_type):
+        body=json.loads(data);calls.append(body['model'])
+        if 'images' in url:raise RuntimeError('Image result lost')
+        return {'status':'completed','output':[{'type':'message','content':[{'type':'output_text','text':json.dumps(parsed)}]}]}
+    monkeypatch.setattr('api.lecture_cloud._exchange',exchange)
+    job=create_sheet('user_one','bone.pdf',PASSAGE,{'pageTexts':[PASSAGE]})
+    _run('user_one',job['id'])
+    from api.lecture_storage import read_job
+    saved=read_job('user_one',job['id'])
+    assert calls==['gpt-5.5','gpt-image-2.5-flare']
+    assert saved['sheet']['facts'] and saved['status']=='failed' and 'result' not in saved
+    _run('user_one',job['id'])
+    assert len(calls)==2
+
+
 def test_mixed_cloze_and_occlusion_package_embeds_media_and_reveals_only_target(tmp_path):
     from PIL import Image
     buf=io.BytesIO();Image.new('RGB',(40,40),'white').save(buf,format='PNG')
