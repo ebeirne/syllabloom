@@ -60,7 +60,7 @@
     list.addEventListener('input', event => {const m=masks.find(m=>m.id===event.target.dataset.maskLabel);if(m)m.label=event.target.value;save.disabled=!masks.length||masks.some(m=>!m.label.trim());});
     list.addEventListener('click', event => {const id=event.target.dataset.removeMask;if(id){masks=masks.filter(m=>m.id!==id);redraw();}});
     save.addEventListener('click', async () => {if(save.disabled)return;save.disabled=true;try{await onSave({title:dialog.querySelector('#occlusionTitle').value.trim()||filename,image:imageData,masks:structuredClone(masks),owner});dialog.close();}catch(error){status.textContent=error.message;save.disabled=false;}});
-    return {open(accountOwner, initialImage, title){if(owner!==accountOwner){masks=[];imageData='';stage.hidden=true;redraw();}owner=accountOwner;if(initialImage){imageData=initialImage;image.src=initialImage;filename=title||'Study illustration';masks=[];stage.hidden=false;dialog.querySelector('#occlusionTitle').value=filename;redraw();}dialog.showModal();}};
+    return {open(accountOwner, initialImage, title){masks=[];imageData='';stage.hidden=true;dialog.querySelector('#occlusionUpload').value='';dialog.querySelector('#occlusionTitle').value='';redraw();owner=accountOwner;if(initialImage){imageData=initialImage;image.src=initialImage;filename=title||'Study illustration';stage.hidden=false;dialog.querySelector('#occlusionTitle').value=filename;redraw();}dialog.showModal();}};
   }
   const api={clozeHtml,validCloze,validOcclusion,imageHtml,render,createEditor};
   root.SyllabloomAdvancedCards=api;
