@@ -81,6 +81,7 @@
         }
         const sourcedCard = {
           ...card,
+          ...(source.studySheet && card.noteType === 'Cloze' && card.sourceQuote ? {status:'ai-generated',section:card.section || card.concept || 'Summary fact'} : {}),
           ...(card.occlusion ? {occlusion: {...card.occlusion, image: source.occlusionImage}} : {}),
           sourceId: source.id,
           sourceName: source.name || '',

@@ -53,7 +53,8 @@ def cards_from_sheet(sheet, filename):
                        'front': fact['sentence'], 'back': fact['answer'], 'noteType': 'Cloze',
                        'clozeText': cloze, 'concept': fact['title'], 'source': filename,
                        'sourceLocation': fact['locator'], 'sourceQuote': fact['quote'],
-                       'status': 'provisional', 'generatedBy': TEXT_MODEL})
+                       'section': fact['title'], 'field': 'cloze',
+                       'status': 'ai-generated', 'generatedBy': TEXT_MODEL})
     return result
 
 

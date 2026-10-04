@@ -3030,7 +3030,7 @@
     const key = directCard ? directCard.id : keyFor(item.record, item.field);
     const edit = directCard ? {} : (state.edits[key] || {});
     document.querySelector('#studyPosition').textContent = `Card ${state.studyIndex + 1} of ${cards.length}`;
-    document.querySelector('#studySection').textContent = labelCase(directCard?.section || item.record.section);
+    document.querySelector('#studySection').textContent = labelCase(directCard?.section || directCard?.concept || item.record?.section || 'Diagram recall');
     document.querySelector('#studyProgress').style.width = `${((state.studyIndex + 1) / cards.length) * 100}%`;
     if (directCard) document.querySelector('#studyQuestion').innerHTML = window.SyllabloomAdvancedCards.render(directCard);
     else document.querySelector('#studyQuestion').textContent = edit.front || questionFor(item.record, item.field);
