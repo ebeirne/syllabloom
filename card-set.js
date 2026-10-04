@@ -16,6 +16,7 @@
   }
 
   function contentKey(card) {
+    if (card.noteType === 'ImageOcclusion') return `image-occlusion::${card.id}`;
     const front = normalizedContent(card.front);
     const back = normalizedContent(card.back);
     return front && back ? `${front}::${back}` : '';
@@ -80,6 +81,7 @@
         }
         const sourcedCard = {
           ...card,
+          ...(card.occlusion ? {occlusion: {...card.occlusion, image: source.occlusionImage}} : {}),
           sourceId: source.id,
           sourceName: source.name || '',
           sourceDeletionKey: sourceRef.key,

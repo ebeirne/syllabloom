@@ -16,7 +16,7 @@ class handler(JsonHandler):
             cards = payload.get("cards") or []
             if not isinstance(cards, list) or not cards:
                 raise ValueError("Approve at least one card before exporting.")
-            package, filename = build_anki_package(cards, payload.get("preferences") or {})
+            package, filename = build_anki_package(cards, payload.get("preferences") or {}, payload.get("images") or {})
         except ValueError as exc:
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
             return

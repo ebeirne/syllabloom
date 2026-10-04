@@ -1633,6 +1633,8 @@
   }
 
   function isUsableLectureCard(card) {
+    if (card.noteType === 'ImageOcclusion') return window.SyllabloomAdvancedCards.validOcclusion(card) && Boolean(String(card.back || '').trim());
+    if (card.noteType === 'Cloze') return window.SyllabloomAdvancedCards.validCloze(card.clozeText);
     const validate = window.SyllabloomSourceStudy?.isUsableCard;
     return typeof validate === 'function' && validate(card);
   }
@@ -2949,7 +2951,10 @@
     state.lectureCards.forEach(card => {
       if (card.reviewStatus !== 'approved' || !isUsableLectureCard(card)) return;
       approved.push({
-        front: card.front,
+        noteType: card.noteType || 'Basic',
+        clozeText: card.clozeText,
+        occlusion: card.occlusion,
+        front: card.noteType === 'Cloze' ? card.clozeText : card.front,
         back: card.back,
         tags: `${state.anki.tags} ${card.slideNumber ? 'slides-draft' : 'lecture-draft'} ${String(card.section || 'lecture').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
         source: card.source || (card.status === 'provisional' ? 'Lecture transcript · student checked' : 'Lecture + class source')
@@ -2973,7 +2978,7 @@
       const response = await fetch('/api/export-anki', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(exportToken ? { Authorization: `Bearer ${exportToken}` } : {}) },
-        body: JSON.stringify({ cards: approved, preferences: state.anki })
+        body: JSON.stringify(prepareAdvancedExport(approved))
       });
       if (!response.ok) {
         const problem = await response.json();
@@ -3027,11 +3032,13 @@
     document.querySelector('#studyPosition').textContent = `Card ${state.studyIndex + 1} of ${cards.length}`;
     document.querySelector('#studySection').textContent = labelCase(directCard?.section || item.record.section);
     document.querySelector('#studyProgress').style.width = `${((state.studyIndex + 1) / cards.length) * 100}%`;
-    document.querySelector('#studyQuestion').textContent = directCard?.front || edit.front || questionFor(item.record, item.field);
+    if (directCard) document.querySelector('#studyQuestion').innerHTML = window.SyllabloomAdvancedCards.render(directCard);
+    else document.querySelector('#studyQuestion').textContent = edit.front || questionFor(item.record, item.field);
     document.querySelector('#studyMuscle').textContent = directCard
       ? (fieldLabels[directCard.field] || 'Source card')
       : fieldLabels[item.field];
-    document.querySelector('#studyAnswer').textContent = directCard?.back || edit.back || answerFor(item.record, item.field);
+    if (directCard) document.querySelector('#studyAnswer').innerHTML = window.SyllabloomAdvancedCards.render(directCard, true);
+    else document.querySelector('#studyAnswer').textContent = edit.back || answerFor(item.record, item.field);
     document.querySelector('#studyAnswer').classList.remove('open');
     const sourceEvidence = document.querySelector('#studySourceEvidence');
     const sourceLocation = sourceCardLocation(directCard);
@@ -3463,6 +3470,8 @@
       key: card.sourceKey || lectureCardKey(card),
       front: card.front,
       back: card.back,
+      noteType: card.noteType,
+      clozeText: card.clozeText,
       reviewStatus: card.reviewStatus
     }]));
     const tombstones = new Map(savedLectureReview()
@@ -3505,6 +3514,8 @@
         sourceKey: lectureCardKey(card),
         front: existing?.front || card.front,
         back: existing?.back || card.back,
+        noteType: existing?.noteType || card.noteType || 'Basic',
+        clozeText: existing?.clozeText ?? card.clozeText,
         reviewStatus: existing?.reviewStatus === 'skipped'
           ? 'skipped'
           : existing?.reviewStatus === 'approved' || card.status !== 'provisional'
@@ -3594,7 +3605,7 @@
       <article class="lecture-draft-card ${escapeHtml(card.reviewStatus)}${needsEdit ? ' needs-edit' : ''}" data-lecture-card="${escapeHtml(card.id)}" data-concept="${escapeHtml(card.section || card.concept || '')}">
         <div class="lecture-draft-index"><b>${String(++index).padStart(2, '0')}</b><span class="lecture-draft-evidence">${escapeHtml(evidenceLabel)}</span></div>
         <div class="lecture-draft-body">
-          <label>Front<textarea data-lecture-field="front">${escapeHtml(card.front)}</textarea></label>
+          ${card.noteType === 'ImageOcclusion' ? window.SyllabloomAdvancedCards.imageHtml(card) : `<label>Card type<select data-lecture-format><option value="Basic" ${card.noteType !== 'Cloze' ? 'selected' : ''}>Question and answer</option><option value="Cloze" ${card.noteType === 'Cloze' ? 'selected' : ''}>Cloze deletion</option></select></label><label>${card.noteType === 'Cloze' ? 'Cloze sentence · use {{c1::term}}' : 'Front'}<textarea data-lecture-field="${card.noteType === 'Cloze' ? 'clozeText' : 'front'}">${escapeHtml(card.noteType === 'Cloze' ? card.clozeText || '' : card.front)}</textarea></label>`}
           <label>Back<textarea data-lecture-field="back">${escapeHtml(card.back)}</textarea></label>
           ${needsEdit ? '<p class="lecture-card-quality-note">This card is not a focused study prompt; it may contain directions or another question. It stays in your library. Edit both sides into one focused question and a source-backed answer before studying or exporting it.</p>' : ''}
           ${sourceEvidence}
@@ -3718,6 +3729,7 @@
     const summaryBox = document.querySelector('#lectureSummary');
     summaryBox.hidden = !result.summary;
     summaryBox.innerHTML = result.summary ? `<h3>Lecture summary</h3>${String(result.summary).split('\n\n').map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join('')}<button type="button" data-download-lecture-notes>Download study notes</button>` : '';
+    if (result.studySheet) summaryBox.insertAdjacentHTML('beforeend',sheetHtml(result.studySheet,result.studySheetSourceId || ''));
     summaryBox.querySelector('[data-download-lecture-notes]')?.addEventListener('click', () => {
       const text = `# ${result.title || 'Lecture study notes'}\n\n${result.summary}\n\n` + notes.map(note => `## ${note.title} (${clock(note.heardAt)})\n\n${(note.lines || []).map(line => `- ${line}`).join('\n')}\n\nTranscript excerpt: ${note.source || ''}`).join('\n\n');
       const url = URL.createObjectURL(new Blob([text], {type: 'text/markdown;charset=utf-8'}));
@@ -3786,12 +3798,12 @@
       notes: result.notes || [],
       cards: result.cards || []
     });
-    if (result.summary && result.notes?.length) {
+    if (result.summary && result.notes?.length && !result.studySheet) {
       const gate = document.querySelector('#sourceGate');
       gate.className = 'source-gate review';
       gate.innerHTML = `<strong>Study notes ready</strong><span>${result.notes.length} notes linked to spoken explanations. Check the transcript excerpts and jump back to the recording before relying on them.</span>`;
       document.querySelector('#lectureSubtitle').textContent = 'Lecture summary and study notes · review against your course material';
-      document.querySelector('#audioCardDrafts').textContent = 'To create source-linked cards, add the matching slides or written notes in Materials.';
+      document.querySelector('#audioCardDrafts').innerHTML = '<button type="button" class="button primary" data-lecture-sheet>Create illustrated summary and cloze cards</button><p>Uses the saved transcript without transcribing again.</p>';
     }
   }
 
@@ -3840,6 +3852,45 @@
     }
   }
 
+  async function generateIllustratedSheet(text, filename, units, progress = () => {}, assertOwner) {
+    const owner = state.account.userId;
+    const check = () => { if (!state.account.signedIn || state.account.userId !== owner) throw Error('Your account changed. Reopen the import in the original account.'); assertOwner?.(); };
+    check();
+    let payload = await checkedLectureResponse(await lectureFetch('/api/study-sheets', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,filename,units})}), 'The illustrated summary could not start.');
+    check();
+    const id = payload.job?.id;
+    if (!id) throw Error('The summary job did not return an identifier.');
+    const deadline = Date.now() + 15 * 60 * 1000;
+    while (payload.job.status !== 'ready') {
+      check();
+      progress(payload.job.stage || 'Preparing illustrated summary…');
+      if (payload.job.status === 'failed') throw Error(payload.job.error || 'Study sheet generation failed.');
+      if (Date.now() > deadline) throw Error('The study sheet is still processing. Resume this import to recover its saved result.');
+      await waitForLecturePoll(4000);
+      check();
+      payload = await checkedLectureResponse(await lectureFetch('/api/study-sheets/' + id), 'The summary status could not be recovered. Resume the import.');
+    }
+    check();
+    return payload.job.result;
+  }
+
+  function prepareAdvancedExport(cards) {
+    const images = {}, references = new Map();
+    const prepared = cards.map(card => {
+      if (card.noteType !== 'ImageOcclusion') return card;
+      const image = card.occlusion.image;
+      let reference = references.get(image);
+      if (!reference) { reference = 'diagram-' + references.size; references.set(image,reference); images[reference] = image; }
+      const {image: omitted, ...occlusion} = card.occlusion;
+      return {...card, occlusion:{...occlusion,imageRef:reference}};
+    });
+    return {cards:prepared,preferences:state.anki,images};
+  }
+
+  function sheetHtml(sheet, sourceId) {
+    return `<article class="study-sheet"><small>ILLUSTRATED SUMMARY → CLOZE CARDS → ANKI</small><h3>${escapeHtml(sheet.title)}</h3><p>${escapeHtml(sheet.overview)}</p><figure><img src="${escapeHtml(sheet.image)}" alt="AI-generated study illustration"><figcaption>${escapeHtml(sheet.imageCaption)}</figcaption></figure><button type="button" class="button" data-sheet-occlusion="${escapeHtml(sourceId)}">Make image occlusion cards from this illustration</button>${sheet.facts.map(fact=>`<details><summary>${escapeHtml(fact.title)}</summary><p>${escapeHtml(fact.sentence)}</p><small>${escapeHtml(fact.locator)}</small><blockquote>${escapeHtml(fact.quote)}</blockquote></details>`).join('')}<p>${escapeHtml(sheet.coverage)}</p></article>`;
+  }
+
   async function processHostedLecture(blob, filename, markers, title, mediaId = '') {
     document.querySelector('#captureState').textContent = 'Preparing secure upload';
     const ticketResponse = await lectureFetch('/api/lecture-upload-url', {
@@ -3873,6 +3924,18 @@
     rememberLectureJob({ id: jobId, title, mediaId });
     const result = await pollLectureJob(jobId, title);
     await saveLectureStudyPackage(mediaId, result);
+    try {
+      const illustrated = await generateIllustratedSheet(result.transcript, filename + '.txt', {}, message => document.querySelector('#captureState').textContent = message);
+      Object.assign(result, illustrated);
+      const sourceId = 'lecture-sheet-' + illustrated.cards[0].id;
+      if (!state.sources.some(source=>source.id===sourceId)) {
+        const source = {id:sourceId,name:illustrated.studySheet.title,kind:'material',studySheet:illustrated.studySheet,draftCards:illustrated.cards,concepts:illustrated.concepts};
+        if(new Blob([JSON.stringify([...state.sources,source])]).size > 3500000) throw Error('Class storage is full. Remove an unused source to save this summary.');
+        state.sources.push(source);persistClassSources();await loadStoredSources();
+      }
+      result.studySheetSourceId = sourceId;
+      await saveLectureStudyPackage(mediaId, result);
+    } catch(error) {result.studySheetError=error.message;showToast('Your transcript is saved. '+error.message);}
     return result;
   }
 
@@ -4187,7 +4250,7 @@
     const startButton = document.querySelector('#startSourceStudy');
     startButton.disabled = !cards.length;
     startButton.textContent = `Study ${Math.min(5, cards.length)} cards`;
-    document.querySelector('#sourceCardPreviews').innerHTML = cards.slice(0,3).map((card,index) => `<article class="source-card-preview"><small>CARD ${index+1}</small><h3>${escapeHtml(card.front)}</h3><details><summary>Show answer</summary><p>${escapeHtml(card.back)}</p><small>${escapeHtml(card.sourceLocation || 'Source passage')}</small>${card.sourceQuote ? `<blockquote>${escapeHtml(card.sourceQuote)}</blockquote>` : '<p>Check this answer in your original source.</p>'}</details></article>`).join('');
+    document.querySelector('#sourceCardPreviews').innerHTML = cards.slice(0,3).map((card,index) => `<article class="source-card-preview"><small>${escapeHtml(card.noteType || 'Basic')} · CARD ${index+1}</small><h3>${window.SyllabloomAdvancedCards.render(card)}</h3><details><summary>Show answer</summary><div>${window.SyllabloomAdvancedCards.render(card,true)}</div><small>${escapeHtml(card.sourceLocation || 'Source passage')}</small>${card.sourceQuote ? `<blockquote>${escapeHtml(card.sourceQuote)}</blockquote>` : '<p>Check this answer in your original source.</p>'}</details></article>`).join('');
     const rows = window.SyllabloomSourceExperience.coverage(sourceItem,cards);
     const readable = rows.filter(row=>row.readable);
     document.querySelector('#sourceCoverageSummary').textContent = rows.length ? `${readable.filter(row=>row.count).length} of ${readable.length} readable sections have cited cards. ${rows.length-readable.length} section${rows.length-readable.length === 1 ? ' has' : 's have'} no readable text.` : 'Re-upload this source once to enable section coverage. Existing cards will be kept.';
@@ -4199,7 +4262,7 @@
     document.querySelector('#sourceStudyConcepts').innerHTML = concepts.length
       ? concepts.slice(0, 12).map(concept => `<span>${escapeHtml(concept.name || concept)}</span>`).join('')
       : '<p>No named concepts were found.</p>';
-    document.querySelector('#sourceStudyNotes').innerHTML = notes.length
+    document.querySelector('#sourceStudyNotes').innerHTML = sourceItem.studySheet ? sheetHtml(sourceItem.studySheet, sourceItem.id) : notes.length
       ? notes.slice(0, 8).map(note => `<article><span>${note.slideNumber ? `Slide ${note.slideNumber}` : note.pageNumber ? `Page ${note.pageNumber}` : 'Source note'}</span><strong>${escapeHtml(note.title)}</strong>${(note.lines || []).slice(0, 4).map(line => `<p>${escapeHtml(line)}</p>`).join('')}</article>`).join('')
       : '<p>No notes were created from this source.</p>';
   }
@@ -4765,6 +4828,14 @@
           queueItem.preflightLabel = `${preflight.unitCount} ${preflight.unitLabel} · ${preflight.inputCharacters.toLocaleString()} readable characters · ${batchCount} card batch${batchCount === 1 ? '' : 'es'}${imageGap}`;
           options.onProgress?.(queueItem.preflightLabel);
         }
+        if (state.cloudBeta) {
+        const result = await generateIllustratedSheet(text, file.name, units, reportProgress, options.assertOwner);
+        payload.source.studySheet = result.studySheet;
+        payload.source.draftCards = result.cards;
+        payload.source.concepts = result.concepts;
+        payload.source.notes = result.studySheet.facts.map(fact => ({title:fact.title,lines:[fact.sentence]}));
+        payload.source.generation = {...result.generation, generatedAt:new Date().toISOString(), qualityGate:'summary facts linked to exact course excerpts'};
+        } else {
         const identity = window.SyllabloomSourceBatch.generationKey(payload.source, file.name, questionStyle);
         const cache = queueItem?.generationCache;
         const batchCache = cache?.identity === identity
@@ -4848,6 +4919,7 @@
           cardsAccepted: payload.source.draftCards.length,
           qualityGate: 'exact source quote, source-location, and answer-term overlap checked'
         };
+        }
       }
 
       options.assertOwner?.();
@@ -5975,6 +6047,46 @@
         document.querySelector(`[data-lecture-card="${CSS.escape(item.directCard.id)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       });
     }
+  });
+
+  const diagramEditor = window.SyllabloomAdvancedCards.createEditor(async ({title,image,masks,owner}) => {
+    if (!state.account.signedIn || state.account.userId !== owner) throw Error('Sign in to the account that opened this diagram.');
+    const sourceId = 'diagram-' + crypto.randomUUID();
+    const source = {id:sourceId,name:title,kind:'material',format:'IMAGE',storage:'session',occlusionImage:image,
+      draftCards:masks.map((mask,index)=>({id:sourceId+'-'+index,front:'Identify the region covered in pink.',back:mask.label.trim(),noteType:'ImageOcclusion',source:title,sourceLocation:'Region '+(index+1),generatedBy:'student-mask',status:'provisional',occlusion:{target:mask.id,masks:masks.map(({label,...region})=>region)}}))};
+    if (new Blob([JSON.stringify([...state.sources,source])]).size > 3500000) throw Error('Your class storage is nearly full. Remove an unused source before saving another diagram.');
+    state.sources.push(source); persistClassSources(); await loadStoredSources(); navigate('cards'); showToast('Diagram cards created. Check each region and add it to your ready set.');
+  });
+  document.addEventListener('click', async event => {
+    const button = event.target.closest('[data-open-occlusion],[data-sheet-occlusion],[data-lecture-sheet]');
+    if (!button) return;
+    if (!state.account.signedIn) { showToast('Sign in before creating study tools.'); return; }
+    if (button.hasAttribute('data-open-occlusion')) {diagramEditor.open(state.account.userId);return;}
+    if (button.hasAttribute('data-sheet-occlusion')) {
+      const source = state.sources.find(item=>item.id===button.dataset.sheetOcclusion);
+      if(source?.studySheet) diagramEditor.open(state.account.userId,source.studySheet.image,source.studySheet.title);
+      return;
+    }
+    const owner = state.account.userId, className = state.className;
+    button.disabled = true;
+    try {
+      const result = await generateIllustratedSheet(lastTranscript, document.querySelector('#lectureTitle').textContent + '.txt', {}, message=>button.textContent=message);
+      if (state.account.userId !== owner || state.className !== className) throw Error('The class or account changed. Reopen the lecture in its original class.');
+      const id = 'lecture-sheet-' + result.cards[0].id;
+      const source = {id,name:result.studySheet.title,kind:'material',studySheet:result.studySheet,draftCards:result.cards,concepts:result.concepts,notes:result.studySheet.facts.map(f=>({title:f.title,lines:[f.sentence]}))};
+      if(new Blob([JSON.stringify([...state.sources,source])]).size > 3500000) throw Error('Class storage is full. Remove an unused source, then reopen this summary.');
+      state.sources=state.sources.filter(item=>item.id!==id);state.sources.push(source);persistClassSources();await loadStoredSources();renderSourceStudyOutput(source);navigate('source');
+      showToast('Illustrated summary and cloze cards ready. Check the source passages before studying.');
+    } catch(error) {showToast(error.message);}
+    finally {button.disabled=false;button.textContent='Create illustrated summary and cloze cards';}
+  });
+  document.querySelector('#lectureDraftQueue').addEventListener('change',event=>{
+    if(!event.target.matches('[data-lecture-format]'))return;
+    const card=state.lectureCards.find(item=>item.id===event.target.closest('[data-lecture-card]')?.dataset.lectureCard);
+    if(!card)return;
+    card.noteType=event.target.value;
+    if(card.noteType==='Cloze'&&!card.clozeText)card.clozeText=card.sourceQuote||card.front;
+    card.reviewStatus='draft';saveLectureReview();renderLectureDraftQueue();
   });
 
   setClassLabels(state.className, state.classTerm);

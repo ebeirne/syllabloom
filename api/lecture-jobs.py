@@ -53,7 +53,7 @@ class handler(JsonHandler):
             return
         job_id = _job_id(self.path)
         job = read_job(user_id, job_id) if job_id else None
-        if not job:
+        if not job or job.get('jobType') == 'study-sheet':
             self.send_json({"error": "This lecture job was not found."}, HTTPStatus.NOT_FOUND)
             return
         resume_job(user_id, job_id)

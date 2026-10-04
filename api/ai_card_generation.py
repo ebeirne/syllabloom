@@ -14,7 +14,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
-DEFAULT_MODEL = "gpt-5.4-nano"
+DEFAULT_MODEL = "gpt-5.5"
 MAX_SOURCE_TEXT_CHARS = 192_000
 MAX_CHUNK_CHARS = 12_000
 MAX_CHUNKS = 16
@@ -134,7 +134,7 @@ class NoStudyCardsError(CardGenerationError):
 
 def configured_model() -> str:
     candidate = (os.environ.get("OPENAI_CARDS_MODEL") or DEFAULT_MODEL).strip()
-    if candidate != DEFAULT_MODEL:
+    if candidate not in {DEFAULT_MODEL, "gpt-5.4-nano"}:
         raise AIConfigurationError("Invalid model configuration.")
     return candidate
 
@@ -362,7 +362,7 @@ def estimate_max_cost_microdollars(
     text: str, filename: str, kind: str, units: dict | None, batch_index: int | None = None,
     question_style: str = "balanced",
 ) -> int:
-    """Reserve a conservative upper bound for this request at current nano rates."""
+    """Reserve a conservative upper bound using the selected model's rates."""
     model = configured_model()
     chunks = _selected_chunks(_source_chunks(text or "", filename, units), batch_index)
     if not chunks:
@@ -374,7 +374,8 @@ def estimate_max_cost_microdollars(
     max_output_tokens = MAX_OUTPUT_TOKENS_PER_CHUNK * len(chunks)
     # Current GPT-5.4 nano standard rates: $0.20/M input and $1.25/M output.
     # Values are stored in microdollars; ceil so rounding never under-reserves.
-    return math.ceil(estimated_input_tokens * 0.20 + max_output_tokens * 1.25)
+    input_rate, output_rate = (5, 30) if model == "gpt-5.5" else (0.20, 1.25)
+    return math.ceil(estimated_input_tokens * input_rate + max_output_tokens * output_rate)
 
 
 def _request_chunk(
@@ -581,6 +582,8 @@ def generate_ai_cards(
             cards.append(card)
 
     cards = _preserve_explicit_slide_facts(cards, chunks, filename, kind)
+    from api.card_formats import add_cloze
+    cards = [add_cloze(card) for card in cards]
     concepts = []
     concept_keys = set()
     for card in cards:

@@ -2519,7 +2519,7 @@ def _attach_anki_deck_config(package_path: Path, deck_id: int, config: dict) -> 
         repacked_path.unlink(missing_ok=True)
 
 
-def build_anki_package(cards: list[dict], preferences: dict) -> tuple[bytes, str]:
+def build_anki_package(cards: list[dict], preferences: dict, images: dict | None = None) -> tuple[bytes, str]:
     import genanki
 
     parent_deck = str(preferences.get("deck") or "Syllabloom").strip()[:120] or "Syllabloom"
@@ -2601,33 +2601,35 @@ def build_anki_package(cards: list[dict], preferences: dict) -> tuple[bytes, str
   border-color: #465049;
 }
 """
-    if card_format == "Cloze":
-        model = genanki.Model(
-            model_id,
-            "Syllabloom Cloze",
-            fields=[{"name": "Text"}, {"name": "Back Extra"}, {"name": "Source"}],
-            templates=[{
-                "name": "Cloze",
-                "qfmt": "<main class='card-shell'><div class='prompt'>{{cloze:Text}}</div></main>",
-                "afmt": "<main class='card-shell'><div class='answer'>{{cloze:Text}}</div>{{#Back Extra}}<hr id='answer'><div class='answer'>{{Back Extra}}</div>{{/Back Extra}}<div class='source'>{{Source}}</div></main>",
-            }],
-            css=css,
-            model_type=genanki.Model.CLOZE,
-        )
-    else:
-        model = genanki.Model(
-            model_id,
-            "Syllabloom Basic",
-            fields=[{"name": "Front"}, {"name": "Back"}, {"name": "Source"}],
-            templates=[{
-                "name": "Card 1",
-                "qfmt": "<main class='card-shell'><div class='prompt'>{{Front}}</div></main>",
-                "afmt": "<main class='card-shell'><div class='prompt'>{{Front}}</div><hr id='answer'><div class='answer'>{{Back}}</div><div class='source'>{{Source}}</div></main>",
-            }],
-            css=css,
-        )
+    cloze_model = genanki.Model(
+        model_id + 1,
+        "Syllabloom Cloze",
+        fields=[{"name": "Text"}, {"name": "Back Extra"}, {"name": "Source"}],
+        templates=[{
+            "name": "Cloze",
+            "qfmt": "<main class='card-shell'><div class='prompt'>{{cloze:Text}}</div></main>",
+            "afmt": "<main class='card-shell'><div class='answer'>{{cloze:Text}}</div>{{#Back Extra}}<hr id='answer'><div class='answer'>{{Back Extra}}</div>{{/Back Extra}}<div class='source'>{{Source}}</div></main>",
+        }],
+        css=css,
+        model_type=genanki.Model.CLOZE,
+    )
+    basic_model = genanki.Model(
+        model_id,
+        "Syllabloom Basic",
+        fields=[{"name": "Front"}, {"name": "Back"}, {"name": "Source"}],
+        templates=[{
+            "name": "Card 1",
+            "qfmt": "<main class='card-shell'><div class='prompt'>{{Front}}</div></main>",
+            "afmt": "<main class='card-shell'><div class='prompt'>{{Front}}</div><hr id='answer'><div class='answer'>{{Back}}</div><div class='source'>{{Source}}</div></main>",
+        }],
+        css=css,
+    )
     preset_name = str(preferences.get("presetName") or "Syllabloom").strip()[:120] or "Syllabloom"
     deck = genanki.Deck(deck_id, deck_name, description=f"Created by Syllabloom with the {preset_name} deck preset.")
+    from api.card_formats import image_bytes, occlusion_html
+    if not isinstance(images or {}, dict) or len(images or {}) > 24:
+        raise ValueError('Too many diagram images in this export.')
+    media = {ref: image_bytes(url) for ref, url in (images or {}).items()}
     for card in cards[:5000]:
         front = html.escape(str(card.get("front") or "").strip()).replace("\n", "<br>")
         back = html.escape(str(card.get("back") or "").strip()).replace("\n", "<br>")
@@ -2637,18 +2639,37 @@ def build_anki_package(cards: list[dict], preferences: dict) -> tuple[bytes, str
         raw_tags = card.get("tags") or "syllabloom"
         tag_values = raw_tags if isinstance(raw_tags, (list, tuple, set)) else str(raw_tags).split()
         tags = [_safe_anki_tag(tag) for tag in tag_values if str(tag).strip()] or ["syllabloom"]
-        if card_format == "Cloze":
-            text = front if "{{c" in front else f"{front}<br>{{{{c1::{back}}}}}"
-            note = genanki.Note(model=model, fields=[text, "", source], tags=tags)
+        note_type = card.get('noteType') or card_format
+        if note_type == 'ImageOcclusion':
+            occlusion = card.get('occlusion') or {}
+            asset = media.get(occlusion.get('imageRef'))
+            if not asset:
+                raise ValueError('A diagram image is missing from this export.')
+            front = occlusion_html(occlusion, asset[1])
+            back = occlusion_html(occlusion, asset[1], reveal=True) + '<p>' + back + '</p>'
+            note = genanki.Note(model=basic_model, fields=[front, back, source], tags=tags)
+        elif note_type == 'Cloze':
+            text = html.escape(str(card.get('clozeText') or card.get('front') or '')).replace('\n', '<br>')
+            if card.get('noteType') and not re.search(r'\{\{c1::[^{}]+\}\}', text):
+                raise ValueError('A cloze card needs a sentence with {{c1::term}}.')
+            if '{{c' not in text:
+                text = f'{front}<br>{{{{c1::{back}}}}}'
+            note = genanki.Note(model=cloze_model, fields=[text, back, source], tags=tags)
         else:
-            note = genanki.Note(model=model, fields=[front, back, source], tags=tags)
+            note = genanki.Note(model=basic_model, fields=[front, back, source], tags=tags)
         deck.add_note(note)
     if not deck.notes:
         raise ValueError("No complete cards were provided.")
     with tempfile.NamedTemporaryFile(prefix="syllabloom-anki-", suffix=".apkg", delete=False) as output:
         output_path = Path(output.name)
     try:
-        genanki.Package(deck).write_to_file(str(output_path))
+        with tempfile.TemporaryDirectory(prefix='syllabloom-images-') as image_directory:
+            paths = []
+            for raw, name in media.values():
+                image_path = Path(image_directory) / name
+                image_path.write_bytes(raw)
+                paths.append(str(image_path))
+            genanki.Package(deck, media_files=list(set(paths))).write_to_file(str(output_path))
         config_id = 2_000_000_000 + seed % 999_999_999
         _attach_anki_deck_config(output_path, deck_id, _anki_deck_config(preferences, config_id))
         return output_path.read_bytes(), f"{safe_slug(deck_name, 'syllabloom')}.apkg"

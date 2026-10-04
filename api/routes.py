@@ -7,6 +7,7 @@ from __future__ import annotations
 import importlib
 
 ROUTES = {
+    "study-sheets": "api.study-sheets",
     "ai-usage-cleanup": "api.ai-usage-cleanup",
     "auth-config": "api.auth-config",
     "export-anki": "api.export-anki",
@@ -29,7 +30,7 @@ ROUTES = {
 }
 ALIASES = {"sessions/latest": "session-latest"}
 # Routes whose URL carries a trailing id, e.g. /api/source-upload/<uuid>.pdf
-PREFIX_ROUTES = {"source-upload", "lecture-upload", "lecture-jobs"}
+PREFIX_ROUTES = {"source-upload", "lecture-upload", "lecture-jobs", "study-sheets"}
 
 
 def resolve(path: str):

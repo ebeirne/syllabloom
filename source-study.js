@@ -83,6 +83,8 @@
   }
 
   function isUsableCard(card) {
+    if (card?.noteType === 'Cloze') return /\{\{c1::[^{}]+\}\}/.test(card.clozeText || '') && Boolean(card.back);
+    if (card?.noteType === 'ImageOcclusion') return Boolean(card.occlusion?.target && card.back);
     const rawFront = String(card?.front || '');
     const rawBack = String(card?.back || '');
     const hasLink = URL_RE.test(`${rawFront} ${rawBack}`);

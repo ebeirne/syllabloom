@@ -258,7 +258,7 @@ class AICardGenerationTests(unittest.TestCase):
         body = json.loads(request.data)
         self.assertEqual(request.full_url, "https://api.openai.com/v1/responses")
         self.assertEqual(request.get_header("Authorization"), "Bearer test-key-not-real")
-        self.assertEqual(body["model"], "gpt-5.4-nano")
+        self.assertEqual(body["model"], "gpt-5.5")
         self.assertEqual(body["reasoning"], {"effort": "low"})
         self.assertIs(body["store"], False)
         self.assertEqual(body["text"]["format"]["type"], "json_schema")
@@ -586,8 +586,8 @@ class AICardGenerationTests(unittest.TestCase):
 
     def test_cost_reservation_covers_maximum_output_and_is_within_beta_budget(self) -> None:
         estimate = estimate_max_cost_microdollars(SOURCE, "notes.txt", "material", {"pageTexts": [SOURCE]})
-        self.assertGreaterEqual(estimate, 1_400 * 1.25)
-        self.assertLess(estimate, 100_000)
+        self.assertGreaterEqual(estimate, MAX_OUTPUT_TOKENS_PER_CHUNK * 30)
+        self.assertLess(estimate, 200_000)
 
     def test_ai_source_wrapper_fails_closed_on_daily_quota(self) -> None:
         with patch("api.ai_source_cards.is_configured", return_value=True), \
@@ -604,7 +604,7 @@ class AICardGenerationTests(unittest.TestCase):
             generate_source_cards(SOURCE, "notes.txt", "material", {"pageTexts": [SOURCE]}, "user_test")
         reserved_cost = reserve.call_args.args[2]
         self.assertGreater(reserved_cost, 0)
-        self.assertLess(reserved_cost, 100_000)
+        self.assertLess(reserved_cost, 200_000)
         provider.assert_called_once()
 
     def test_ai_source_wrapper_rejects_a_generation_with_no_verified_cards(self) -> None:

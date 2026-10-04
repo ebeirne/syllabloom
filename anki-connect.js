@@ -46,25 +46,35 @@
       if (!readyCards.length) return { added: 0, duplicates: 0, synced: false };
       await connect();
       const safeDeckName = String(deckName || 'Syllabloom').trim().slice(0, 120) || 'Syllabloom';
-      const isCloze = format === 'Cloze';
-      const modelName = isCloze ? 'Cloze' : 'Basic';
       await invoke('createDeck', { deck: safeDeckName });
-      const fieldNames = await invoke('modelFieldNames', { modelName });
-      const fieldMap = new Map((Array.isArray(fieldNames) ? fieldNames : []).map(name => [String(name).toLowerCase(), name]));
-      const frontField = fieldMap.get(isCloze ? 'text' : 'front');
-      const backField = fieldMap.get(isCloze ? 'back extra' : 'back');
-      if (!frontField || !backField) throw new Error(`Anki's ${modelName} note type is missing its expected fields.`);
+      const maps = new Map(), media = new Map(), notes = [];
       const baseTags = tagList(tags);
-      const notes = readyCards.map(card => ({
-        deckName: safeDeckName,
-        modelName,
-        fields: {
-          [frontField]: escapeField(card.front),
-          [backField]: escapeField(`${card.back}${card.source ? `\n\nSource: ${card.source}` : ''}`)
-        },
-        options: { allowDuplicate: false },
-        tags: tagList(`${baseTags.join(' ')} ${card.tags || ''}`)
-      }));
+      for (const card of readyCards) {
+        const type = card.noteType || format;
+        const isCloze = type === 'Cloze', modelName = isCloze ? 'Cloze' : 'Basic';
+        if (!maps.has(modelName)) {
+          const fieldNames = await invoke('modelFieldNames', {modelName});
+          maps.set(modelName,new Map((Array.isArray(fieldNames)?fieldNames:[]).map(name=>[String(name).toLowerCase(),name])));
+        }
+        const fieldMap = maps.get(modelName), frontField=fieldMap.get(isCloze?'text':'front'), backField=fieldMap.get(isCloze?'back extra':'back');
+        if(!frontField||!backField)throw Error(`Anki's ${modelName} note type is missing its expected fields.`);
+        let front=escapeField(card.clozeText||card.front), back=escapeField(`${card.back}${card.source?`\n\nSource: ${card.source}`:''}`);
+        if(type==='ImageOcclusion') {
+          const advanced=root.SyllabloomAdvancedCards;
+          if(!advanced?.validOcclusion(card))throw Error('This diagram needs an edit before syncing.');
+          const image=card.occlusion.image;
+          if(!media.has(image)) {
+            const digest=await root.crypto.subtle.digest('SHA-256',new TextEncoder().encode(image));
+            const hash=Array.from(new Uint8Array(digest),v=>v.toString(16).padStart(2,'0')).join('').slice(0,24);
+            const extension=image.match(/^data:image\/(png|jpeg|webp);/)[1],filename=`syllabloom-${hash}.${extension}`;
+            await invoke('storeMediaFile',{filename,data:image.split(',')[1]});media.set(image,filename);
+          }
+          const filename=media.get(image);
+          front=advanced.imageHtml(card).replace(escapeField(image),filename);
+          back=advanced.imageHtml(card,true).replace(escapeField(image),filename)+'<p>'+back+'</p>';
+        }
+        notes.push({deckName:safeDeckName,modelName,fields:{[frontField]:front,[backField]:back},options:{allowDuplicate:false},tags:tagList(`${baseTags.join(' ')} ${card.tags||''}`)});
+      }
       const addable = await invoke('canAddNotes', { notes });
       if (!Array.isArray(addable) || addable.length !== notes.length) throw new Error('AnkiConnect returned an incomplete duplicate check. No cards were sent.');
       const addableNotes = notes.filter((_, index) => addable[index]);
