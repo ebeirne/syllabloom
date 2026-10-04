@@ -4152,6 +4152,8 @@
     const objectives = sourceItem.objectiveCount ? ` · ${sourceItem.objectiveCount} objective cues` : '';
     const concepts = sourceItem.concepts?.length ? ` · ${sourceItem.concepts.length} concepts` : '';
     const notes = sourceItem.notes?.length ? ` · ${sourceItem.notes.length} note${sourceItem.notes.length === 1 ? '' : 's'}` : '';
+    if (sourceItem.studySheet) return `illustrated summary · ${sourceItem.studySheet.facts.length} cited facts · ${sourceItem.draftCards?.length || 0} cloze cards · saved with your class`;
+    if (sourceItem.occlusionImage) return `diagram · ${sourceItem.draftCards?.length || 0} image occlusion cards · saved with your class`;
     const drafts = sourceItem.draftCards?.length ? ` · ${sourceItem.draftCards.length} cards ready` : '';
     const processing = sourceItem.sample
       ? 'example'
@@ -4191,6 +4193,7 @@
         <div><strong>${escapeHtml(sourceItem.name)}</strong><span>${escapeHtml(sourceMeta(sourceItem))}</span></div>
         <div class="actions">
           <span class="status">${escapeHtml(status)}</span>
+          ${sourceItem.draftCards?.length ? `<button class="button" type="button" data-open-source-tools="${escapeHtml(sourceItem.id)}">View study tools</button>` : ''}
           <button class="button source-remove" type="button" data-remove-source="${escapeHtml(sourceItem.id)}">Remove</button>
         </div>
       </div>`;
@@ -4238,7 +4241,7 @@
   function renderSourceStudyOutput(preferredSource = null) {
     const panel = document.querySelector('#sourceStudyOutput');
     if (!panel) return;
-    const sourceItem = preferredSource || [...state.sources].reverse().find(item => item.notes?.length || item.draftCards?.length);
+    const sourceItem = preferredSource || [...state.sources].reverse().find(item => item.studySheet) || [...state.sources].reverse().find(item => item.notes?.length || item.draftCards?.length);
     if (!sourceItem) {
       panel.hidden = true;
       return;
@@ -6062,6 +6065,12 @@
     state.sources.push(source); persistClassSources(); await loadStoredSources(); navigate('cards'); showToast('Diagram cards created. Check each region and add it to your ready set.');
   });
   document.addEventListener('click', async event => {
+    const sourceButton = event.target.closest('[data-open-source-tools]');
+    if (sourceButton) {
+      const source = state.sources.find(item=>item.id===sourceButton.dataset.openSourceTools);
+      if (source) {navigate('source');renderSourceStudyOutput(source);document.querySelector('#sourceStudyOutput').scrollIntoView({behavior:'smooth',block:'start'});}
+      return;
+    }
     const button = event.target.closest('[data-open-occlusion],[data-sheet-occlusion],[data-lecture-sheet]');
     if (!button) return;
     if (!state.account.signedIn) { showToast('Sign in before creating study tools.'); return; }
