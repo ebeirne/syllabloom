@@ -19,7 +19,7 @@ def _exchange(url, data, content_type):
     request = Request(url, data=data, headers={'Authorization': 'Bearer ' + key,
                       'Content-Type': content_type}, method='POST')
     # Never retry a provider exchange automatically: its outcome may be ambiguous.
-    with urlopen(request, timeout=180) as response:
+    with urlopen(request, timeout=600) as response:
         return json.loads(response.read(8 * 1024 * 1024))
 
 
@@ -127,4 +127,4 @@ def transcribe_lecture(path: Path, owner: str, job: dict, update):
             'cards': [], 'detectedConcepts': [], 'waveform': [],
             'media': {'duration': duration}, 'durationSeconds': duration,
             'processingSeconds': round(time.monotonic() - started, 1),
-            'qualityWarnings': ['AI notes are based on spoken audio. Check terminology against your course material. Slide text and diagrams are not interpreted.']}
+            'qualityWarnings': [{'time': 0, 'message': 'AI notes are based on spoken audio. Check terminology against your course material. Slide text and diagrams are not interpreted.'}]}

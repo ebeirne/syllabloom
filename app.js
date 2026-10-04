@@ -3245,7 +3245,7 @@
         return `<article class="media-library-item${isEditing ? ' is-renaming' : ''}">
           <span class="media-kind" aria-hidden="true">${mediaLooksLikeVideo(item) ? '▶' : '♫'}</span>
           ${isEditing ? `<form class="media-rename-form" data-rename-form="${escapeHtml(item.id)}"><label for="rename-${escapeHtml(item.id)}">Lecture name</label><input id="rename-${escapeHtml(item.id)}" name="title" maxlength="100" value="${escapeHtml(title)}" required /><span><button type="submit">Save name</button><button type="button" data-cancel-rename>Cancel</button></span></form>` : `<div><strong>${escapeHtml(title)}</strong><span>${mediaLabel} · ${formatFileSize(item.size)} · ${escapeHtml(item.className || 'Class')}</span><small>${item.origin === 'recording' ? 'Recorded' : 'Uploaded'} ${escapeHtml(date)}</small></div>`}
-          <div class="media-library-actions"${isEditing ? ' hidden' : ''}><button type="button" data-open-media="${escapeHtml(item.id)}">Play</button><button type="button" data-rename-media="${escapeHtml(item.id)}">Rename</button><button type="button" data-delete-media="${escapeHtml(item.id)}">Remove</button></div>
+          <div class="media-library-actions"${isEditing ? ' hidden' : ''}><button type="button" data-open-media="${escapeHtml(item.id)}">Play</button>${item.studyPackage ? `<button type="button" data-open-lecture-notes="${escapeHtml(item.id)}">Study notes</button>` : ''}<button type="button" data-rename-media="${escapeHtml(item.id)}">Rename</button><button type="button" data-delete-media="${escapeHtml(item.id)}">Remove</button></div>
         </article>`;
       }).join('') : '<div class="media-library-empty"><strong>No saved lectures yet</strong><span>Start recording or upload an audio or video file.</span></div>';
       if (editingMediaId) window.requestAnimationFrame(() => list.querySelector('[data-rename-form] input')?.select());
@@ -3433,7 +3433,7 @@
     const warningBox = document.querySelector('#transcriptWarnings');
     warningBox.hidden = warnings.length === 0;
     warningBox.innerHTML = warnings.map(warning => `
-      <div class="transcript-warning"><time>${clock(warning.time)}</time><span>${escapeHtml(warning.message)}</span></div>
+      <div class="transcript-warning">${typeof warning === 'string' ? '' : `<time>${clock(warning.time)}</time>`}<span>${escapeHtml(typeof warning === 'string' ? warning : warning.message)}</span></div>
     `).join('');
   }
 
@@ -3717,7 +3717,16 @@
     section.hidden = !chapters.length && !notes.length && !visuals.length;
     const summaryBox = document.querySelector('#lectureSummary');
     summaryBox.hidden = !result.summary;
-    summaryBox.innerHTML = result.summary ? `<h3>Lecture summary</h3>${String(result.summary).split('\n\n').map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join('')}` : '';
+    summaryBox.innerHTML = result.summary ? `<h3>Lecture summary</h3>${String(result.summary).split('\n\n').map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join('')}<button type="button" data-download-lecture-notes>Download study notes</button>` : '';
+    summaryBox.querySelector('[data-download-lecture-notes]')?.addEventListener('click', () => {
+      const text = `# ${result.title || 'Lecture study notes'}\n\n${result.summary}\n\n` + notes.map(note => `## ${note.title} (${clock(note.heardAt)})\n\n${(note.lines || []).map(line => `- ${line}`).join('\n')}\n\nTranscript excerpt: ${note.source || ''}`).join('\n\n');
+      const url = URL.createObjectURL(new Blob([text], {type: 'text/markdown;charset=utf-8'}));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'lecture-study-notes.md';
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
 
     const chapterBox = document.querySelector('#lectureChapters');
     chapterBox.hidden = chapters.length === 0;
@@ -3853,7 +3862,18 @@
     if (!jobId) throw new Error('The lecture job did not return an identifier.');
     state.latestSessionId = jobId;
     rememberLectureJob({ id: jobId, title, mediaId });
-    return pollLectureJob(jobId, title);
+    const result = await pollLectureJob(jobId, title);
+    await saveLectureStudyPackage(mediaId, result);
+    return result;
+  }
+
+  async function saveLectureStudyPackage(mediaId, result) {
+    if (!mediaId) return;
+    const media = await getMediaAsset(mediaId);
+    if (!media) return;
+    media.studyPackage = result;
+    await mediaStoreWrite(store => store.put(media));
+    await renderMediaLibrary();
   }
 
   async function resumeLatestLectureJob() {
@@ -3880,6 +3900,7 @@
         }
       }
       const result = await pollLectureJob(saved.id, saved.title || 'Latest lecture');
+      await saveLectureStudyPackage(saved.mediaId, result);
       state.latestSessionId = saved.id;
       renderAudioResult(result);
       document.querySelector('#lectureSubtitle').textContent = `${state.className} · ${clock(result.durationSeconds)} lecture · recovered`;
@@ -5428,15 +5449,32 @@
   document.querySelector('#audioInput').addEventListener('change', event => {
     const file = event.target.files[0];
     if (!file) return;
-    processAudio(file, file.name, [], { origin: 'upload', title: lectureName(file.name) });
+    const enteredTitle = cleanLectureTitle(document.querySelector('#recordingTitle').value);
+    processAudio(file, file.name, [], { origin: 'upload', title: enteredTitle && enteredTitle !== defaultRecordingTitle() ? enteredTitle : lectureName(file.name) });
     event.target.value = '';
   });
   document.querySelector('#mediaLibraryList').addEventListener('click', async event => {
+    const notesButton = event.target.closest('[data-open-lecture-notes]');
     const openButton = event.target.closest('[data-open-media]');
     const renameButton = event.target.closest('[data-rename-media]');
     const cancelRenameButton = event.target.closest('[data-cancel-rename]');
     const deleteButton = event.target.closest('[data-delete-media]');
     try {
+      if (notesButton) {
+        const media = await getMediaAsset(notesButton.dataset.openLectureNotes);
+        if (!media?.studyPackage) throw new Error('Study notes are unavailable on this device.');
+        if (captureAudioUrl) URL.revokeObjectURL(captureAudioUrl);
+        captureAudioUrl = URL.createObjectURL(media.blob);
+        const isVideo = mediaLooksLikeVideo(media);
+        document.querySelector('#captureVideo').hidden = !isVideo;
+        document.querySelector('#captureAudio').hidden = isVideo;
+        document.querySelector(isVideo ? '#captureVideo' : '#captureAudio').src = captureAudioUrl;
+        document.querySelector('#lastLectureSummary').hidden = false;
+        document.querySelector('#lectureTitle').textContent = mediaDisplayTitle(media);
+        renderAudioResult(media.studyPackage);
+        document.querySelector('#lectureStudyPackage').scrollIntoView({behavior: 'smooth'});
+        return;
+      }
       if (openButton) {
         await openMediaPreview(openButton.dataset.openMedia);
         return;

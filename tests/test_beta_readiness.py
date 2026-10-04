@@ -12,7 +12,10 @@ ROOT = Path(__file__).resolve().parents[1]
 class BetaReadinessContractTests(unittest.TestCase):
     def test_hosted_copy_is_honest_about_transcription(self) -> None:
         page = (ROOT / "index.html").read_text(encoding="utf-8")
-        self.assertIn("When the lecture worker is available", page)
+        self.assertIn("timestamped transcript, summary, and study notes", page)
+        app = (ROOT / "app.js").read_text(encoding="utf-8")
+        self.assertIn("Audio is processed with OpenAI", app)
+        self.assertIn("Study results are available for seven days", app)
         self.assertIn("Original audio/video stays in your device library", page)
         self.assertIn("They do not sync across devices", page)
         self.assertNotIn("Syllabloom listens to the lecture", page)
@@ -296,7 +299,7 @@ class BetaReadinessContractTests(unittest.TestCase):
         self.assertIn("Source linked</span><b>Ready to review", page)
         self.assertNotIn("62%", page)
         self.assertIn('id="baselineScoreLabel">not assessed yet</span>', page)
-        self.assertIn("When the lecture worker is available", page)
+        self.assertIn("timestamped transcript, summary, and study notes", page)
         self.assertIn("September 2026", page)
         self.assertIn("SAMPLE · SYLLABUS-DERIVED DATES", page)
         self.assertIn("UP NEXT", page)
