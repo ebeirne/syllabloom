@@ -3724,8 +3724,10 @@
       const link = document.createElement('a');
       link.href = url;
       link.download = 'lecture-study-notes.md';
+      document.body.appendChild(link);
       link.click();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 30000);
     });
 
     const chapterBox = document.querySelector('#lectureChapters');
