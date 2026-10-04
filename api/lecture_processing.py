@@ -244,7 +244,8 @@ def _run_job(owner: str, job_id: str) -> None:
             result = transcribe_lecture(path, owner, job, lambda **changes: _update(owner, job_id, **changes))
         else:
             result = transcribe(path)
-        _update(owner, job_id, status="processing", stage="Finding useful video frames", progress=78)
+        if not cloud:
+            _update(owner, job_id, status="processing", stage="Finding useful video frames", progress=78)
         try:
             visuals = [] if cloud else extract_visual_keyframes(path, job.get("markers") or [])
         except Exception as exc:
@@ -276,7 +277,9 @@ def _run_job(owner: str, job_id: str) -> None:
                 status="failed",
                 stage="Lecture processing failed",
                 progress=100,
-                error="The lecture could not be processed. Check the media file and transcription model configuration.",
+                error=("A provider result could not be confirmed. It was not retried to avoid duplicate processing. Contact support before starting this lecture again."
+                       if (read_job(owner, job_id) or {}).get('providerPending')
+                       else "The lecture could not be processed. Check that it has an audio track and is no longer than three hours."),
             )
         except Exception:
             pass

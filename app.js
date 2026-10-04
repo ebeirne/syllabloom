@@ -3784,6 +3784,13 @@
       notes: result.notes || [],
       cards: result.cards || []
     });
+    if (result.summary && result.notes?.length) {
+      const gate = document.querySelector('#sourceGate');
+      gate.className = 'source-gate review';
+      gate.innerHTML = `<strong>Study notes ready</strong><span>${result.notes.length} notes linked to spoken explanations. Check the transcript excerpts and jump back to the recording before relying on them.</span>`;
+      document.querySelector('#lectureSubtitle').textContent = 'Lecture summary and study notes · review against your course material';
+      document.querySelector('#audioCardDrafts').textContent = 'To create source-linked cards, add the matching slides or written notes in Materials.';
+    }
   }
 
   async function checkedLectureResponse(response, fallback) {
