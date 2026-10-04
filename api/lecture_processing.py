@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import base64
 import io
+import os
 import re
 import threading
 import uuid
@@ -237,16 +238,22 @@ def _run_job(owner: str, job_id: str) -> None:
         # Import lazily so API route discovery does not load the transcription model.
         from server import transcribe
 
-        result = transcribe(path)
+        cloud = os.environ.get('SYLLABLOOM_LECTURE_PROVIDER') == 'openai'
+        if cloud:
+            from api.lecture_cloud import transcribe_lecture
+            result = transcribe_lecture(path, owner, job, lambda **changes: _update(owner, job_id, **changes))
+        else:
+            result = transcribe(path)
         _update(owner, job_id, status="processing", stage="Finding useful video frames", progress=78)
         try:
-            visuals = extract_visual_keyframes(path, job.get("markers") or [])
+            visuals = [] if cloud else extract_visual_keyframes(path, job.get("markers") or [])
         except Exception as exc:
             print(f"Lecture frame extraction skipped: {type(exc).__name__}", flush=True)
             visuals = []
         result["visualKeyframes"] = visuals
-        result["chapters"] = build_chapters(result)
-        result["keyNotes"] = build_key_notes(result, job.get("markers") or [])
+        if not cloud:
+            result["chapters"] = build_chapters(result)
+            result["keyNotes"] = build_key_notes(result, job.get("markers") or [])
         result["filename"] = job["filename"]
         result["title"] = job["title"]
         result["sessionId"] = job_id

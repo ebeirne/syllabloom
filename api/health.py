@@ -1,4 +1,5 @@
 import os
+import shutil
 from http import HTTPStatus
 from pathlib import Path
 
@@ -11,7 +12,9 @@ class handler(JsonHandler):
     def do_GET(self) -> None:
         default_model = Path(__file__).resolve().parents[1] / ".models" / "whisper-small"
         whisper_model = Path((os.environ.get("SYLLABLOOM_WHISPER_MODEL") or str(default_model)).strip())
-        transcription_ready = whisper_model.is_dir()
+        cloud_ready = (os.environ.get('SYLLABLOOM_LECTURE_PROVIDER') == 'openai'
+                       and is_configured() and bool(shutil.which('ffmpeg')) and bool(shutil.which('ffprobe')))
+        transcription_ready = cloud_ready or whisper_model.is_dir()
         self.send_json(
             {
                 "ok": True,
@@ -26,7 +29,7 @@ class handler(JsonHandler):
                 "mediaStorage": "browser-per-user",
                 "transcription": transcription_ready,
                 "lectureJobs": True,
-                "videoKeyframes": transcription_ready,
+                "videoKeyframes": transcription_ready and not cloud_ready,
             },
             HTTPStatus.OK,
         )

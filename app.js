@@ -1854,7 +1854,7 @@
       document.querySelector('#captureState').textContent = 'Ready to record or upload';
       const betaNotice = document.querySelector('#cloudBetaNotice span');
       if (state.hostedTranscription && betaNotice) {
-        betaNotice.textContent = 'Upload a lecture and Syllabloom will automatically prepare a timestamped transcript, key notes, visual checkpoints, and editable study cards. The temporary processing copy is deleted when the job finishes.';
+        betaNotice.textContent = 'Upload audio or video to get a timestamped transcript, lecture summary, and study notes. Audio is processed with OpenAI. Original media stays on this device; the temporary server copy is deleted after processing. Study results are available for seven days. Check AI notes against your course material.';
       }
       updateMediaStorageCopy();
       const captureStatus = document.querySelector('.capture-status');
@@ -3715,6 +3715,9 @@
       : Array.isArray(result.notes) ? result.notes : [];
     const visuals = Array.isArray(result.visualKeyframes) ? result.visualKeyframes : [];
     section.hidden = !chapters.length && !notes.length && !visuals.length;
+    const summaryBox = document.querySelector('#lectureSummary');
+    summaryBox.hidden = !result.summary;
+    summaryBox.innerHTML = result.summary ? `<h3>Lecture summary</h3>${String(result.summary).split('\n\n').map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join('')}` : '';
 
     const chapterBox = document.querySelector('#lectureChapters');
     chapterBox.hidden = chapters.length === 0;
@@ -3723,13 +3726,14 @@
     `).join('');
 
     document.querySelector('#lectureKeyNotes').innerHTML = notes.length
-      ? notes.slice(0, 12).map(note => {
+      ? notes.map(note => {
         const heardAt = note.heardAt == null ? Number.NaN : Number(note.heardAt);
         const lines = Array.isArray(note.lines) ? note.lines : [];
         return `<article class="lecture-key-note">
           ${Number.isFinite(heardAt) ? `<button type="button" data-lecture-seek="${heardAt}">Jump to ${clock(heardAt)}</button>` : '<span>Lecture note</span>'}
           <strong>${escapeHtml(note.title || 'Key point')}</strong>
           ${lines.slice(0, 4).map(line => `<p>${escapeHtml(line)}</p>`).join('')}
+          ${note.source ? `<details><summary>Transcript evidence</summary><p>${escapeHtml(note.source)}</p></details>` : ''}
         </article>`;
       }).join('')
       : '';

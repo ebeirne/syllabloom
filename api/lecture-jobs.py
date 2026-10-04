@@ -22,6 +22,9 @@ class handler(JsonHandler):
         if not user_id:
             self.send_json({"error": "Sign in before processing a lecture."}, HTTPStatus.UNAUTHORIZED)
             return
+        from api.billing import require_access
+        if not require_access(self):
+            return
         try:
             body = self.read_json(64 * 1024)
             filename = Path(str(body.get("filename") or "lecture").replace("\\", "/")).name[:255]

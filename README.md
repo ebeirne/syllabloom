@@ -138,6 +138,17 @@ Setting `SYLLABLOOM_ENV` (e.g. `production`) turns on hosted behavior: sign-in i
 
 ## Status
 
+Hosted lecture summaries: install Ubuntu's `ffmpeg` package and set
+`SYLLABLOOM_LECTURE_PROVIDER=openai` alongside `OPENAI_API_KEY` and the existing
+Neon connection. Audio is compressed into ten-minute mono sections for Whisper
+transcription; transcript-derived study notes use `SYLLABLOOM_LECTURE_NOTES_MODEL`
+(default `gpt-5.4-nano`). Files are limited to 500 MB and three hours. Provider
+work reserves the shared beta budget before starting. Successful sections are
+checkpointed; ambiguous exchanges are not automatically retried. Notes include
+exact transcript excerpts and seek timestamps, but require student review.
+This path does not interpret slide images or diagrams. Results expire after
+seven days and the original lecture remains in the submitting browser.
+
 This is a beta product. Account-owned course and study workspaces sync through Neon; original lecture media remains device-local. Real student testing should focus on cross-device account isolation, source faithfulness, media capture, import behavior, and whether the daily plan feels achievable.
 
 ### AWS beta handoff
