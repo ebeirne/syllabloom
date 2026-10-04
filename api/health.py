@@ -13,7 +13,8 @@ class handler(JsonHandler):
         default_model = Path(__file__).resolve().parents[1] / ".models" / "whisper-small"
         whisper_model = Path((os.environ.get("SYLLABLOOM_WHISPER_MODEL") or str(default_model)).strip())
         cloud_ready = (os.environ.get('SYLLABLOOM_LECTURE_PROVIDER') == 'openai'
-                       and is_configured() and bool(shutil.which('ffmpeg')) and bool(shutil.which('ffprobe')))
+                       and is_configured() and bool(_database_url())
+                       and bool(shutil.which('ffmpeg')) and bool(shutil.which('ffprobe')))
         transcription_ready = cloud_ready or whisper_model.is_dir()
         self.send_json(
             {

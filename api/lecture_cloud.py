@@ -13,6 +13,11 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 
 
+def finalize_notes(notes):
+    housekeeping = re.compile(r'^(?:response format|boundaries for group work|no group-style|no single correct answer|language can be any|caution when studying together|waiting for|acknowledging the need to end|stopping the recording|thanks)', re.I)
+    return sorted((n for n in notes if not housekeeping.search(n['title'])), key=lambda n: n['heardAt'])
+
+
 def evidence_segment(quote, segments):
     """Resolve excerpts despite whitespace, smart quotes and timestamp labels."""
     def normalize(value):
@@ -146,9 +151,11 @@ def transcribe_lecture(path: Path, owner: str, job: dict, update):
         summary = str(json.loads(_response_text(payload)).get('summary') or '')
         update(providerPending=False, lectureSummary=summary)
     summary = summary or '\n\n'.join(summaries)
+    notes = finalize_notes(notes)
+    chapter_step = max(1, math.ceil(len(notes) / 12))
     return {'transcript': ' '.join(s['text'] for s in segments), 'segments': segments,
             'notes': notes, 'keyNotes': notes, 'summary': summary,
-            'chapters': [{'title': n['title'], 'time': n['heardAt']} for n in notes],
+            'chapters': [{'title': n['title'], 'time': n['heardAt']} for n in notes[::chapter_step]],
             'cards': [], 'detectedConcepts': [], 'waveform': [],
             'media': {'duration': duration}, 'durationSeconds': duration,
             'processingSeconds': round(time.monotonic() - started, 1),
