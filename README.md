@@ -147,7 +147,8 @@ work reserves the shared beta budget before starting. Successful sections are
 checkpointed; ambiguous exchanges are not automatically retried. Notes include
 exact transcript excerpts and seek timestamps, but require student review.
 This path does not interpret slide images or diagrams. Results expire after
-seven days and the original lecture remains in the submitting browser.
+seven days. Completed notes and the original lecture remain in the submitting
+browser's account-owned device library; notes can also be downloaded as Markdown.
 
 This is a beta product. Account-owned course and study workspaces sync through Neon; original lecture media remains device-local. Real student testing should focus on cross-device account isolation, source faithfulness, media capture, import behavior, and whether the daily plan feels achievable.
 
