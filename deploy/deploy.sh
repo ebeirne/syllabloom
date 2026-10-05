@@ -38,7 +38,7 @@ PY
 # Static site: an allowlist, so source files and the .git folder are never web-reachable.
 rsync -a --delete \
   --include='*.html' --include='*.js' --include='*.css' \
-  --include='robots.txt' --include='sitemap.xml' \
+  --include='robots.txt' --include='sitemap.xml' --include='indexnow-key.txt' \
   --include='assets/' --include='assets/**' \
   --exclude='*' \
   "$REPO/" /var/www/syllabloom/

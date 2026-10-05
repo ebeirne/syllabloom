@@ -15,3 +15,6 @@ open ai api.txt
 .DS_Store
 Thumbs.db
 .vercel
+
+# IndexNow ownership proof; never publish in Git.
+/indexnow-key.txt
