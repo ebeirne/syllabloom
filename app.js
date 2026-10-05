@@ -5782,6 +5782,7 @@
   }));
 
   document.querySelectorAll('[data-card-preference]').forEach(control=>control.addEventListener('input',event=>{
+    if(event.target.dataset.cardPreference==='instructions')event.target.value=event.target.value.slice(0,500);
     state.anki.cardPreferences={...cardPreferences(),[event.target.dataset.cardPreference]:event.target.value};
     localStorage.setItem('syllabloom-anki-preferences',JSON.stringify(state.anki));
     document.querySelectorAll('[data-card-preference]').forEach(other=>{if(other!==event.target&&other.dataset.cardPreference===event.target.dataset.cardPreference)other.value=event.target.value;});
