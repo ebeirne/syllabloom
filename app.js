@@ -5972,6 +5972,10 @@
     document.querySelector('#reviewStatus').value='all';document.querySelector('#reviewSearch').value='';
     renderLectureDraftQueue();navigate('cards');
   });
+  document.querySelector('#studyAccepted').addEventListener('click',()=>{
+    if(reviewFlow.source)startShortStudy(reviewFlow.source);
+    else navigate('study');
+  });
   document.querySelector('#startSourceStudy').addEventListener('click',()=>startShortStudy(document.querySelector('#sourceStudyOutput').dataset.sourceId));
   document.querySelector('#continueSourceStudy').addEventListener('click',()=>startShortStudy());
   document.querySelector('#studyFiveMore').addEventListener('click',()=>startShortStudy(shortStudy?.sourceId, shortStudy?.cards.map(card=>card.id) || []));
