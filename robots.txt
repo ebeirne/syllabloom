@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://syllabloom-beta.vercel.app/sitemap.xml
+Sitemap: https://syllabloom.study/sitemap.xml
