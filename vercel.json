@@ -2,6 +2,11 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "redirects": [
     {
+      "source": "/",
+      "destination": "https://syllabloom.study/",
+      "permanent": true
+    },
+    {
       "source": "/:path*",
       "destination": "https://syllabloom.study/:path*",
       "permanent": true
