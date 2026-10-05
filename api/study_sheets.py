@@ -192,6 +192,9 @@ def _run(owner, identity):
             if payload.get('status') != 'completed':
                 raise RuntimeError('The summary was not completed. No cards were created.')
             sheet = validate_sheet(json.loads(_response_text(payload)), passages, maximum, job.get('excluded'))
+            if not sheet['facts'] and not job.get('existingImage'):
+                update(providerPending=False)
+                raise RuntimeError('No additional distinct source-backed facts were found. Your existing cards are unchanged; no illustration was generated.')
             sheet['preferences'] = preferences
             if job.get('existingImage'):
                 sheet['image'] = job['existingImage']
