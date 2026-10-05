@@ -70,7 +70,7 @@ def write_job(job: dict) -> None:
 def public_job(job: dict) -> dict:
     allowed = {
         "id", "status", "stage", "progress", "filename", "title", "createdAt",
-        "updatedAt", "error", "result",
+        "updatedAt", "error", "result", "retryable",
     }
     return {key: value for key, value in job.items() if key in allowed}
 

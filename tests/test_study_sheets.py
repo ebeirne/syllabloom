@@ -82,6 +82,7 @@ def test_uncertain_paid_call_is_not_replayed(monkeypatch,tmp_path):
     _run('user_one',job['id'])
     assert read_job('user_one',job['id'])['status']=='failed'
     assert 'not automatically retried' in read_job('user_one',job['id'])['error']
+    assert read_job('user_one',job['id'])['retryable'] is False
 
 
 def test_paid_steps_run_in_order_and_failed_image_preserves_text_without_cards(monkeypatch,tmp_path):

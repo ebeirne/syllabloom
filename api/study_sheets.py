@@ -238,7 +238,7 @@ def _run(owner, identity):
         if not isinstance(exc, (ValueError, RuntimeError, CardGenerationError)):
             if not isinstance(exc, HTTPError):
                 message = 'Illustration or summary generation failed. Your completed text is preserved; contact support before retrying paid generation.'
-        update(status='failed', stage='Study sheet needs attention', error=message[:500])
+        update(status='failed', stage='Study sheet needs attention', error=message[:500], retryable=not bool(job.get('providerPending')))
     finally:
         with _lock:
             _running.discard(identity)

@@ -3884,7 +3884,11 @@
     while (payload.job.status !== 'ready') {
       check();
       progress(payload.job.stage || 'Preparing illustrated summary…');
-      if (payload.job.status === 'failed') throw Error(payload.job.error || 'Study sheet generation failed.');
+      if (payload.job.status === 'failed') {
+        const error=Error(payload.job.error || 'Study sheet generation failed.');
+        error.retryable=payload.job.retryable !== false && !/not automatically retried/.test(payload.job.error || '');
+        throw error;
+      }
       if (Date.now() > deadline) throw Error('The study sheet is still processing. Resume this import to recover its saved result.');
       await waitForLecturePoll(4000);
       check();
