@@ -416,6 +416,7 @@
     const userId = cloudSyncUserId;
     cloudSyncInFlight = true;
     cloudSyncDirty = false;
+    const savingLocalTimestamp = localStorage.getItem('syllabloom-cloud-local-updated-at');
     try {
       const result = await cloudRequest('PUT', { expectedRevision: cloudSyncRevision, data: cloudUserData() }, userId);
       if (cloudSyncUserId !== userId || state.account.userId !== userId) return;
@@ -423,7 +424,9 @@
       cloudSyncApplying = true;
       localStorage.setItem('syllabloom-cloud-sync-revision', String(cloudSyncRevision));
       localStorage.setItem('syllabloom-cloud-sync-updated-at', result.updatedAt || '');
-      localStorage.setItem('syllabloom-cloud-local-updated-at', '0');
+      if (localStorage.getItem('syllabloom-cloud-local-updated-at') === savingLocalTimestamp) {
+        localStorage.setItem('syllabloom-cloud-local-updated-at', '0');
+      }
       cloudSyncApplying = false;
       cloudSyncErrorShown = false;
     } catch (error) {
@@ -475,6 +478,10 @@
     }
   }
 
+  function hasUnsyncedWorkspace(localUpdatedAt, localRevision, remoteRevision) {
+    return localUpdatedAt > 0 && Number(localRevision) === Number(remoteRevision);
+  }
+
   async function initializeCloudWorkspace(userId) {
     if (!userId || !state.account.signedIn) return;
     if (cloudSyncUserId === userId && cloudSyncReady) return refreshCloudWorkspace();
@@ -506,7 +513,8 @@
       } else if (remote.data) {
         const localUpdatedAt = Number(localStorage.getItem('syllabloom-cloud-local-updated-at')) || 0;
         const remoteUpdatedAt = Date.parse(remote.updatedAt || '') || 0;
-        if (localOwner === userId && localUpdatedAt > remoteUpdatedAt + 5000) {
+        const savedLocalRevision = localStorage.getItem('syllabloom-cloud-sync-revision') || 0;
+        if (localOwner === userId && (hasUnsyncedWorkspace(localUpdatedAt, savedLocalRevision, remote.revision) || localUpdatedAt > remoteUpdatedAt + 5000)) {
           cloudSyncRevision = Number(remote.revision) || 0;
           cloudSyncReady = true;
           cloudSyncDirty = true;
