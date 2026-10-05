@@ -4313,7 +4313,7 @@
     document.querySelector('#generateSelectedSections').hidden = !readable.length;
     document.querySelector('#sourceStudyOutputEyebrow').textContent = sourceItem.name;
     document.querySelector('#sourceStudyOutputTitle').textContent = sourceItem.name;
-    document.querySelector('#sourceStudyOutputSummary').textContent = `${cards.length} study cards · start with a five-card session. Check source passages or edit whenever you need to.`;
+    document.querySelector('#sourceStudyOutputSummary').textContent = `${cards.length} cards listed below. Check the answers and source passages before studying.`;
     document.querySelector('#sourceSummaryDetails').hidden = !sourceItem.studySheet;
     document.querySelector('#exportSourceAnki').disabled = !collectApprovedCards(sourceItem.id).length;
     const sheetContainer = document.querySelector('#sourceIllustratedSheet');
