@@ -2241,7 +2241,7 @@
     const hasClassReady = classIsReadyForCurrentUser();
     document.querySelectorAll('[data-start-onboarding]').forEach(button => {
       button.dataset.startLabel ||= button.textContent.trim();
-      button.textContent = hasClassReady ? 'Open your class' : button.dataset.startLabel;
+      button.textContent = 'Get started';
     });
   }
 
@@ -3624,7 +3624,7 @@
     const current = filtered.find(card => card.id === reviewFlow.id) || filtered[0];
     reviewFlow.id = current?.id || null;
     const position = current ? filtered.indexOf(current) : -1;
-    let index = Math.max(position, 0);
+    let index = 0;
     const renderCard = card => {
       const needsEdit = card.reviewStatus !== 'skipped' && !isUsableLectureCard(card);
       const location = card.sourceLocation || (card.pageNumber ? `Page ${card.pageNumber}` : card.slideNumber ? `Slide ${card.slideNumber}` : '');
@@ -3639,8 +3639,8 @@
         <div class="lecture-draft-index"><b>${String(++index).padStart(2, '0')}</b><span class="lecture-draft-evidence">${escapeHtml(evidenceLabel)}</span></div>
         <div class="lecture-draft-body">
           <div class="focused-card-prompt">${window.SyllabloomAdvancedCards.render(card,false)}</div>
-          <button class="button full" type="button" data-review-reveal aria-expanded="false">Show answer</button>
-          <div class="focused-card-answer" hidden>${window.SyllabloomAdvancedCards.render(card,true)}</div>
+          <button class="button full" type="button" data-review-reveal aria-expanded="true">Hide answer</button>
+          <div class="focused-card-answer">${window.SyllabloomAdvancedCards.render(card,true)}</div>
           <details class="focused-card-source"><summary>Check source${location ? ' · '+escapeHtml(location) : ''}</summary><strong>${escapeHtml(card.sourceName || card.source || 'Course material')}</strong>${card.sourceQuote ? `<blockquote>${escapeHtml(card.sourceQuote)}</blockquote>` : '<p>No source passage attached. Check this card against your material.</p>'}</details>
           <div class="focused-card-edit" hidden>
           ${card.noteType === 'ImageOcclusion' ? window.SyllabloomAdvancedCards.imageHtml(card) : `<label>Card type<select data-lecture-format><option value="Basic" ${card.noteType !== 'Cloze' ? 'selected' : ''}>Question and answer</option><option value="Cloze" ${card.noteType === 'Cloze' ? 'selected' : ''}>Cloze deletion</option></select></label><label>${card.noteType === 'Cloze' ? 'Cloze sentence · use {{c1::term}}' : 'Front'}<textarea data-lecture-field="${card.noteType === 'Cloze' ? 'clozeText' : 'front'}">${escapeHtml(card.noteType === 'Cloze' ? card.clozeText || '' : card.front)}</textarea></label>`}
@@ -3651,14 +3651,14 @@
         </div>
         <div class="lecture-draft-actions">
           <button class="button" type="button" data-review-edit aria-expanded="false">Edit</button>
-          <button class="button primary" data-lecture-action="approve">${needsEdit ? 'Needs edit' : 'Keep & next'}</button>
+          <button class="button primary" data-lecture-action="approve">${needsEdit ? 'Needs edit' : 'Keep card'}</button>
           <button class="button" data-lecture-action="skip">${card.reviewStatus === 'skipped' ? 'Left out' : 'Skip'}</button>
         </div>
         <button class="lecture-card-delete" type="button" data-lecture-action="delete" aria-label="Remove card: ${escapeHtml(card.front)}">Delete card</button>
       </article>
       `;
     };
-    queue.innerHTML = current ? `<div class="review-position"><span>Card ${position+1} of ${filtered.length}</span><div class="actions"><button class="button" data-review-step="-1" aria-label="Previous card" ${position===0?'disabled':''}>←</button><button class="button" data-review-step="1" aria-label="Next card" ${position===filtered.length-1?'disabled':''}>→</button></div></div>` + renderCard(current) : '<div class="surface review-empty-filter"><h3>No cards match these filters.</h3><p>Choose another material or clear your search.</p></div>';
+    queue.innerHTML = filtered.length ? `<div class="review-position"><span>${filtered.length} cards · review and edit below</span></div>` + filtered.map(renderCard).join('') : '<div class="surface review-empty-filter"><h3>No cards match these filters.</h3><p>Choose another material or clear your search.</p></div>';
     window.requestAnimationFrame(() => queue.querySelectorAll('textarea').forEach(autoSizeTextArea));
   }
 
@@ -4283,8 +4283,8 @@
     const options = document.querySelector('#sourceCardOptions');
     if (mode==='ready') document.querySelector('#sourceAdvancedTools > summary').after(options);
     else document.querySelector('#sourceQueue').before(options);
-    document.querySelector('#sourceFlowTitle').textContent = mode==='ready' ? 'Your study tools are ready.' : mode==='processing' ? 'Creating your study tools…' : 'Add your lecture.';
-    document.querySelector('#sourceFlowDescription').textContent = mode==='ready' ? 'Start a short session, or explore your summary and cards.' : mode==='processing' ? 'We’ll show each step as your material is processed.' : 'Drop in your material. We’ll make your summary and cards.';
+    document.querySelector('#sourceFlowTitle').textContent = mode==='ready' ? 'Your cards are ready.' : mode==='processing' ? 'Creating your cards…' : 'Add your lecture.';
+    document.querySelector('#sourceFlowDescription').textContent = mode==='ready' ? 'Your full card list is below. Check the answers, then study or export.' : mode==='processing' ? 'We’ll show each step as your material is processed.' : 'Drop in your material. We’ll make your summary and cards.';
   }
 
   function renderSourceStudyOutput(preferredSource = null) {
@@ -4305,7 +4305,7 @@
     const startButton = document.querySelector('#startSourceStudy');
     startButton.disabled = !cards.length;
     startButton.textContent = 'Study now';
-    document.querySelector('#sourceCardPreviews').innerHTML = cards.slice(0,3).map((card,index) => `<article class="source-card-preview"><small>${escapeHtml(card.noteType || 'Basic')} · CARD ${index+1}</small><h3>${window.SyllabloomAdvancedCards.render(card)}</h3><details><summary>Show answer</summary><div>${window.SyllabloomAdvancedCards.render(card,true)}</div><small>${escapeHtml(card.sourceLocation || 'Source passage')}</small>${card.sourceQuote ? `<blockquote>${escapeHtml(card.sourceQuote)}</blockquote>` : '<p>Check this answer in your original source.</p>'}</details></article>`).join('');
+    document.querySelector('#sourceCardPreviews').innerHTML = cards.map((card,index) => `<article class="source-card-preview"><small>${escapeHtml(card.noteType || 'Basic')} · CARD ${index+1}</small><h3>${window.SyllabloomAdvancedCards.render(card)}</h3><div class="source-card-answer"><strong>Answer</strong><div>${window.SyllabloomAdvancedCards.render(card,true)}</div></div><details><summary>Check source</summary><small>${escapeHtml(card.sourceLocation || 'Source passage')}</small>${card.sourceQuote ? `<blockquote>${escapeHtml(card.sourceQuote)}</blockquote>` : '<p>Check this answer in your original source.</p>'}</details></article>`).join('');
     const rows = window.SyllabloomSourceExperience.coverage(sourceItem,cards);
     const readable = rows.filter(row=>row.readable);
     document.querySelector('#sourceCoverageSummary').textContent = rows.length ? `${readable.filter(row=>row.count).length} of ${readable.length} readable sections have cited cards. ${rows.length-readable.length} section${rows.length-readable.length === 1 ? ' has' : 's have'} no readable text.` : 'Re-upload this source once to enable section coverage. Existing cards will be kept.';
@@ -4484,7 +4484,7 @@
 
     queue.hidden = sourceQueueItems.length === 0;
     queue.setAttribute('aria-busy',String(sourceBatchRunning));
-    document.querySelector('#sourceQueueTitle').textContent = sourceBatchRunning ? 'Creating your study tools…' : 'Your lecture files';
+    document.querySelector('#sourceQueueTitle').textContent = sourceBatchRunning ? 'Creating your cards…' : 'Your lecture files';
     feedback.hidden = !sourceBatchFeedback;
     feedback.textContent = sourceBatchFeedback;
     uploadInput.disabled = sourceBatchRunning;
@@ -4562,7 +4562,7 @@
     );
     addButton.disabled = sourceBatchRunning || processable.length === 0;
     addButton.textContent = sourceBatchRunning
-      ? 'Creating your study tools…'
+      ? 'Creating your cards…'
       : sourceQueueItems.some(item => item.status === 'queued')
         ? 'Create study tools' + (processable.length > 1 ? ' · ' + processable.length + ' files' : '')
         : 'Resume import';
@@ -5891,7 +5891,7 @@
       const note = cardElement.querySelector('.lecture-card-quality-note');
       if (note) note.hidden = !needsEdit;
       const approveButton = cardElement.querySelector('[data-lecture-action="approve"]');
-      if (approveButton) approveButton.textContent = needsEdit ? 'Needs edit' : 'Keep & next';
+      if (approveButton) approveButton.textContent = needsEdit ? 'Needs edit' : 'Keep card';
       saveLectureReview();
     }
   });

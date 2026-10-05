@@ -112,3 +112,23 @@
  .flow-path span { padding:7px 9px; font-size:12px; }
  .focused-card-prompt { padding:20px 0; }
 }
+
+    /* Simple first-use flow: existing brand, readable work surfaces. */
+    .marketing-hero h1 { font-size: clamp(42px, 5vw, 72px); max-width: 16ch; }
+    .marketing-hero-copy > p:not(.marketing-beta-kicker) { font-size: 20px; line-height: 1.55; max-width: 42ch; }
+    .marketing-primary-cta, .marketing-get-started { min-height: 56px; font-size: 19px; padding: 16px 28px; }
+    #source .button, #cards .button { min-height: 48px; font-size: 17px; }
+    #source .page-description, #cards .page-description, #sourceStudyOutput p { font-size: 18px; line-height: 1.55; }
+    .source-card-previews { display: grid; grid-template-columns: 1fr; gap: 20px; }
+    .source-card-preview { padding: 24px; }
+    .source-card-preview h3, .source-card-answer, .focused-card-prompt, .focused-card-answer { font-size: 20px; line-height: 1.55; overflow-wrap: anywhere; }
+    .source-card-answer { margin: 18px 0; padding-top: 16px; border-top: 1px solid currentColor; }
+    .source-card-answer > strong { display: block; font-size: 14px; margin-bottom: 8px; }
+    #lectureDraftQueue { display: grid; gap: 24px; }
+    .lecture-draft-card { padding: 24px; }
+    .flow-path { font-size: 17px; }
+    @media(max-width:600px) { .marketing-hero h1 { font-size: 42px; } .source-card-preview,.lecture-draft-card { padding: 18px; } .flow-path { flex-wrap: wrap; } }
+
+
+.marketing-nav nav a[href="#anki-first"], .marketing-nav nav a[href="#made-for-class"] { display:none; }
+#lectureDraftQueue .focused-card-prompt, #lectureDraftQueue .focused-card-answer { font-size:20px !important; line-height:1.55; }
