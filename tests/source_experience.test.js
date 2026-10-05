@@ -19,6 +19,14 @@ test('targeted drafts keep originals, identity, deletions and avoid duplicates',
 });
 const fs=require('node:fs');
 const vm=require('node:vm');
+
+test('additional cards expand the summary while preserving the original illustration and deck',()=>{
+ const original={id:'s',draftCards:[{front:'Old?',back:'Old'}],studySheet:{image:'original',facts:[{locator:'Page 1',answer:'Old',sentence:'Old fact'}]}};
+ const generated={draftCards:[{front:'New?',back:'New'}],studySheet:{image:'replacement',facts:[{locator:'Page 1',answer:'Old',sentence:'Reworded old fact'},{locator:'Page 2',answer:'New',sentence:'New fact'}],preferences:{coverage:'detailed'}}};
+ const result=flow.mergeAdditional(original,generated,cards);
+ assert.equal(result.studySheet.image,'original');assert.equal(result.studySheet.facts.length,2);
+ assert.equal(result.draftCards.length,2);assert.equal(result.studySheet.preferences.coverage,'detailed');
+});
 test('short study uses saved edits and emits completion only once',()=>{
  const app=fs.readFileSync(require.resolve('../app.js'),'utf8');
  const code=app.slice(app.indexOf('  let shortStudy = null;'),app.indexOf('  function recordStudyRating('));

@@ -17,7 +17,8 @@ class handler(JsonHandler):
             return
         try:
             body = self.read_json(2 * 1024 * 1024)
-            job = create_sheet(owner, str(body.get('filename') or 'lecture.txt'), body.get('text'), body.get('units'))
+            job = create_sheet(owner, str(body.get('filename') or 'lecture.txt'), body.get('text'), body.get('units'),
+                               body.get('preferences'), body.get('excluded'), body.get('existingImage'))
             self.send_json({'job': job}, HTTPStatus.ACCEPTED)
         except (ValueError, TypeError) as exc:
             self.send_json({'error': str(exc)}, HTTPStatus.BAD_REQUEST)

@@ -69,6 +69,7 @@
   }
 
   const defaultAnkiPreferences = {
+    cardPreferences: {coverage:'balanced', wording:'simple', instructions:''},
     deck: '',
     setName: '',
     presetName: 'Syllabloom FSRS',
@@ -1046,6 +1047,7 @@
   }
 
   function syncQuestionStyleControls(value = state.anki.questionStyle) {
+    syncCardPreferences();
     const style = normalizedQuestionStyle(value);
     state.anki.questionStyle = style;
     document.querySelectorAll('.question-style-select').forEach(select => {
@@ -1065,6 +1067,16 @@
     state.anki.questionStyle = normalizedQuestionStyle(value);
     syncQuestionStyleControls(state.anki.questionStyle);
     localStorage.setItem('syllabloom-anki-preferences', JSON.stringify(state.anki));
+  }
+
+  function cardPreferences() {
+    const saved = state.anki.cardPreferences || {};
+    return {coverage:['key','balanced','detailed'].includes(saved.coverage)?saved.coverage:'balanced',
+      wording:saved.wording==='standard'?'standard':'simple', instructions:String(saved.instructions||'').slice(0,500)};
+  }
+  function syncCardPreferences() {
+    const saved=cardPreferences();
+    document.querySelectorAll('[data-card-preference]').forEach(control=>{control.value=saved[control.dataset.cardPreference];});
   }
 
   function syncAnkiStateFromForm() {
@@ -3859,11 +3871,12 @@
     }
   }
 
-  async function generateIllustratedSheet(text, filename, units, progress = () => {}, assertOwner) {
+  async function generateIllustratedSheet(text, filename, units, progress = () => {}, assertOwner, settings = {}) {
     const owner = state.account.userId;
     const check = () => { if (!state.account.signedIn || state.account.userId !== owner) throw Error('Your account changed. Reopen the import in the original account.'); assertOwner?.(); };
     check();
-    let payload = await checkedLectureResponse(await lectureFetch('/api/study-sheets', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,filename,units})}), 'The illustrated summary could not start.');
+    const preferences=settings.preferences || cardPreferences();
+    let payload = await checkedLectureResponse(await lectureFetch('/api/study-sheets', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,filename,units,preferences,excluded:settings.excluded,existingImage:settings.existingImage})}), 'The illustrated summary could not start.');
     check();
     const id = payload.job?.id;
     if (!id) throw Error('The summary job did not return an identifier.');
@@ -4259,6 +4272,7 @@
     const cards = window.SyllabloomCardSet.sourceCards([sourceItem]).filter(card => !study || study.isUsableCard(card)).map(card => state.lectureCards.find(saved => saved.sourceKey === lectureCardKey(card)) || card);
     panel.hidden = false;
     panel.dataset.sourceId = sourceItem.id;
+    document.querySelector('#addMoreSourceCards').hidden = !sourceItem.studySections?.some(section=>section.text?.trim());
     const startButton = document.querySelector('#startSourceStudy');
     startButton.disabled = !cards.length;
     startButton.textContent = `Study ${Math.min(5, cards.length)} card${cards.length === 1 ? '' : 's'}`;
@@ -4450,6 +4464,7 @@
       : sourceQueueItems.length ? 'Choose more documents' : 'Choose documents';
     defaultTypeTrigger.disabled = sourceBatchRunning;
     questionStyleSelect.disabled = sourceBatchRunning;
+    document.querySelectorAll('[data-card-preference]').forEach(control=>{control.disabled=sourceBatchRunning;});
     clearButton.disabled = sourceBatchRunning;
 
     if (!sourceQueueItems.length) {
@@ -4845,7 +4860,11 @@
           options.onProgress?.(queueItem.preflightLabel);
         }
         if (state.cloudBeta) {
-        const result = await generateIllustratedSheet(text, file.name, units, reportProgress, options.assertOwner);
+        if(queueItem && !queueItem.cardPreferences) {queueItem.cardPreferences=cardPreferences();await options.checkpoint?.();}
+        const previous=queueItem?.targetSourceId ? state.sources.find(item=>item.id===queueItem.targetSourceId) : null;
+        const excluded=previous ? [...(previous.studySheet?.facts||[]),...(previous.draftCards||[]).map(card=>({locator:card.sourceLocation,answer:card.back,sentence:card.front}))] : undefined;
+        const uniqueExcluded=excluded ? [...new Map(excluded.map(fact=>[String(fact.locator)+'::'+String(fact.answer).toLowerCase(),fact])).values()] : undefined;
+        const result = await generateIllustratedSheet(text, file.name, units, reportProgress, options.assertOwner, {preferences:queueItem?.cardPreferences,excluded:uniqueExcluded,existingImage:previous?.studySheet?.image});
         payload.source.studySheet = result.studySheet;
         payload.source.draftCards = result.cards;
         payload.source.concepts = result.concepts;
@@ -5762,6 +5781,11 @@
     applyPlanFeedback(button.dataset.feedback);
   }));
 
+  document.querySelectorAll('[data-card-preference]').forEach(control=>control.addEventListener('input',event=>{
+    state.anki.cardPreferences={...cardPreferences(),[event.target.dataset.cardPreference]:event.target.value};
+    localStorage.setItem('syllabloom-anki-preferences',JSON.stringify(state.anki));
+    document.querySelectorAll('[data-card-preference]').forEach(other=>{if(other!==event.target&&other.dataset.cardPreference===event.target.dataset.cardPreference)other.value=event.target.value;});
+  }));
   initializeSourceKindPicker();
   initializeThemedSelectPickers();
 
@@ -6001,12 +6025,12 @@
     const access=event.detail;
     document.querySelector('#sourceAccessNote').textContent=access?.lifetime ? 'Your free lifetime access is confirmed. No payment details needed.' : access?.access ? 'Your plan is active. Generation is subject to the beta usage limits.' : 'Your plan is checked before generation. Monthly $12, or $108 billed yearly ($9/month equivalent); confirmed free accounts keep their access.';
   });
-  document.querySelector('#generateSelectedSections').addEventListener('click',async event=>{
+  async function queueMoreSourceCards(event, allSections=false) {
     const button=event.currentTarget, feedback=document.querySelector('#coverageFeedback');
     if(sourceBatchRunning) { feedback.textContent='Let the current import finish first.'; return; }
     const sourceId=document.querySelector('#sourceStudyOutput').dataset.sourceId;
     const original=state.sources.find(item=>item.id===sourceId);
-    const sections=[...document.querySelectorAll('[data-coverage-index]:checked')].map(input=>original?.studySections?.[Number(input.dataset.coverageIndex)]).filter(section=>section?.text?.trim()).map(({label,text})=>({label,text}));
+    const sections=(allSections ? original?.studySections || [] : [...document.querySelectorAll('[data-coverage-index]:checked')].map(input=>original?.studySections?.[Number(input.dataset.coverageIndex)])).filter(section=>section?.text?.trim()).map(({label,text})=>({label,text}));
     if(!sections.length) {feedback.textContent='Select a readable section first.';return;}
     const owner=importOwner; button.disabled=true; feedback.textContent='Preparing selected sections...';
     try {
@@ -6015,14 +6039,16 @@
       if(owner!==importOwner) throw new Error('Account changed. Try again.');
       const file=new File([prepared.extractedText],original.name,{type:'text/plain'});
       const item=window.SyllabloomSourceBatch.createQueueItems([file],original.kind)[0];
-      item.targetSourceId=sourceId;
+      item.targetSourceId=sourceId;item.cardPreferences=cardPreferences();
       item.inspectionCache={kind:original.kind,payload:{source:{...original,draftCards:[],fingerprint:prepared.fingerprint,fileFingerprint:'sections-'+prepared.fingerprint,preflight:prepared.preflight},extractedText:prepared.extractedText,extractedUnits:prepared.extractedUnits}};
       sourceQueueItems.push(item); await persistImportQueue();renderSourceQueue();
       window.SyllabloomEvents?.track('coverage_requested',{sections:sections.length});
       feedback.textContent='Selected sections are in the import queue.';
       await addQueuedSources();
-    } catch(error) {feedback.textContent=error.message || 'Try again.';} finally {button.disabled=false;}
-  });
+    } catch(error) {feedback.textContent=error.message || 'Try again.';showToast(feedback.textContent);} finally {button.disabled=false;}
+  }
+  document.querySelector('#generateSelectedSections').addEventListener('click',event=>queueMoreSourceCards(event));
+  document.querySelector('#addMoreSourceCards').addEventListener('click',event=>queueMoreSourceCards(event,true));
 
   document.querySelector('#showAnswer').addEventListener('click', () => {
     hideRatingReceipt();

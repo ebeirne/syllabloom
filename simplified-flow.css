@@ -47,6 +47,10 @@
 @media(min-width:761px) and (max-width:1120px) { .workflow-loop { grid-template-columns:repeat(3,minmax(0,1fr)); } }
 @media(max-width:760px) { .workflow-loop { grid-template-columns:1fr; } }
 .material-search { width:100%; max-width:260px; padding:12px; border:1px solid var(--ink); border-radius:12px; background:var(--paper); font:inherit; }
+.card-preferences { display:grid; gap:16px; margin:16px 0 24px; }
+.card-preferences label { display:grid; gap:8px; font-weight:650; }
+.card-preferences select,.card-preferences textarea { width:100%; min-width:0; font:inherit; padding:12px; border:1px solid var(--ink); border-radius:12px; background:var(--paper); color:var(--ink); }
+.card-preferences small { font-size:13px; line-height:1.5; }
 #source .source-study-output>header { align-items:center; }
 #source .source-study-output>header .primary { flex-shrink:0; }
 @media(max-width:760px) {

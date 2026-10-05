@@ -3546,7 +3546,7 @@
   <link rel="stylesheet" href="seo-pages.css?v=20260923-seo-guides-1">
   <link rel="stylesheet" href="product-flow.css?v=20260930-flow-3">
   <link rel="stylesheet" href="advanced-cards.css?v=20261004-sheet-4">
-  <link rel="stylesheet" href="simplified-flow.css?v=20261004-flow-3">
+  <link rel="stylesheet" href="simplified-flow.css?v=20261004-preferences-1">
 </head>
 <body>
   <section id="landing" class="marketing-home" aria-label="Syllabloom home page">
@@ -3953,6 +3953,12 @@
               </div>
             </header>
 
+<details class="upload-options"><summary>Customize your cards</summary><div class="card-preferences">
+              <label>Coverage<select data-card-preference="coverage"><option value="key">Key facts · up to 12 cards</option><option value="balanced" selected>Balanced · up to 24 cards</option><option value="detailed">Detailed · up to 60 cards</option></select></label>
+              <label>Wording<select data-card-preference="wording"><option value="simple" selected>Simple, easy to remember</option><option value="standard">Standard course wording</option></select></label>
+              <label>Your instructions <span>(optional)</span><textarea data-card-preference="instructions" maxlength="500" rows="3" placeholder="Use short sentences and simpler words. Focus on mechanisms and comparisons."></textarea></label>
+              <small>One fact per card. Essential technical terms stay accurate. Counts depend on how many distinct facts your material supports. Saved for future uploads.</small>
+            </div></details>
             <section class="recorder" id="recorderPanel">
               <div id="cloudBetaNotice" class="cloud-beta-notice" role="status" hidden>
                 <strong>Public beta</strong>
@@ -4297,7 +4303,12 @@
             <details class="source-privacy"><summary>How your material is used</summary>            <p class="source-kind-hint">Extracted text is sent to OpenAI to draft cards and saved with your signed-in workspace for source checks. Only upload material you are allowed to use, without sensitive personal information.</p>
 </details>
             <p id="sourceAccessNote" class="source-kind-hint" role="status">Your plan is checked before generation. Monthly $12, or $108 billed yearly ($9/month equivalent); confirmed free accounts keep their access.</p>
-            <details class="upload-options"><summary>Question style and file details</summary>            <div id="sourceKindPicker" class="source-kind-picker">
+            <details class="upload-options"><summary>Customize your cards</summary><div class="card-preferences">
+              <label>Coverage<select data-card-preference="coverage"><option value="key">Key facts · up to 12 cards</option><option value="balanced" selected>Balanced · up to 24 cards</option><option value="detailed">Detailed · up to 60 cards</option></select></label>
+              <label>Wording<select data-card-preference="wording"><option value="simple" selected>Simple, easy to remember</option><option value="standard">Standard course wording</option></select></label>
+              <label>Your instructions <span>(optional)</span><textarea data-card-preference="instructions" maxlength="500" rows="3" placeholder="Use short sentences and simpler words. Focus on mechanisms and comparisons."></textarea></label>
+              <small>One fact per card. Essential technical terms stay accurate. Counts depend on how many distinct facts your material supports. Saved for future uploads.</small>
+            </div>            <div id="sourceKindPicker" class="source-kind-picker">
               <select id="sourceKind" class="source-kind source-kind-native" aria-hidden="true" tabindex="-1">
                 <option value="auto" selected>Auto-detect</option>
                 <option value="material">Class material</option>
@@ -4359,7 +4370,7 @@
           </header>
           <div id="sourceIllustratedSheet"></div>
           <details class="source-notes-details"><summary>Preview a few cards</summary><div id="sourceCardPreviews" class="source-card-previews"></div></details>
-          <div class="flow-actions"><button id="reviewSourceCards" class="button">Review these cards</button><button class="button" data-export-ready>Export class to Anki</button></div>
+          <div class="flow-actions"><button id="reviewSourceCards" class="button">Review these cards</button><button id="addMoreSourceCards" class="button">Add more cards</button><button class="button" data-export-ready>Export class to Anki</button></div>
           <details class="upload-options"><summary>Optional class and Anki settings</summary><div class="flow-actions"><button id="sourceAnkiSettings" class="text-button">Anki settings</button><button id="optionalClassSettings" class="text-button">Class settings</button></div></details>
           <details class="source-coverage"><summary>Check source coverage</summary><p id="sourceCoverageSummary"></p><p>These counts show where cards cite readable text. They do not measure exam coverage or correctness. Check diagrams and your learning objectives separately.</p><div id="sourceCoverageRows"></div><button id="generateSelectedSections" class="button" type="button">Draft cards from selected sections</button><p id="coverageFeedback" role="status"></p></details>
           <details class="source-notes-details"><summary>Concepts and source notes</summary>
@@ -5099,10 +5110,10 @@
   <script src="source-import-store.js?v=20260930-legacy-ppt-1"></script>
   <script src="source-batch.js?v=20260930-legacy-ppt-1"></script>
   <script src="course-map.js?v=20260923-course-map-1"></script>
-  <script src="source-experience.js?v=20260930-flow-3"></script>
+  <script src="source-experience.js?v=20261004-preferences-1-20260930-flow-3"></script>
   <script src="product-events.js?v=20260930-flow-3"></script>
   <script src="flow-review.js?v=20261004-flow-2"></script>
-  <script src="app.js?v=20261004-flow-4"></script>
+  <script src="app.js?v=20261004-preferences-1"></script>
   <script src="billing.js?v=20260930-flow-3"></script>
   <script type="module" src="motion-effects.js?v=20260921-motion-smooth-2"></script>
 </body>

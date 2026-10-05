@@ -21,7 +21,19 @@
       if (!key || seen.has(key)) return false;
       seen.add(key); return true;
     });
-    return cardSet.mergeSource(previous, { ...previous, draftCards });
+    let studySheet = previous.studySheet;
+    if (generated.studySheet) {
+      if (!studySheet) studySheet = generated.studySheet;
+      else {
+        const seenFacts = new Set();
+        const facts = [...studySheet.facts,...generated.studySheet.facts].filter(fact=>{
+          const key=String(fact.locator).toLowerCase()+'::'+String(fact.answer).toLowerCase();
+          if(seenFacts.has(key))return false;seenFacts.add(key);return true;
+        });
+        studySheet={...studySheet,facts,preferences:generated.studySheet.preferences || studySheet.preferences};
+      }
+    }
+    return cardSet.mergeSource(previous, { ...previous, draftCards, ...(studySheet?{studySheet}:{}),generation:generated.generation || previous.generation });
   }
   const api = { coverage, chooseSession, mergeAdditional };
   if (typeof module !== 'undefined') module.exports = api;
