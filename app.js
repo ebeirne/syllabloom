@@ -4489,7 +4489,7 @@
     uploadLabel.setAttribute('aria-disabled', sourceBatchRunning ? 'true' : 'false');
     uploadLabel.textContent = sourceBatchRunning
       ? 'Adding documents…'
-      : sourceQueueItems.length ? 'Choose more documents' : 'Choose documents';
+      : sourceQueueItems.length ? 'Choose another file' : 'Choose file';
     defaultTypeTrigger.disabled = sourceBatchRunning;
     questionStyleSelect.disabled = sourceBatchRunning;
     document.querySelectorAll('[data-card-preference]').forEach(control=>{control.disabled=sourceBatchRunning;});
