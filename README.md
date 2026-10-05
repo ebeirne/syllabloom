@@ -58,7 +58,7 @@ On the first signed-in visit, an unclaimed local workspace is saved to the accou
 
 ### Billing
 
-Keep Syllabloom on `syllabloom-beta.vercel.app` with its existing Clerk development instance. A custom domain or Clerk production migration is not part of this change. Direct Stripe Checkout handles subscriptions independently of Clerk Billing. Checkout remains disabled unless `SYLLABLOOM_BILLING_ENABLED=true`; the example configuration defaults to disabled billing and Stripe test mode.
+Syllabloom runs at `https://syllabloom.study/` on AWS. The legacy `syllabloom-beta.vercel.app` address is a permanent redirect to the matching custom-domain URL. `vercel.json` preserves that migration behavior on future Vercel deployments. Clerk instance configuration is managed separately. Direct Stripe Checkout handles subscriptions independently of Clerk Billing. Checkout remains disabled unless `SYLLABLOOM_BILLING_ENABLED=true`; the example configuration defaults to disabled billing and Stripe test mode.
 
 Server-owned access grants keep the frozen `SYLLABLOOM_FOUNDER_IDS` snapshot free forever, separately from the next ten new users in Clerk signup order. Existing grants are retained. Paid access requires a current subscription to an allowed price: $12 USD monthly or $108 USD annually ($9/month equivalent). The browser cannot grant itself a plan, and a successful checkout return URL does not grant access.
 
