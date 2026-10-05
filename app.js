@@ -3618,8 +3618,8 @@
           <button class="button" type="button" data-review-edit aria-expanded="false">Edit</button>
           <button class="button primary" data-lecture-action="approve">${needsEdit ? 'Needs edit' : 'Keep & next'}</button>
           <button class="button" data-lecture-action="skip">${card.reviewStatus === 'skipped' ? 'Left out' : 'Skip'}</button>
-          <button class="button lecture-card-delete" type="button" data-lecture-action="delete" aria-label="Remove card: ${escapeHtml(card.front)}">Delete card</button>
         </div>
+        <button class="lecture-card-delete" type="button" data-lecture-action="delete" aria-label="Remove card: ${escapeHtml(card.front)}">Delete card</button>
       </article>
       `;
     };
@@ -4224,6 +4224,8 @@
     library.innerHTML = rows.length
       ? rows.join('')
       : '<div class="surface source-library-empty"><strong>This class is empty.</strong><span>Add a syllabus, slide deck, notes, or an authorized assessment above.</span></div>';
+    const searchTerm = document.querySelector('#materialSearch').value.trim().toLowerCase();
+    library.querySelectorAll('[data-source-id]').forEach(row=>{row.hidden=!row.textContent.toLowerCase().includes(searchTerm);});
     const total = rows.length;
     document.querySelector('#sourceCount').textContent = String(total);
     document.querySelector('#sourceMiniText').textContent = materials[0]?.name?.replace(/\.[^.]+$/, '') || 'No class material';
@@ -4428,6 +4430,8 @@
     if (!queue || !list || !addButton || !progress) return;
 
     queue.hidden = sourceQueueItems.length === 0;
+    queue.setAttribute('aria-busy',String(sourceBatchRunning));
+    document.querySelector('#sourceQueueTitle').textContent = sourceBatchRunning ? 'Creating your study tools…' : 'Your lecture files';
     feedback.hidden = !sourceBatchFeedback;
     feedback.textContent = sourceBatchFeedback;
     uploadInput.disabled = sourceBatchRunning;
@@ -6121,6 +6125,7 @@
     card.noteType=event.target.value;
     if(card.noteType==='Cloze'&&!card.clozeText)card.clozeText=card.sourceQuote||card.front;
     card.reviewStatus='draft';saveLectureReview();renderLectureDraftQueue();
+    document.querySelector('#lectureDraftQueue [data-review-edit]')?.click();
   });
 
   setClassLabels(state.className, state.classTerm);

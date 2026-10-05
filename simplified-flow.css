@@ -17,14 +17,17 @@
 #lectureDraftQueue { display:block; max-width:760px; margin:auto; }
 .review-position { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:0 0 16px; }
 .review-position .actions { display:flex; gap:8px; }
-#lectureDraftQueue .lecture-draft-card { display:block; padding:24px; border-radius:24px; }
+#lectureDraftQueue .lecture-draft-card { display:block; padding:24px; border-radius:24px; background:var(--paper) !important; border:2px solid var(--ink) !important; box-shadow:5px 5px 0 #cbe8ba !important; }
 .focused-card-prompt { font-size:clamp(21px,3vw,28px); line-height:1.5; text-align:center; padding:28px 8px; overflow-wrap:anywhere; }
 .focused-card-answer { padding:18px; margin-top:16px; background:#e3efce; border-radius:16px; overflow-wrap:anywhere; }
 .focused-card-answer[hidden],.focused-card-edit[hidden] { display:none !important; }
 .focused-card-source { border-top:1px solid #d8dacd; margin-top:24px; padding-top:18px; font-size:13px; }
 .focused-card-source blockquote { border-left:3px solid #91ac70; margin:12px 0; padding-left:14px; line-height:1.65; }
 .focused-card-edit { margin:24px 0; }
-#lectureDraftQueue .lecture-draft-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:24px; }
+#lectureDraftQueue .lecture-draft-actions { display:grid !important; grid-template-columns:1fr 1fr; grid-template-rows:auto !important; gap:10px; margin-top:24px; }
+#lectureDraftQueue .lecture-draft-actions .button { width:100% !important; min-width:0; margin:0; }
+#lectureDraftQueue .lecture-draft-actions [data-lecture-action="approve"] { grid-column:1/-1; order:3; }
+#lectureDraftQueue .lecture-card-delete { margin-top:18px; padding:0; border:0 !important; background:transparent !important; box-shadow:none !important; text-decoration:underline; font-size:12px; color:var(--ink); }
 #lectureDraftQueue .lecture-draft-actions .lecture-card-delete { margin-left:auto; font-size:12px; }
 #lectureDraftQueue .lecture-draft-actions .primary { margin-left:auto; }
 .review-empty-filter { padding:32px; text-align:center; }

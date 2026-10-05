@@ -4643,6 +4643,7 @@
           <div class="anki-export-copy"><span id="approvedSetCount">0 ready</span><h2 id="ankiExportHeading" tabindex="-1">Export ready cards to Anki</h2><p id="ankiExportSummary">Your class, Syllabloom FSRS, 20 new cards per day</p></div>
           <div class="anki-export-actions"><button id="openAnkiSettings" class="button" type="button">Edit Anki settings</button><button id="exportAnki" class="button primary" disabled>Export to Anki</button></div>
         </section>
+        <details class="upload-options optional-desktop-sync"><summary>Optional: send directly to Anki Desktop</summary>
         <section class="anki-desktop-bridge surface" aria-labelledby="ankiDesktopHeading">
           <div class="anki-desktop-copy">
             <span class="account-kicker">ON THIS DEVICE</span>
@@ -4659,13 +4660,14 @@
             <summary>Set up Anki Desktop sync</summary>
             <ol>
               <li>Install the AnkiConnect add-on in Anki Desktop, then restart Anki.</li>
-              <li>In AnkiConnect settings, allow this exact site origin: <code>https://syllabloom-beta.vercel.app</code>. Add <code>http://localhost:4174</code> only if you use the local test site. Do not use a wildcard origin.</li>
+              <li>In AnkiConnect settings, allow this exact site origin: <code>https://syllabloom.study</code>. Add <code>http://localhost:4174</code> only if you use the local test site. Do not use a wildcard origin.</li>
               <li>Open Anki Desktop and sign into AnkiWeb there. Syllabloom sends cards to this computer; Anki handles cloud sync.</li>
               <li>Return here and check the connection. Sending works only while this computer has Anki Desktop open.</li>
             </ol>
           </details>
         </section>
 
+        </details>
         <div id="classCardWorkspace" class="surface card-workspace" hidden>
           <aside class="card-browser">
             <div class="browser-tools">
