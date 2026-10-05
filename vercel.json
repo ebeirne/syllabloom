@@ -11,5 +11,8 @@
       "destination": "https://syllabloom.study/:path*",
       "permanent": true
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": false
+  }
 }
