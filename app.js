@@ -4280,6 +4280,9 @@
   function setSourceFlowMode(mode) {
     const page = document.querySelector('#source');
     page.dataset.flowMode = mode;
+    const options = document.querySelector('#sourceCardOptions');
+    if (mode==='ready') document.querySelector('#sourceAdvancedTools').prepend(options);
+    else document.querySelector('#sourceQueue').before(options);
     document.querySelector('#sourceFlowTitle').textContent = mode==='ready' ? 'Your study tools are ready.' : mode==='processing' ? 'Creating your study tools…' : 'Add your lecture.';
     document.querySelector('#sourceFlowDescription').textContent = mode==='ready' ? 'Start a short session, or explore your summary and cards.' : mode==='processing' ? 'We’ll show each step as your material is processed.' : 'Drop in your material. We’ll make your summary and cards.';
   }

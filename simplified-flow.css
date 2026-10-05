@@ -31,6 +31,10 @@
 #materials .file-row { align-items:center; }
 #materials .file-row > div:first-child { min-width:0; }
 #materials > .upload-options { margin-top:28px; }
+.sidebar-bottom [data-view="cards"],.sidebar-bottom [data-view="knowledge"],.sidebar-bottom #addClass,.sidebar-bottom .sidebar-section-label { display:none !important; }
+#sourceAdvancedTools > .button { margin:16px 0; }
+#sourceAdvancedTools > details { margin:16px 0; }
+.nav-button[data-view="materials"] { --nav-accent:var(--sun); }
 @media(max-width:760px) {
  .mobile-bottom-nav { grid-template-columns:repeat(3,minmax(0,1fr)) !important; }
  #source .source-study-output>header { flex-direction:column; align-items:stretch; gap:20px; padding:24px; }
