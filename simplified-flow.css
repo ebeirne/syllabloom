@@ -171,3 +171,6 @@ body { background:#faf9f6 !important; font-size:22px; }
  #lectureDraftQueue .focused-card-prompt, #lectureDraftQueue .focused-card-answer, .source-card-preview h3, .source-card-answer { font-size:22px !important; }
  .button { padding:14px 20px !important; }
 }
+
+.marketing-hero::before,.marketing-hero::after,.marketing-hero-copy::before,.marketing-hero-copy::after,.button::before,.button::after { display:none !important; }
+.marketing-hero-actions .button { background:#171715 !important; color:#faf9f6 !important; }
