@@ -3546,6 +3546,7 @@
   <link rel="stylesheet" href="seo-pages.css?v=20260923-seo-guides-1">
   <link rel="stylesheet" href="product-flow.css?v=20260930-flow-3">
   <link rel="stylesheet" href="advanced-cards.css?v=20261004-sheet-4">
+  <link rel="stylesheet" href="simplified-flow.css?v=20261004-flow-1">
 </head>
 <body>
   <section id="landing" class="marketing-home" aria-label="Syllabloom home page">
@@ -3571,10 +3572,10 @@
       <section class="marketing-hero">
         <div class="marketing-hero-copy">
           <p class="marketing-beta-kicker">Lecture material <span>→</span> study tools</p>
-          <h1>Turn your course material into cards you can review.</h1>
-          <p>Upload a PDF, slide deck, or notes. Syllabloom drafts source-linked cards you can check, edit, study here, or export to Anki.</p>
+          <h1>Your lecture. A clear summary. Cards that stick.</h1>
+          <p>Upload your lecture material. Get an illustrated summary, turn its key facts into cloze cards, and study here or in Anki.</p>
           <div class="marketing-hero-actions">
-            <button class="button primary marketing-primary-cta" data-start-onboarding>Start my class</button>
+            <button class="button primary marketing-primary-cta" data-start-onboarding>Upload my first lecture</button>
             <button class="marketing-link-button" data-open-sample>Preview a sample class <span aria-hidden="true"></span></button>
           </div>
           <div class="marketing-trust-line">
@@ -3591,7 +3592,7 @@
       <section class="marketing-statement" aria-label="What Syllabloom does">
         <p>Keep each card close to the lecture file it came from, so you can check the answer as you review.</p>
         <div class="statement-path" aria-label="Syllabloom workflow summary">
-          <span>Lecture file</span><b>→</b><span>Source-linked cards</span><b>→</b><span>Edit</span><b>→</b><span>Anki or study</span><b>↺</b>
+          <span>Class material</span><b>→</b><span>Illustrated summary</span><b>→</b><span>Cloze + diagram cards</span><b>→</b><span>Study</span>
         </div>
       </section>
 
@@ -3601,15 +3602,11 @@
           <p>Add lecture material, check the cards it produces, and choose what you want to study.</p>
         </div>
         <div class="workflow-loop" role="list" aria-label="Syllabloom learning loop">
-          <article class="loop-step" role="listitem"><span>1</span><h3>Upload one lecture</h3><p>Start with the slides, PDF or notes you need to study next.</p></article>
+          <article class="loop-step" role="listitem"><span>1</span><h3>Upload your lecture</h3><p>Start with a PDF, slides, notes, or a recording.</p></article>
           <b class="loop-arrow" aria-hidden="true">→</b>
-          <article class="loop-step" role="listitem"><span>2</span><h3>Preview your cards</h3><p>Read three real questions and reveal their answers before you study.</p></article>
+          <article class="loop-step" role="listitem"><span>2</span><h3>See the big picture</h3><p>Read an illustrated summary with facts linked to your material.</p></article>
           <b class="loop-arrow" aria-hidden="true">→</b>
-          <article class="loop-step" role="listitem"><span>3</span><h3>Check the source</h3><p>Open the source quote, fix weak wording, and delete anything that is not worth studying.</p></article>
-          <b class="loop-arrow" aria-hidden="true">→</b>
-          <article class="loop-step loop-step-anki" role="listitem"><span>4</span><h3>Study five cards</h3><p>Finish a short session here, or export your ready cards to Anki.</p></article>
-          <b class="loop-arrow" aria-hidden="true">→</b>
-          <article class="loop-step" role="listitem"><span>5</span><h3>Add the next lecture</h3><p>Keep building the class set as new slides and notes come in.</p></article>
+          <article class="loop-step loop-step-anki" role="listitem"><span>3</span><h3>Make it stick</h3><p>Study the cloze cards, cover regions on a diagram, or export to Anki. Edit any card along the way.</p></article>
           <div class="loop-return">
             <span aria-hidden="true">↺</span>
             <div><strong>Your next session reflects your progress.</strong><small>Your edits, missed answers, review history, and exam date help Syllabloom choose what to study next.</small></div>
@@ -4279,23 +4276,26 @@
       <section id="source" class="page">
         <div class="page-head">
           <div>
-            <h1>Class materials</h1>
-            <p class="page-description">Upload a lecture, check your cards, then start studying.</p>
+            <h1>What do you want to study?</h1>
+            <p class="page-description">Start with one lecture. We’ll keep your material and study tools together.</p>
           </div>
 
         </div>
 
+        <div class="flow-path" aria-label="Study workflow"><span>Upload material</span><span>Illustrated summary</span><span>Review cards</span><span>Study</span></div>
         <section class="source-import surface character-story-panel materials-story-panel">
           <img class="materials-mascot character-cutout" src="assets/syllabloom-mascot-materials.webp" width="1200" height="1200" alt="The Syllabloom companion checking a course source with a magnifying glass" />
           <div>
             <h2>Start with one lecture.</h2>
             <p>Choose your slides, PDF or notes. Get an illustrated summary, then cloze cards from its key facts. Review and send them to Anki.</p>
+          <div id="sourceDropzone" class="source-dropzone"><p><strong>Drop your lecture files here</strong></p><small>PDF, PowerPoint, Word or text notes</small>
           <div class="source-import-controls">
             <label id="sourceUploadLabel" for="sourceUpload" class="button primary" role="button" tabindex="0">Choose documents</label>
             <input id="sourceUpload" type="file" accept=".docx,.ppt,.pptw,.pptx,.pdf,.txt" multiple hidden />
-            <button type="button" class="button" data-open-occlusion>Create diagram cards</button>
-          </div>
-            <p class="source-kind-hint">Extracted text is sent to OpenAI to draft cards and saved with your signed-in workspace for source checks. Only upload material you are allowed to use, without sensitive personal information.</p>
+          </div></div>
+          <div class="source-extra-actions"><button class="text-button" data-go="capture">Use a recording instead</button><button type="button" class="text-button" data-open-occlusion>Create diagram cards</button></div>
+            <details class="source-privacy"><summary>How your material is used</summary>            <p class="source-kind-hint">Extracted text is sent to OpenAI to draft cards and saved with your signed-in workspace for source checks. Only upload material you are allowed to use, without sensitive personal information.</p>
+</details>
             <p id="sourceAccessNote" class="source-kind-hint" role="status">Your plan is checked before generation. Monthly $12, or $108 billed yearly ($9/month equivalent); confirmed free accounts keep their access.</p>
             <details class="upload-options"><summary>Question style and file details</summary>            <div id="sourceKindPicker" class="source-kind-picker">
               <select id="sourceKind" class="source-kind source-kind-native" aria-hidden="true" tabindex="-1">
@@ -4340,14 +4340,14 @@
           <header class="source-batch-heading">
             <div>
               <span class="source-batch-kicker">BATCH IMPORT</span>
-              <h2 id="sourceQueueTitle">Documents ready to add</h2>
+              <h2 id="sourceQueueTitle">Your lecture files</h2>
               <p>Choose a different type for each file if needed. Syllabi update the calendar; class materials and assessments build study content.</p>
             </div>
             <button id="sourceQueueClear" class="button" type="button">Clear list</button>
           </header>
           <div id="sourceQueueList" class="source-queue-list"></div>
           <footer class="source-batch-footer">
-            <p id="sourceQueueProgress" role="status" aria-live="polite">Review the file types, then add them together.</p>
+            <p id="sourceQueueProgress" role="status" aria-live="polite">Ready when you are. Create your summary and cards below.</p>
             <button id="sourceQueueAdd" class="button primary" type="button">Add documents</button>
           </footer>
         </section>
@@ -4358,8 +4358,9 @@
             <button id="startSourceStudy" class="button primary" type="button">Study five cards</button>
           </header>
           <div id="sourceIllustratedSheet"></div>
-          <div id="sourceCardPreviews" class="source-card-previews"></div>
-          <div class="flow-actions"><button class="button" data-go="cards">Edit cards</button><button class="button" data-export-ready>Export class to Anki</button><button id="sourceAnkiSettings" class="text-button">Anki settings</button><button id="optionalClassSettings" class="text-button">Class settings</button></div>
+          <details class="source-notes-details"><summary>Preview a few cards</summary><div id="sourceCardPreviews" class="source-card-previews"></div></details>
+          <div class="flow-actions"><button id="reviewSourceCards" class="button">Review these cards</button><button class="button" data-export-ready>Export class to Anki</button></div>
+          <details class="upload-options"><summary>Optional class and Anki settings</summary><div class="flow-actions"><button id="sourceAnkiSettings" class="text-button">Anki settings</button><button id="optionalClassSettings" class="text-button">Class settings</button></div></details>
           <details class="source-coverage"><summary>Check source coverage</summary><p id="sourceCoverageSummary"></p><p>These counts show where cards cite readable text. They do not measure exam coverage or correctness. Check diagrams and your learning objectives separately.</p><div id="sourceCoverageRows"></div><button id="generateSelectedSections" class="button" type="button">Draft cards from selected sections</button><p id="coverageFeedback" role="status"></p></details>
           <details class="source-notes-details"><summary>Concepts and source notes</summary>
           <div class="source-study-grid">
@@ -4367,6 +4368,7 @@
             <div><h3>Notes from the source</h3><div id="sourceStudyNotes" class="source-study-notes"></div></div>
           </div></details>
         </section>
+        <div class="materials-library-heading"><h2>Your materials</h2><input id="materialSearch" class="material-search" type="search" aria-label="Search materials" placeholder="Search your materials"></div>
         <div id="sourceLibrary" class="file-stack" aria-live="polite"></div>
         <div class="surface course-map sample-source-detail">
           <div><strong>0</strong><span>calendar dates in the sample syllabus</span></div>
@@ -4618,10 +4620,11 @@
 
         <section id="lectureDraftSection" class="lecture-draft-section" hidden>
           <div class="draft-queue-head">
-            <div><h2>Your card set</h2><p>Edit, leave out, or remove cards. Removing a card also removes it from study and the Anki export queue.</p></div>
+            <div><h2>Your card set</h2><p>One card at a time. Check the source, edit if needed, then keep or skip.</p></div>
             <span id="lectureDraftCount" class="status">0 ready</span>
           </div>
-          <div id="lectureDraftQueue" class="lecture-draft-queue"></div>
+          <div class="review-tools"><label>Material<select id="reviewSource"><option value="">All materials</option></select></label><label>Show<select id="reviewStatus"><option value="all">All cards</option><option value="approved">Ready</option><option value="check">Needs a check</option><option value="skipped">Left out</option></select></label><label>Find a card<input id="reviewSearch" type="search" placeholder="Search concepts or answers"></label></div>
+          <div id="lectureDraftQueue" class="lecture-draft-queue" aria-live="polite"></div>
         </section>
 
         <section id="reviewEmpty" class="review-empty character-story-panel">
@@ -5096,7 +5099,8 @@
   <script src="course-map.js?v=20260923-course-map-1"></script>
   <script src="source-experience.js?v=20260930-flow-3"></script>
   <script src="product-events.js?v=20260930-flow-3"></script>
-  <script src="app.js?v=20261004-sheet-5"></script>
+  <script src="flow-review.js?v=20261004-flow-1"></script>
+  <script src="app.js?v=20261004-flow-1"></script>
   <script src="billing.js?v=20260930-flow-3"></script>
   <script type="module" src="motion-effects.js?v=20260921-motion-smooth-2"></script>
 </body>

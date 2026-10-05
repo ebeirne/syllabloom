@@ -3563,6 +3563,8 @@
     updateAnkiDesktopBridge();
   }
 
+  const reviewFlow = {source:'', status:'all', query:'', id:null};
+  function reviewFlowCards() { return window.SyllabloomReviewFlow.select(state.lectureCards,reviewFlow.source,reviewFlow.status,reviewFlow.query); }
   function renderLectureDraftQueue() {
     const section = document.querySelector('#lectureDraftSection');
     const queue = document.querySelector('#lectureDraftQueue');
@@ -3578,20 +3580,16 @@
     const needsEdit = lectureCardsNeedingEdit().length;
     const skipped = state.lectureCards.filter(card => card.reviewStatus === 'skipped').length;
     document.querySelector('#lectureDraftCount').textContent = `${state.lectureCards.length} in set · ${approved} ready${waiting ? ` · ${waiting} to check` : ''}${needsEdit ? ` · ${needsEdit} need an edit` : ''}${skipped ? ` · ${skipped} left out` : ''}`;
-    const grouped = new Map();
-    const addCard = (sourceId, card) => {
-      const key = sourceId || 'recorded-lecture';
-      if (!grouped.has(key)) grouped.set(key, { sourceId, cards: [], duplicates: [] });
-      grouped.get(key).cards.push(card);
-    };
-    state.lectureCards.forEach(card => addCard(card.sourceId, card));
-    state.lectureCards.forEach(card => (card.duplicateSourceRefs || []).forEach(reference => {
-      const key = reference.sourceId || 'recorded-lecture';
-      if (!grouped.has(key)) grouped.set(key, { sourceId: reference.sourceId, cards: [], duplicates: [] });
-      grouped.get(key).duplicates.push(card);
-    }));
-    const sourceById = new Map(state.sources.map(sourceItem => [sourceItem.id, sourceItem]));
-    let index = 0;
+    const choices = document.querySelector('#reviewSource');
+    const selected = reviewFlow.source;
+    choices.innerHTML = '<option value="">All materials</option>' + state.sources.filter(source => source.draftCards?.length).map(source => `<option value="${escapeHtml(source.id)}">${escapeHtml(source.name)}</option>`).join('');
+    choices.value = selected;
+    if (choices.value !== selected) reviewFlow.source = '';
+    const filtered = reviewFlowCards();
+    const current = filtered.find(card => card.id === reviewFlow.id) || filtered[0];
+    reviewFlow.id = current?.id || null;
+    const position = current ? filtered.indexOf(current) : -1;
+    let index = Math.max(position, 0);
     const renderCard = card => {
       const needsEdit = card.reviewStatus !== 'skipped' && !isUsableLectureCard(card);
       const location = card.sourceLocation || (card.pageNumber ? `Page ${card.pageNumber}` : card.slideNumber ? `Slide ${card.slideNumber}` : '');
@@ -3605,28 +3603,27 @@
       <article class="lecture-draft-card ${escapeHtml(card.reviewStatus)}${needsEdit ? ' needs-edit' : ''}" data-lecture-card="${escapeHtml(card.id)}" data-concept="${escapeHtml(card.section || card.concept || '')}">
         <div class="lecture-draft-index"><b>${String(++index).padStart(2, '0')}</b><span class="lecture-draft-evidence">${escapeHtml(evidenceLabel)}</span></div>
         <div class="lecture-draft-body">
+          <div class="focused-card-prompt">${window.SyllabloomAdvancedCards.render(card,false)}</div>
+          <button class="button full" type="button" data-review-reveal aria-expanded="false">Show answer</button>
+          <div class="focused-card-answer" hidden>${window.SyllabloomAdvancedCards.render(card,true)}</div>
+          <div class="focused-card-source"><strong>${escapeHtml(card.sourceName || card.source || 'Course material')}${location ? ' · '+escapeHtml(location) : ''}</strong>${card.sourceQuote ? `<blockquote>${escapeHtml(card.sourceQuote)}</blockquote>` : '<p>No source passage attached. Check this card against your material.</p>'}</div>
+          <div class="focused-card-edit" hidden>
           ${card.noteType === 'ImageOcclusion' ? window.SyllabloomAdvancedCards.imageHtml(card) : `<label>Card type<select data-lecture-format><option value="Basic" ${card.noteType !== 'Cloze' ? 'selected' : ''}>Question and answer</option><option value="Cloze" ${card.noteType === 'Cloze' ? 'selected' : ''}>Cloze deletion</option></select></label><label>${card.noteType === 'Cloze' ? 'Cloze sentence · use {{c1::term}}' : 'Front'}<textarea data-lecture-field="${card.noteType === 'Cloze' ? 'clozeText' : 'front'}">${escapeHtml(card.noteType === 'Cloze' ? card.clozeText || '' : card.front)}</textarea></label>`}
           <label>Back<textarea data-lecture-field="back">${escapeHtml(card.back)}</textarea></label>
           ${needsEdit ? '<p class="lecture-card-quality-note">This card is not a focused study prompt; it may contain directions or another question. It stays in your library. Edit both sides into one focused question and a source-backed answer before studying or exporting it.</p>' : ''}
           ${sourceEvidence}
+          </div>
         </div>
         <div class="lecture-draft-actions">
-          <button class="button primary" data-lecture-action="approve">${needsEdit ? 'Needs edit' : card.reviewStatus === 'approved' ? 'Ready' : 'Add to ready set'}</button>
-          <button class="button" data-lecture-action="skip">${card.reviewStatus === 'skipped' ? 'Left out' : 'Leave out'}</button>
+          <button class="button" type="button" data-review-edit aria-expanded="false">Edit</button>
+          <button class="button primary" data-lecture-action="approve">${needsEdit ? 'Needs edit' : 'Keep & next'}</button>
+          <button class="button" data-lecture-action="skip">${card.reviewStatus === 'skipped' ? 'Left out' : 'Skip'}</button>
           <button class="button lecture-card-delete" type="button" data-lecture-action="delete" aria-label="Remove card: ${escapeHtml(card.front)}">Delete card</button>
         </div>
       </article>
       `;
     };
-    queue.innerHTML = [...grouped.entries()].map(([key, group]) => {
-      const sourceItem = group.sourceId ? sourceById.get(group.sourceId) : null;
-      const title = sourceItem?.name || group.cards.find(card => card.sourceName)?.sourceName || 'Recorded lecture';
-      const uniqueCards = group.cards.map(renderCard).join('');
-      const duplicateNote = group.duplicates.length
-        ? `<p class="lecture-source-duplicate-note">${group.duplicates.length} identical card${group.duplicates.length === 1 ? '' : 's'} also came from this material; kept once in your study set.</p>`
-        : '';
-      return `<section class="lecture-source-group" data-source-group="${escapeHtml(key)}"><header class="lecture-source-group-heading"><h3>${escapeHtml(title)}</h3><span>${group.cards.length} unique card${group.cards.length === 1 ? '' : 's'}${group.duplicates.length ? ` · ${group.duplicates.length} repeated` : ''}</span></header>${uniqueCards || '<p class="lecture-source-duplicate-note">No new cards from this material; its repeated concepts are kept once in the study set.</p>'}${duplicateNote}</section>`;
-    }).join('');
+    queue.innerHTML = current ? `<div class="review-position"><span>Card ${position+1} of ${filtered.length}</span><div class="actions"><button class="button" data-review-step="-1" aria-label="Previous card" ${position===0?'disabled':''}>←</button><button class="button" data-review-step="1" aria-label="Next card" ${position===filtered.length-1?'disabled':''}>→</button></div></div>` + renderCard(current) : '<div class="surface review-empty-filter"><h3>No cards match these filters.</h3><p>Choose another material or clear your search.</p></div>';
     window.requestAnimationFrame(() => queue.querySelectorAll('textarea').forEach(autoSizeTextArea));
   }
 
@@ -4254,7 +4251,7 @@
     panel.dataset.sourceId = sourceItem.id;
     const startButton = document.querySelector('#startSourceStudy');
     startButton.disabled = !cards.length;
-    startButton.textContent = `Study ${Math.min(5, cards.length)} cards`;
+    startButton.textContent = `Study ${Math.min(5, cards.length)} card${cards.length === 1 ? '' : 's'}`;
     document.querySelector('#sourceCardPreviews').innerHTML = cards.slice(0,3).map((card,index) => `<article class="source-card-preview"><small>${escapeHtml(card.noteType || 'Basic')} · CARD ${index+1}</small><h3>${window.SyllabloomAdvancedCards.render(card)}</h3><details><summary>Show answer</summary><div>${window.SyllabloomAdvancedCards.render(card,true)}</div><small>${escapeHtml(card.sourceLocation || 'Source passage')}</small>${card.sourceQuote ? `<blockquote>${escapeHtml(card.sourceQuote)}</blockquote>` : '<p>Check this answer in your original source.</p>'}</details></article>`).join('');
     const rows = window.SyllabloomSourceExperience.coverage(sourceItem,cards);
     const readable = rows.filter(row=>row.readable);
@@ -4508,9 +4505,9 @@
     );
     addButton.disabled = sourceBatchRunning || processable.length === 0;
     addButton.textContent = sourceBatchRunning
-      ? 'Adding documents…'
+      ? 'Creating your study tools…'
       : sourceQueueItems.some(item => item.status === 'queued')
-        ? 'Add ' + processable.length + (processable.length === 1 ? ' document' : ' documents')
+        ? 'Create study tools' + (processable.length > 1 ? ' · ' + processable.length + ' files' : '')
         : 'Resume import';
 
     const current = sourceQueueItems.find(item => item.status === 'processing');
@@ -5756,6 +5753,14 @@
   initializeSourceKindPicker();
   initializeThemedSelectPickers();
 
+  const dropzone = document.querySelector('#sourceDropzone');
+  dropzone.addEventListener('dragover',event=>{event.preventDefault();if(!sourceBatchRunning)dropzone.classList.add('is-dragging');});
+  dropzone.addEventListener('dragleave',()=>dropzone.classList.remove('is-dragging'));
+  dropzone.addEventListener('drop',event=>{event.preventDefault();dropzone.classList.remove('is-dragging');if(!sourceBatchRunning&&event.dataTransfer?.files.length)queueSourceFiles([...event.dataTransfer.files]);});
+  document.querySelector('#materialSearch').addEventListener('input', event=>{
+    const term=event.target.value.trim().toLowerCase();
+    document.querySelectorAll('#sourceLibrary [data-source-id]').forEach(row=>{row.hidden=!row.textContent.toLowerCase().includes(term);});
+  });
   document.querySelector('#sourceUpload').addEventListener('change', async event => {
     const files = [...(event.target.files || [])];
     event.target.value = '';
@@ -5807,11 +5812,20 @@
       const note = cardElement.querySelector('.lecture-card-quality-note');
       if (note) note.hidden = !needsEdit;
       const approveButton = cardElement.querySelector('[data-lecture-action="approve"]');
-      if (approveButton) approveButton.textContent = needsEdit ? 'Needs edit' : card.reviewStatus === 'approved' ? 'Ready' : 'Add to ready set';
+      if (approveButton) approveButton.textContent = needsEdit ? 'Needs edit' : 'Keep & next';
       saveLectureReview();
     }
   });
+  document.querySelector('#reviewSource').addEventListener('change',event=>{reviewFlow.source=event.target.value;reviewFlow.id=null;renderLectureDraftQueue();});
+  document.querySelector('#reviewStatus').addEventListener('change',event=>{reviewFlow.status=event.target.value;reviewFlow.id=null;renderLectureDraftQueue();});
+  document.querySelector('#reviewSearch').addEventListener('input',event=>{reviewFlow.query=event.target.value;reviewFlow.id=null;renderLectureDraftQueue();});
   document.querySelector('#lectureDraftQueue').addEventListener('click', event => {
+    const step = event.target.closest('[data-review-step]');
+    if(step) {const cards=reviewFlowCards();const index=cards.findIndex(card=>card.id===reviewFlow.id);reviewFlow.id=cards[index+Number(step.dataset.reviewStep)]?.id||reviewFlow.id;renderLectureDraftQueue();return;}
+    const reveal = event.target.closest('[data-review-reveal]');
+    if(reveal) {const answer=reveal.parentElement.querySelector('.focused-card-answer');answer.hidden=!answer.hidden;reveal.textContent=answer.hidden?'Show answer':'Hide answer';reveal.setAttribute('aria-expanded',String(!answer.hidden));return;}
+    const edit = event.target.closest('[data-review-edit]');
+    if(edit) {const editor=edit.closest('[data-lecture-card]').querySelector('.focused-card-edit');editor.hidden=!editor.hidden;edit.textContent=editor.hidden?'Edit':'Done editing';edit.setAttribute('aria-expanded',String(!editor.hidden));if(editor.hidden)renderLectureDraftQueue();else editor.querySelectorAll('textarea').forEach(autoSizeTextArea);return;}
     const actionButton = event.target.closest('[data-lecture-action]');
     const action = actionButton?.dataset.lectureAction;
     if (!action) return;
@@ -5826,6 +5840,7 @@
       showToast('Edit this into one focused question and a source-backed answer before adding it to your study set');
       return;
     }
+    reviewFlow.id = window.SyllabloomReviewFlow.nextId(reviewFlowCards(), card.id);
     card.reviewStatus = action === 'approve' ? 'approved' : 'skipped';
     saveLectureReview();
     renderLectureDraftQueue();
@@ -5947,6 +5962,12 @@
   });
 
   document.querySelectorAll('[data-export-ready]').forEach(button=>button.addEventListener('click',exportApprovedCards));
+  document.querySelector('#reviewSourceCards').addEventListener('click',()=>{
+    reviewFlow.source=document.querySelector('#sourceStudyOutput').dataset.sourceId;
+    reviewFlow.status='all';reviewFlow.query='';reviewFlow.id=null;
+    document.querySelector('#reviewStatus').value='all';document.querySelector('#reviewSearch').value='';
+    renderLectureDraftQueue();navigate('cards');
+  });
   document.querySelector('#startSourceStudy').addEventListener('click',()=>startShortStudy(document.querySelector('#sourceStudyOutput').dataset.sourceId));
   document.querySelector('#continueSourceStudy').addEventListener('click',()=>startShortStudy());
   document.querySelector('#studyFiveMore').addEventListener('click',()=>startShortStudy(shortStudy?.sourceId, shortStudy?.cards.map(card=>card.id) || []));

@@ -1,0 +1,57 @@
+/* Reference: one action per step, using the established Syllabloom palette. */
+.flow-path { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 24px; font-size:13px; }
+.flow-path span { padding:8px 12px; border:1px solid var(--ink); border-radius:30px; background:var(--paper); }
+.flow-path span:first-child { background:#cbe8ba; }
+#source .materials-story-panel { padding:32px !important; }
+#source .source-import h2 { font-size:clamp(26px,4vw,36px); }
+.source-dropzone { border:2px dashed #809775; border-radius:20px; padding:30px; margin:24px 0 16px; text-align:center; background:#fffdf6; }
+.source-dropzone.is-dragging { background:#e2efcb; border-style:solid; }
+.source-dropzone p { margin:0 0 14px !important; }
+#source .source-dropzone .source-import-controls { justify-content:center; margin:12px 0; }
+.source-extra-actions { display:flex; gap:16px; flex-wrap:wrap; margin:16px 0; }
+.source-privacy > summary { cursor:pointer; font-size:13px; }
+#source .source-kind-hint { max-width:660px; }
+.review-tools { display:grid; grid-template-columns:1fr 160px 1fr; gap:12px; margin:24px 0; }
+.review-tools label { display:grid; gap:6px; font-size:13px; }
+.review-tools select,.review-tools input { width:100%; min-width:0; padding:12px; border:1px solid var(--ink); border-radius:12px; background:var(--paper); color:var(--ink); font:inherit; }
+#lectureDraftQueue { display:block; max-width:760px; margin:auto; }
+.review-position { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:0 0 16px; }
+.review-position .actions { display:flex; gap:8px; }
+#lectureDraftQueue .lecture-draft-card { display:block; padding:24px; border-radius:24px; }
+.focused-card-prompt { font-size:clamp(21px,3vw,28px); line-height:1.5; text-align:center; padding:28px 8px; overflow-wrap:anywhere; }
+.focused-card-answer { padding:18px; margin-top:16px; background:#e3efce; border-radius:16px; overflow-wrap:anywhere; }
+.focused-card-answer[hidden],.focused-card-edit[hidden] { display:none !important; }
+.focused-card-source { border-top:1px solid #d8dacd; margin-top:24px; padding-top:18px; font-size:13px; }
+.focused-card-source blockquote { border-left:3px solid #91ac70; margin:12px 0; padding-left:14px; line-height:1.65; }
+.focused-card-edit { margin:24px 0; }
+#lectureDraftQueue .lecture-draft-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:24px; }
+#lectureDraftQueue .lecture-draft-actions .lecture-card-delete { margin-left:auto; font-size:12px; }
+#lectureDraftQueue .lecture-draft-actions .primary { margin-left:auto; }
+.review-empty-filter { padding:32px; text-align:center; }
+#sourceLibrary .file-row { box-shadow:none; padding:18px 22px; border-radius:16px; }
+#sourceLibrary .file-row strong { font-size:16px; overflow-wrap:anywhere; }
+#sourceLibrary .file-row .actions { flex-shrink:0; }
+#sourceLibrary .file-row .actions [data-remove-source] { font-size:12px; }
+.materials-library-heading { display:flex; justify-content:space-between; align-items:center; margin:36px 0 16px; }
+.materials-library-heading h2 { margin:0; }
+#sourceLibrary [hidden] { display:none !important; }
+.workflow-loop { grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr); }
+@media(min-width:761px) and (max-width:1120px) { .workflow-loop { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media(max-width:760px) { .workflow-loop { grid-template-columns:1fr; } }
+.material-search { width:100%; max-width:260px; padding:12px; border:1px solid var(--ink); border-radius:12px; background:var(--paper); font:inherit; }
+#source .source-study-output>header { align-items:center; }
+#source .source-study-output>header .primary { flex-shrink:0; }
+@media(max-width:760px) {
+ .review-tools { grid-template-columns:1fr 1fr; }
+ .review-tools label:last-child { grid-column:1/-1; }
+ #lectureDraftQueue .lecture-draft-card { padding:20px; }
+ #source .materials-story-panel { padding:22px !important; }
+ .source-dropzone { padding:24px 16px; }
+ .materials-library-heading { align-items:stretch; flex-direction:column; gap:12px; }
+ .material-search { max-width:none; }
+ #sourceLibrary .file-row { display:block; }
+ #sourceLibrary .file-row .actions { margin-top:14px; flex-wrap:wrap; }
+ .flow-path { gap:6px; }
+ .flow-path span { padding:7px 9px; font-size:12px; }
+ .focused-card-prompt { padding:20px 0; }
+}
