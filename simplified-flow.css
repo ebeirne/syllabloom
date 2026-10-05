@@ -132,3 +132,42 @@
 
 .marketing-nav nav a[href="#anki-first"], .marketing-nav nav a[href="#made-for-class"] { display:none; }
 #lectureDraftQueue .focused-card-prompt, #lectureDraftQueue .focused-card-answer { font-size:20px !important; line-height:1.55; }
+
+/* Oversized editorial direction requested by Ethan. */
+:root { --paper:#faf9f6; --ink:#171715; --sun:#efeee8; }
+body, button, input, select, textarea { font-family:"Times New Roman",Times,serif !important; }
+body { background:#faf9f6 !important; font-size:22px; }
+.marketing-home { background:#faf9f6 !important; }
+.marketing-nav { background:transparent !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; padding:24px 0 !important; }
+.marketing-logo { font-size:30px !important; }
+.marketing-nav nav { font-size:20px; }
+.marketing-hero { display:block !important; background:transparent !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; padding:64px 24px 80px !important; }
+.marketing-hero-copy { max-width:1100px; margin:auto; }
+.marketing-hero h1 { font-family:"Times New Roman",Times,serif !important; font-size:clamp(60px,8vw,112px) !important; font-weight:400 !important; line-height:1.02 !important; letter-spacing:-.045em !important; max-width:17ch !important; }
+.marketing-hero-copy > p:not(.marketing-beta-kicker) { font-size:clamp(24px,2.4vw,30px) !important; line-height:1.4; max-width:38ch; }
+.marketing-beta-kicker, .marketing-hero-visual, .marketing-scroll-progress, .marketing-trust-line, .marketing-final-companion { display:none !important; }
+.marketing-hero-actions { margin-top:36px; gap:24px; }
+.button, .marketing-primary-cta { background:#faf9f6 !important; color:#171715 !important; box-shadow:none !important; border:1px solid #171715 !important; border-radius:4px !important; min-height:60px !important; font-size:22px !important; padding:16px 28px !important; }
+.button.primary { background:#171715 !important; color:#faf9f6 !important; }
+.marketing-section, .marketing-statement, .marketing-final-cta, .marketing-pricing { background:transparent !important; border-radius:0 !important; box-shadow:none !important; }
+.marketing-home h2 { font-family:"Times New Roman",Times,serif !important; font-size:clamp(38px,4vw,64px) !important; font-weight:400; line-height:1.1; }
+.marketing-home p { font-size:22px; line-height:1.5; }
+#mainApp .page-head h1, #source .page-head h1 { font-size:clamp(48px,6vw,80px) !important; font-weight:400 !important; line-height:1.08 !important; }
+#source .materials-mascot, #mainApp .character-cutout { display:none !important; }
+#source .source-import > div > p:first-of-type { padding-right:0 !important; font-size:24px; }
+.source-dropzone { background:transparent; border:1px dashed #171715; border-radius:4px; padding:44px 24px; }
+#source .source-study-output > header { background:transparent !important; padding:32px; }
+#sourceStudyOutput, #lectureDraftQueue .lecture-draft-card, .source-card-preview { background:#faf9f6 !important; box-shadow:none !important; border:1px solid #cccac2 !important; border-radius:4px !important; }
+#lectureDraftQueue .focused-card-prompt, #lectureDraftQueue .focused-card-answer, .source-card-preview h3, .source-card-answer { font-size:26px !important; line-height:1.45; font-weight:400; }
+#lectureDraftQueue .lecture-draft-card { content-visibility:auto; contain-intrinsic-size:auto 420px; }
+.flow-path span { background:transparent !important; border-radius:0; font-size:19px; }
+@media(max-width:600px) {
+ .marketing-hero { padding:32px 16px 48px !important; }
+ .marketing-hero h1 { font-size:60px !important; }
+ .marketing-nav { padding:16px !important; flex-wrap:wrap; gap:16px; }
+ .marketing-nav nav { display:none; }
+ .marketing-hero-actions { align-items:stretch; flex-direction:column; }
+ .marketing-hero-copy > p:not(.marketing-beta-kicker) { font-size:24px !important; }
+ #lectureDraftQueue .focused-card-prompt, #lectureDraftQueue .focused-card-answer, .source-card-preview h3, .source-card-answer { font-size:22px !important; }
+ .button { padding:14px 20px !important; }
+}
