@@ -3546,7 +3546,7 @@
   <link rel="stylesheet" href="seo-pages.css?v=20260923-seo-guides-1">
   <link rel="stylesheet" href="product-flow.css?v=20260930-flow-3">
   <link rel="stylesheet" href="advanced-cards.css?v=20261004-sheet-4">
-  <link rel="stylesheet" href="simplified-flow.css?v=20261004-preferences-1">
+  <link rel="stylesheet" href="simplified-flow.css?v=20261004-simple-journey-1">
 </head>
 <body>
   <section id="landing" class="marketing-home" aria-label="Syllabloom home page">
@@ -3572,10 +3572,10 @@
       <section class="marketing-hero">
         <div class="marketing-hero-copy">
           <p class="marketing-beta-kicker">Lecture material <span>→</span> study tools</p>
-          <h1>Your lecture. A clear summary. Cards that stick.</h1>
-          <p>Upload your lecture material. Get an illustrated summary, turn its key facts into cloze cards, and study here or in Anki.</p>
+          <h1>Turn your lecture into study tools.</h1>
+          <p>Add your notes, slides or recording. Get a clear summary and cards you can study here or export to Anki.</p>
           <div class="marketing-hero-actions">
-            <button class="button primary marketing-primary-cta" data-start-onboarding>Upload my first lecture</button>
+            <button class="button primary marketing-primary-cta" data-start-onboarding>Add your lecture</button>
             <button class="marketing-link-button" data-open-sample>Preview a sample class <span aria-hidden="true"></span></button>
           </div>
           <div class="marketing-trust-line">
@@ -3592,7 +3592,7 @@
       <section class="marketing-statement" aria-label="What Syllabloom does">
         <p>Keep each card close to the lecture file it came from, so you can check the answer as you review.</p>
         <div class="statement-path" aria-label="Syllabloom workflow summary">
-          <span>Class material</span><b>→</b><span>Illustrated summary</span><b>→</b><span>Cloze + diagram cards</span><b>→</b><span>Study</span>
+          <span>Add lecture</span><b>→</b><span>Get study tools</span><b>→</b><span>Study</span>
         </div>
       </section>
 
@@ -3821,7 +3821,7 @@
           </div>
           <div class="setup-material-actions">
             <label for="onboardingMaterials" class="button primary" role="button" tabindex="0">Add slides, notes, or readings</label>
-            <input id="onboardingMaterials" type="file" accept=".docx,.ppt,.pptw,.pptx,.pdf,.txt" multiple hidden />
+            <input id="onboardingMaterials" type="file" accept=".docx,.ppt,.pptw,.pptx,.pdf,.txt,.mp3,.mp4,.m4a,.wav,.webm,.ogg,.mov" multiple hidden />
             <button id="useSampleMaterial" class="button" type="button">Use anatomy example</button>
           </div>
           <div id="onboardingMaterialList" class="setup-material-list" aria-live="polite"></div>
@@ -3899,14 +3899,13 @@
       </button>
       <nav aria-label="Main navigation">
         <button class="nav-button active" data-view="home"><small>01</small><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><path d="M12 20v-8"/><path d="M12 12c-3.8 0-6-2.2-6-6 3.8 0 6 2.2 6 6Z"/><path d="M12 10c0-3.4 2.1-5.3 5.5-5.3 0 3.4-2.1 5.3-5.5 5.3Z"/><path d="M6.5 20h11"/></svg></span><span>Today</span></button>
-        <button class="nav-button" data-view="capture"><small>02</small><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><rect x="8" y="3" width="8" height="13" rx="4"/><path d="M5.5 11.5v.8a6.5 6.5 0 0 0 13 0v-.8M12 18.8V22M8.8 22h6.4"/></svg></span><span>Lecture</span></button>
-        <button class="nav-button" data-view="cards"><small>03</small><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><path d="M7 4h11a2 2 0 0 1 2 2v11"/><rect x="4" y="7" width="14" height="13" rx="2.5"/><path d="m8 13 2.3 2.3 4.7-5"/></svg></span><span>Review</span></button>
+        <button class="nav-button" data-view="materials"><small>03</small><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><path d="M7 4h11a2 2 0 0 1 2 2v11"/><rect x="4" y="7" width="14" height="13" rx="2.5"/><path d="m8 13 2.3 2.3 4.7-5"/></svg></span><span>Materials</span></button>
         <button class="nav-button" data-view="study"><small>04</small><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><path d="M12 3c.7 4.5 3 6.8 7 7.5-4 .7-6.3 3-7 7.5-.7-4.5-3-6.8-7-7.5 4-.7 6.3-3 7-7.5Z"/><path d="M18.5 16.5c.2 1.4.9 2.1 2.2 2.3-1.3.2-2 1-2.2 2.2-.2-1.2-.9-2-2.2-2.2 1.3-.2 2-1 2.2-2.3Z"/></svg></span><span>Study</span></button>
       </nav>
       <button id="recordingPill" class="recording-pill" data-go="capture" hidden><span></span><em>Recording</em><strong id="recordingPillTime">00:00</strong></button>
       <div class="sidebar-bottom">
         <span class="sidebar-section-label">Class</span>
-        <button class="sidebar-action" data-view="source" data-go="source"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><path d="M6 4.5h9l3 3V20H6z"/><path d="M15 4.5V8h3M8.5 12h7M8.5 15.5h7"/></svg></span><span>Materials</span></button>
+        <button class="sidebar-action" data-view="cards" data-go="cards"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><path d="M6 4.5h9l3 3V20H6z"/><path d="M15 4.5V8h3M8.5 12h7M8.5 15.5h7"/></svg></span><span>Cards</span></button>
         <button class="sidebar-action" data-view="knowledge" data-go="knowledge"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h6"/></svg></span><span>Calendar</span></button>
         <button class="sidebar-action account-nav-action" data-view="profile" data-open-profile><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><circle cx="12" cy="8" r="3"/><path d="M5.5 20c.5-3.6 2.9-5.5 6.5-5.5s6 1.9 6.5 5.5"/></svg></span><span>Account</span></button>
         <button id="addClass" class="sidebar-action">Add another class</button>
@@ -3919,7 +3918,7 @@
       <header class="mobile-header">
         <button class="mobile-class" data-back-home aria-label="Back to Syllabloom home"><span class="brand-mark"><img src="assets/syllabloom-mark.svg" width="48" height="48" alt="" /></span><span><strong id="currentClassNameMobile">Human Anatomy</strong><span>Syllabloom</span></span></button>
         <button id="mobileRecordingPill" class="mobile-recording-pill" data-go="capture" hidden><span></span><strong id="mobileRecordingPillTime">00:00</strong></button>
-        <button class="mobile-class-button" data-go="source">Class</button>
+        <button class="mobile-class-button" data-go="knowledge">Class</button>
         <button class="mobile-account-button" data-open-profile aria-label="Open profile">Me</button>
         <select id="mobileNav" aria-label="Choose page" hidden>
           <optgroup label="Study">
@@ -3929,7 +3928,7 @@
             <option value="study">Study</option>
           </optgroup>
           <optgroup label="Class">
-            <option value="source">Materials</option>
+            <option value="source">Add lecture</option><option value="materials">Materials</option>
             <option value="knowledge">Calendar</option>
             <option value="profile">Profile</option>
             <option value="billing">Beta access</option>
@@ -3953,12 +3952,7 @@
               </div>
             </header>
 
-<details class="upload-options"><summary>Customize your cards</summary><div class="card-preferences">
-              <label>Coverage<select data-card-preference="coverage"><option value="key">Key facts · up to 12 cards</option><option value="balanced" selected>Balanced · up to 24 cards</option><option value="detailed">Detailed · up to 60 cards</option></select></label>
-              <label>Wording<select data-card-preference="wording"><option value="simple" selected>Simple, easy to remember</option><option value="standard">Standard course wording</option></select></label>
-              <label>Your instructions <span>(optional)</span><textarea data-card-preference="instructions" maxlength="500" rows="3" placeholder="Use short sentences and simpler words. Focus on mechanisms and comparisons."></textarea></label>
-              <small>One fact per card. Essential technical terms stay accurate. Counts depend on how many distinct facts your material supports. Saved for future uploads.</small>
-            </div></details>
+
             <section class="recorder" id="recorderPanel">
               <div id="cloudBetaNotice" class="cloud-beta-notice" role="status" hidden>
                 <strong>Public beta</strong>
@@ -4102,17 +4096,17 @@
         </div>
       </section>
 
-      <section id="home" class="page active">
+      <section id="home" class="page active"><section id="firstLecturePanel" class="surface surface-pad return-study" hidden><div><span>START HERE</span><h1>Add your first lecture.</h1><p>Your summary and study cards will stay together.</p></div><button class="button primary" data-go="source">Add your lecture</button></section>
         <section id="returnStudyPanel" class="surface surface-pad return-study" hidden><div><span>YOUR NEXT SESSION</span><h1 id="returnStudyTitle">Continue studying</h1><p id="returnStudyDescription"></p></div><div class="flow-actions"><button id="continueSourceStudy" class="button primary">Continue studying</button><button class="button" data-go="source">Add next lecture</button></div></section>
         <header class="app-toolbar">
           <div class="breadcrumbs"><span data-class-name>Human Anatomy</span><b>/</b><strong>Today</strong></div>
           <div class="toolbar-actions">
-            <button id="homeSourceButton" data-go="source">3 sources</button>
+            <button id="homeSourceButton" data-go="materials">3 sources</button>
             <span id="homeExamSummary"><b>12 days</b> to exam</span>
           </div>
         </header>
 
-        <details id="moreStudyOptions" class="more-study-options" open><summary>More ways to study</summary>
+        <details id="moreStudyOptions" class="more-study-options"><summary>More ways to study</summary>
         <div class="study-workspace">
           <main class="study-plan-pane">
             <header class="pane-heading friendly-heading">
@@ -4279,31 +4273,32 @@
         </section>
       </section>
 
-      <section id="source" class="page">
+      <section id="materials" class="page"><div class="page-head"><div><h1>Your materials.</h1><p class="page-description">Pick a lecture to study or open its tools.</p></div><button class="button primary" data-go="source">Add lecture</button></div><div class="materials-library-heading"><input id="materialSearch" class="material-search" type="search" aria-label="Search materials" placeholder="Find a lecture"></div><div id="sourceLibrary" class="file-stack" aria-live="polite"></div><details class="upload-options"><summary>More tools</summary><div class="flow-actions"><button class="button" data-go="cards">All cards</button><button class="text-button" data-go="capture">Record a lecture</button><button class="text-button" data-open-occlusion>Create diagram cards</button><button class="text-button" data-go="knowledge">Class calendar</button></div></details></section>
+      <section id="source" class="page" data-flow-mode="upload">
         <div class="page-head">
           <div>
-            <h1>What do you want to study?</h1>
-            <p class="page-description">Start with one lecture. We’ll keep your material and study tools together.</p>
+            <h1 id="sourceFlowTitle">Add your lecture.</h1>
+            <p id="sourceFlowDescription" class="page-description">Drop in your material. We’ll make your summary and cards.</p>
           </div>
 
         </div>
 
-        <div class="flow-path" aria-label="Study workflow"><span>Upload material</span><span>Illustrated summary</span><span>Review cards</span><span>Study</span></div>
+        <div class="flow-path" aria-label="Study workflow"><span>Add lecture</span><span>Get study tools</span><span>Study</span></div>
         <section class="source-import surface character-story-panel materials-story-panel">
           <img class="materials-mascot character-cutout" src="assets/syllabloom-mascot-materials.webp" width="1200" height="1200" alt="The Syllabloom companion checking a course source with a magnifying glass" />
           <div>
             <h2>Start with one lecture.</h2>
-            <p>Choose your slides, PDF or notes. Get an illustrated summary, then cloze cards from its key facts. Review and send them to Anki.</p>
-          <div id="sourceDropzone" class="source-dropzone"><p><strong>Drop your lecture files here</strong></p><small>PDF, PowerPoint, Word or text notes</small>
+            <p>Choose a file. We’ll take care of the rest.</p>
+          <div id="sourceDropzone" class="source-dropzone"><p><strong>Drop your lecture files here</strong></p><small>PDF, PowerPoint, Word, text, audio or video</small>
           <div class="source-import-controls">
-            <label id="sourceUploadLabel" for="sourceUpload" class="button primary" role="button" tabindex="0">Choose documents</label>
-            <input id="sourceUpload" type="file" accept=".docx,.ppt,.pptw,.pptx,.pdf,.txt" multiple hidden />
+            <label id="sourceUploadLabel" for="sourceUpload" class="button primary" role="button" tabindex="0">Choose file</label>
+            <input id="sourceUpload" type="file" accept=".docx,.ppt,.pptw,.pptx,.pdf,.txt,.mp3,.mp4,.m4a,.wav,.webm,.ogg,.mov" multiple hidden />
           </div></div>
-          <div class="source-extra-actions"><button class="text-button" data-go="capture">Use a recording instead</button><button type="button" class="text-button" data-open-occlusion>Create diagram cards</button></div>
+          <div class="source-extra-actions"><button class="text-button" data-go="capture">Record a lecture instead</button></div>
             <details class="source-privacy"><summary>How your material is used</summary>            <p class="source-kind-hint">Extracted text is sent to OpenAI to draft cards and saved with your signed-in workspace for source checks. Only upload material you are allowed to use, without sensitive personal information.</p>
 </details>
             <p id="sourceAccessNote" class="source-kind-hint" role="status">Your plan is checked before generation. Monthly $12, or $108 billed yearly ($9/month equivalent); confirmed free accounts keep their access.</p>
-            <details class="upload-options"><summary>Customize your cards</summary><div class="card-preferences">
+            <details class="upload-options"><summary>Card options</summary><div class="card-preferences">
               <label>Coverage<select data-card-preference="coverage"><option value="key">Key facts · up to 12 cards</option><option value="balanced" selected>Balanced · up to 24 cards</option><option value="detailed">Detailed · up to 60 cards</option></select></label>
               <label>Wording<select data-card-preference="wording"><option value="simple" selected>Simple, easy to remember</option><option value="standard">Standard course wording</option></select></label>
               <label>Your instructions <span>(optional)</span><textarea data-card-preference="instructions" maxlength="500" rows="3" placeholder="Use short sentences and simpler words. Focus on mechanisms and comparisons."></textarea></label>
@@ -4347,12 +4342,18 @@
 
         </section>
 
+        <details class="upload-options"><summary>Card options</summary><div class="card-preferences">
+              <label>Coverage<select data-card-preference="coverage"><option value="key">Key facts · up to 12 cards</option><option value="balanced" selected>Balanced · up to 24 cards</option><option value="detailed">Detailed · up to 60 cards</option></select></label>
+              <label>Wording<select data-card-preference="wording"><option value="simple" selected>Simple, easy to remember</option><option value="standard">Standard course wording</option></select></label>
+              <label>Your instructions <span>(optional)</span><textarea data-card-preference="instructions" maxlength="500" rows="3" placeholder="Use short sentences and simpler words. Focus on mechanisms and comparisons."></textarea></label>
+              <small>One fact per card. Essential technical terms stay accurate. Counts depend on how many distinct facts your material supports. Saved for future uploads.</small>
+            </div></details>
         <section id="sourceQueue" class="source-batch-queue surface" aria-labelledby="sourceQueueTitle" hidden>
           <header class="source-batch-heading">
             <div>
-              <span class="source-batch-kicker">BATCH IMPORT</span>
+              <span class="source-batch-kicker">YOUR MATERIAL</span>
               <h2 id="sourceQueueTitle">Your lecture files</h2>
-              <p>Choose a different type for each file if needed. Syllabi update the calendar; class materials and assessments build study content.</p>
+              <p>We detect the file type for you. Change it only if needed.</p>
             </div>
             <button id="sourceQueueClear" class="button" type="button">Clear list</button>
           </header>
@@ -4368,9 +4369,9 @@
             <div><span id="sourceStudyOutputEyebrow">LATEST SOURCE</span><h2 id="sourceStudyOutputTitle">Cards and notes are ready to review</h2><p id="sourceStudyOutputSummary"></p></div>
             <button id="startSourceStudy" class="button primary" type="button">Study five cards</button>
           </header>
-          <div id="sourceIllustratedSheet"></div>
+          <details id="sourceSummaryDetails" class="source-notes-details"><summary>View summary</summary><div id="sourceIllustratedSheet"></div></details>
           <details class="source-notes-details"><summary>Preview a few cards</summary><div id="sourceCardPreviews" class="source-card-previews"></div></details>
-          <div class="flow-actions"><button id="reviewSourceCards" class="button">Review these cards</button><button id="addMoreSourceCards" class="button">Add more cards</button><button class="button" data-export-ready>Export class to Anki</button></div>
+          <div class="flow-actions"><button id="reviewSourceCards" class="button">Cards &amp; edits</button><button id="addMoreSourceCards" class="button">Add more cards</button><button id="exportSourceAnki" class="button">Export to Anki</button><button class="text-button" data-go="source">Add another lecture</button></div>
           <details class="upload-options"><summary>Optional class and Anki settings</summary><div class="flow-actions"><button id="sourceAnkiSettings" class="text-button">Anki settings</button><button id="optionalClassSettings" class="text-button">Class settings</button></div></details>
           <details class="source-coverage"><summary>Check source coverage</summary><p id="sourceCoverageSummary"></p><p>These counts show where cards cite readable text. They do not measure exam coverage or correctness. Check diagrams and your learning objectives separately.</p><div id="sourceCoverageRows"></div><button id="generateSelectedSections" class="button" type="button">Draft cards from selected sections</button><p id="coverageFeedback" role="status"></p></details>
           <details class="source-notes-details"><summary>Concepts and source notes</summary>
@@ -4379,8 +4380,7 @@
             <div><h3>Notes from the source</h3><div id="sourceStudyNotes" class="source-study-notes"></div></div>
           </div></details>
         </section>
-        <div class="materials-library-heading"><h2>Your materials</h2><input id="materialSearch" class="material-search" type="search" aria-label="Search materials" placeholder="Search your materials"></div>
-        <div id="sourceLibrary" class="file-stack" aria-live="polite"></div>
+
         <div class="surface course-map sample-source-detail">
           <div><strong>0</strong><span>calendar dates in the sample syllabus</span></div>
           <div><strong>Upper limb</strong><span>Example syllabus focus</span></div>
@@ -4623,9 +4623,9 @@
       <section id="cards" class="page">
         <div class="page-head">
           <div>
-            <h1 id="reviewPageTitle">Review your cards.</h1>
+            <h1 id="reviewPageTitle">Your cards.</h1>
             <p id="reviewPageDescription" class="page-description">Check the full set, edit anything that needs work, and leave out cards you don't want to study.</p>
-            <button type="button" class="button" data-open-occlusion>Create diagram cards</button>
+            <button class="text-button" data-go="materials">Back to materials</button>
           </div>
         </div>
 
@@ -4652,9 +4652,9 @@
         <section class="anki-export-bar" aria-labelledby="ankiExportHeading">
           <img class="anki-export-mascot character-cutout" src="assets/rounds-mascot-anki.webp" width="900" height="900" alt="The Syllabloom companion carrying approved cards toward Anki" />
           <div class="anki-export-copy"><span id="approvedSetCount">0 ready</span><h2 id="ankiExportHeading" tabindex="-1">Export ready cards to Anki</h2><p id="ankiExportSummary">Your class, Syllabloom FSRS, 20 new cards per day</p></div>
-          <div class="anki-export-actions"><button id="openAnkiSettings" class="button" type="button">Edit Anki settings</button><button id="exportAnki" class="button primary" disabled>Export to Anki</button></div>
+          <div class="anki-export-actions"><button id="openAnkiSettings" class="button" type="button">Export options</button><button id="exportAnki" class="button primary" disabled>Export to Anki</button></div>
         </section>
-        <details class="upload-options optional-desktop-sync"><summary>Optional: send directly to Anki Desktop</summary>
+        <details id="ankiExportOptions" class="upload-options optional-desktop-sync" hidden><summary>Anki options and desktop connection</summary><button id="advancedAnkiSettings" class="text-button">Deck settings</button>
         <section class="anki-desktop-bridge surface" aria-labelledby="ankiDesktopHeading">
           <div class="anki-desktop-copy">
             <span class="account-kicker">ON THIS DEVICE</span>
@@ -4842,9 +4842,7 @@
 
     <nav class="mobile-bottom-nav" aria-label="Primary navigation">
       <button class="nav-button active" data-view="home"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><path d="M12 20v-8"/><path d="M12 12c-3.8 0-6-2.2-6-6 3.8 0 6 2.2 6 6Z"/><path d="M12 10c0-3.4 2.1-5.3 5.5-5.3 0 3.4-2.1 5.3-5.5 5.3Z"/><path d="M6.5 20h11"/></svg></span><span>Today</span></button>
-      <button class="nav-button" data-view="capture"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><rect x="8" y="3" width="8" height="13" rx="4"/><path d="M5.5 11.5v.8a6.5 6.5 0 0 0 13 0v-.8M12 18.8V22M8.8 22h6.4"/></svg></span><span>Record</span></button>
-      <button class="nav-button" data-view="cards"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><path d="M7 4h11a2 2 0 0 1 2 2v11"/><rect x="4" y="7" width="14" height="13" rx="2.5"/><path d="m8 13 2.3 2.3 4.7-5"/></svg></span><span>Review</span></button>
-      <button class="nav-button" data-view="knowledge"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h6"/></svg></span><span>Calendar</span></button>
+      <button class="nav-button" data-view="materials"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><path d="M7 4h11a2 2 0 0 1 2 2v11"/><rect x="4" y="7" width="14" height="13" rx="2.5"/><path d="m8 13 2.3 2.3 4.7-5"/></svg></span><span>Materials</span></button>
       <button class="nav-button" data-view="study"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="presentation"><path d="M12 3c.7 4.5 3 6.8 7 7.5-4 .7-6.3 3-7 7.5-.7-4.5-3-6.8-7-7.5 4-.7 6.3-3 7-7.5Z"/><path d="M18.5 16.5c.2 1.4.9 2.1 2.2 2.3-1.3.2-2 1-2.2 2.2-.2-1.2-.9-2-2.2-2.2 1.3-.2 2-1 2.2-2.3Z"/></svg></span><span>Study</span></button>
     </nav>
     <footer class="app-legal-footer"><span>Lecture material → reviewed cards · one active class</span><nav aria-label="Legal information"><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a></nav></footer>
@@ -5113,7 +5111,7 @@
   <script src="source-experience.js?v=20261004-preferences-1-20260930-flow-3"></script>
   <script src="product-events.js?v=20260930-flow-3"></script>
   <script src="flow-review.js?v=20261004-flow-2"></script>
-  <script src="app.js?v=20261004-preferences-3"></script>
+  <script src="app.js?v=20261004-simple-journey-1"></script>
   <script src="billing.js?v=20260930-flow-3"></script>
   <script type="module" src="motion-effects.js?v=20260921-motion-smooth-2"></script>
 </body>

@@ -207,7 +207,7 @@
   };
   state.anki.questionStyle = normalizedQuestionStyle(state.anki.questionStyle);
 
-  const appViews = new Set(['home', 'capture', 'source', 'knowledge', 'profile', 'billing', 'cards', 'study', 'quick-check']);
+  const appViews = new Set(['home', 'capture', 'source', 'materials', 'knowledge', 'profile', 'billing', 'cards', 'study', 'quick-check']);
   const marketingHashes = new Set(['landing', 'how-it-works', 'anki-first', 'made-for-class', 'pricing']);
   let restoringShellHistory = false;
 
@@ -1215,7 +1215,8 @@
   }
 
   function updateAnkiExportSurface() {
-    const approved = collectApprovedCards().length;
+    const selectedSource = document.querySelector('#reviewSource')?.value || '';
+    const approved = collectApprovedCards(selectedSource).length;
     const fullDeck = fullAnkiDeckName();
     const summary = `${fullDeck}, ${state.anki.presetName}, ${state.anki.newPerDay} new cards per day`;
     const approvedLabel = `${approved} ready card${approved === 1 ? '' : 's'}`;
@@ -1225,7 +1226,7 @@
     const settingsDestination = document.querySelector('#ankiSettingsDestination');
     const exportHeading = document.querySelector('#ankiExportHeading');
     if (count) count.textContent = approvedLabel;
-    if (exportHeading) exportHeading.textContent = `Export ${fullDeck} cards to Anki`;
+    if (exportHeading) exportHeading.textContent = selectedSource ? 'Export this lecture to Anki' : `Export ${fullDeck} cards to Anki`;
     if (exportSummary) exportSummary.textContent = summary;
     if (settingsCount) settingsCount.textContent = approvedLabel;
     if (settingsDestination) settingsDestination.textContent = `${fullDeck} · ${state.anki.presetName}`;
@@ -2095,11 +2096,12 @@
       : 'A medical student and a small green study companion sorting anatomy flashcards';
     const returnSource = [...state.sources].reverse().find(item => item.draftCards?.length);
     document.querySelector('#returnStudyPanel').hidden = !custom || !returnSource;
+    document.querySelector('#firstLecturePanel').hidden = !custom || Boolean(returnSource);
     const moreStudy = document.querySelector('#moreStudyOptions');
     const hasReturn = Boolean(custom && returnSource);
-    if (moreStudy.dataset.hasReturn !== String(hasReturn)) moreStudy.open = !hasReturn;
+    if (moreStudy.dataset.hasReturn !== String(hasReturn)) moreStudy.open = !custom;
     moreStudy.dataset.hasReturn = String(hasReturn);
-    moreStudy.querySelector('summary').hidden = !hasReturn;
+    moreStudy.querySelector('summary').hidden = !custom;
     if(returnSource) { document.querySelector('#returnStudyTitle').textContent = 'Continue studying'; document.querySelector('#returnStudyDescription').textContent = `${returnSource.name} · a five-card session, ready when you are.`; }
     document.querySelector('#todayHeroCopy').textContent = custom
       ? latestSource
@@ -2346,12 +2348,13 @@
   }
 
   function navigate(view, historyMode = 'push') {
+    if (view === 'source') setSourceFlowMode(sourceBatchRunning ? 'processing' : 'upload');
     if (view === 'study' && !shortStudy && !state.studyFocusConcept && state.sources.some(item=>item.draftCards?.length)) { startShortStudy(); return; }
     if (view !== 'study') shortStudy = null;
     const previousView = state.view;
     if (view !== 'study') state.studyFocusConcept = '';
     state.view = view;
-    const selectedNavView = view === 'quick-check' ? 'home' : view;
+    const selectedNavView = view === 'quick-check' ? 'home' : ['source','capture','cards','knowledge'].includes(view) ? 'materials' : view;
     document.querySelectorAll('.page').forEach(page => page.classList.toggle('active', page.id === view));
     document.querySelectorAll('.nav-button').forEach(button => button.classList.toggle('active', button.dataset.view === selectedNavView));
     document.querySelectorAll('.sidebar-action[data-view]').forEach(button => {
@@ -2945,9 +2948,9 @@
     return String(value).replace(/[\r\n]+/g, ' ').trim();
   }
 
-  function collectApprovedCards() {
+  function collectApprovedCards(sourceId = '') {
     const approved = [];
-    if (state.includeSampleMaterial) {
+    if (state.includeSampleMaterial && !sourceId) {
       Object.entries(state.statuses).forEach(([key, status]) => {
         if (status !== 'Approved') return;
         const separator = key.lastIndexOf('-');
@@ -2970,6 +2973,7 @@
 
     state.lectureCards.forEach(card => {
       if (card.reviewStatus !== 'approved' || !isUsableLectureCard(card)) return;
+      if (sourceId && card.sourceId !== sourceId && !(card.duplicateSourceRefs || []).some(ref=>ref.sourceId===sourceId)) return;
       approved.push({
         noteType: card.noteType || 'Basic',
         clozeText: card.clozeText,
@@ -2983,8 +2987,9 @@
     return approved;
   }
 
-  async function exportApprovedCards() {
-    const approved = collectApprovedCards();
+  async function exportApprovedCards(sourceId = '') {
+    if (typeof sourceId !== 'string') sourceId = document.querySelector('#reviewSource')?.value || '';
+    const approved = collectApprovedCards(sourceId);
 
     if (!approved.length) {
       showToast('No ready cards to export yet');
@@ -3606,6 +3611,16 @@
     choices.value = selected;
     if (choices.value !== selected) reviewFlow.source = '';
     const filtered = reviewFlowCards();
+    const scoped = window.SyllabloomReviewFlow.select(state.lectureCards,reviewFlow.source);
+    if (reviewFlow.source) {
+      const ready = scoped.filter(card=>card.reviewStatus==='approved' && isUsableLectureCard(card)).length;
+      document.querySelector('#lectureDraftCount').textContent = `${scoped.length} in this lecture · ${ready} ready`;
+      document.querySelector('#reviewPageTitle').textContent = 'Your cards.';
+      document.querySelector('#reviewPageDescription').textContent = `${scoped.length} cards from ${state.sources.find(source=>source.id===reviewFlow.source)?.name || 'this lecture'}. Study now, or edit a card below.`;
+      document.querySelector('#studyAccepted').disabled = ready === 0;
+      document.querySelector('#exportAnki').disabled = ready === 0;
+    }
+    updateAnkiExportSurface();
     const current = filtered.find(card => card.id === reviewFlow.id) || filtered[0];
     reviewFlow.id = current?.id || null;
     const position = current ? filtered.indexOf(current) : -1;
@@ -3626,7 +3641,7 @@
           <div class="focused-card-prompt">${window.SyllabloomAdvancedCards.render(card,false)}</div>
           <button class="button full" type="button" data-review-reveal aria-expanded="false">Show answer</button>
           <div class="focused-card-answer" hidden>${window.SyllabloomAdvancedCards.render(card,true)}</div>
-          <div class="focused-card-source"><strong>${escapeHtml(card.sourceName || card.source || 'Course material')}${location ? ' · '+escapeHtml(location) : ''}</strong>${card.sourceQuote ? `<blockquote>${escapeHtml(card.sourceQuote)}</blockquote>` : '<p>No source passage attached. Check this card against your material.</p>'}</div>
+          <details class="focused-card-source"><summary>Check source${location ? ' · '+escapeHtml(location) : ''}</summary><strong>${escapeHtml(card.sourceName || card.source || 'Course material')}</strong>${card.sourceQuote ? `<blockquote>${escapeHtml(card.sourceQuote)}</blockquote>` : '<p>No source passage attached. Check this card against your material.</p>'}</details>
           <div class="focused-card-edit" hidden>
           ${card.noteType === 'ImageOcclusion' ? window.SyllabloomAdvancedCards.imageHtml(card) : `<label>Card type<select data-lecture-format><option value="Basic" ${card.noteType !== 'Cloze' ? 'selected' : ''}>Question and answer</option><option value="Cloze" ${card.noteType === 'Cloze' ? 'selected' : ''}>Cloze deletion</option></select></label><label>${card.noteType === 'Cloze' ? 'Cloze sentence · use {{c1::term}}' : 'Front'}<textarea data-lecture-field="${card.noteType === 'Cloze' ? 'clozeText' : 'front'}">${escapeHtml(card.noteType === 'Cloze' ? card.clozeText || '' : card.front)}</textarea></label>`}
           <label>Back<textarea data-lecture-field="back">${escapeHtml(card.back)}</textarea></label>
@@ -4212,7 +4227,7 @@
         : (sourceItem.draftCards?.length ? `${sourceItem.draftCards.length} cards` : 'Parsed');
     return `
       <div class="surface file-row" data-source-id="${escapeHtml(sourceItem.id)}">
-        <div><strong>${escapeHtml(sourceItem.name)}</strong><span>${escapeHtml(sourceMeta(sourceItem))}</span></div>
+        <div><strong>${escapeHtml(sourceItem.name)}</strong><details class="source-details-menu"><summary>Material details</summary><span>${escapeHtml(sourceMeta(sourceItem))}</span></details></div>
         <div class="actions">
           <span class="status">${escapeHtml(status)}</span>
           ${sourceItem.draftCards?.length ? `<button class="button" type="button" data-open-source-tools="${escapeHtml(sourceItem.id)}">View study tools</button>` : ''}
@@ -4248,7 +4263,7 @@
     materials.forEach(item => rows.push(sourceRow(item)));
     library.innerHTML = rows.length
       ? rows.join('')
-      : '<div class="surface source-library-empty"><strong>This class is empty.</strong><span>Add a syllabus, slide deck, notes, or an authorized assessment above.</span></div>';
+      : '<div class="surface source-library-empty"><strong>No lectures yet.</strong><span>Use Add lecture to create your first study tools.</span></div>';
     const searchTerm = document.querySelector('#materialSearch').value.trim().toLowerCase();
     library.querySelectorAll('[data-source-id]').forEach(row=>{row.hidden=!row.textContent.toLowerCase().includes(searchTerm);});
     const total = rows.length;
@@ -4260,6 +4275,13 @@
     if (!state.includeSampleMaterial) document.querySelector('#classCardWorkspace').hidden = true;
     renderSourceStudyOutput();
     renderOnboardingMaterials();
+  }
+
+  function setSourceFlowMode(mode) {
+    const page = document.querySelector('#source');
+    page.dataset.flowMode = mode;
+    document.querySelector('#sourceFlowTitle').textContent = mode==='ready' ? 'Your study tools are ready.' : mode==='processing' ? 'Creating your study tools…' : 'Add your lecture.';
+    document.querySelector('#sourceFlowDescription').textContent = mode==='ready' ? 'Start a short session, or explore your summary and cards.' : mode==='processing' ? 'We’ll show each step as your material is processed.' : 'Drop in your material. We’ll make your summary and cards.';
   }
 
   function renderSourceStudyOutput(preferredSource = null) {
@@ -4279,7 +4301,7 @@
     document.querySelector('#addMoreSourceCards').hidden = !sourceItem.studySections?.some(section=>section.text?.trim());
     const startButton = document.querySelector('#startSourceStudy');
     startButton.disabled = !cards.length;
-    startButton.textContent = `Study ${Math.min(5, cards.length)} card${cards.length === 1 ? '' : 's'}`;
+    startButton.textContent = 'Study now';
     document.querySelector('#sourceCardPreviews').innerHTML = cards.slice(0,3).map((card,index) => `<article class="source-card-preview"><small>${escapeHtml(card.noteType || 'Basic')} · CARD ${index+1}</small><h3>${window.SyllabloomAdvancedCards.render(card)}</h3><details><summary>Show answer</summary><div>${window.SyllabloomAdvancedCards.render(card,true)}</div><small>${escapeHtml(card.sourceLocation || 'Source passage')}</small>${card.sourceQuote ? `<blockquote>${escapeHtml(card.sourceQuote)}</blockquote>` : '<p>Check this answer in your original source.</p>'}</details></article>`).join('');
     const rows = window.SyllabloomSourceExperience.coverage(sourceItem,cards);
     const readable = rows.filter(row=>row.readable);
@@ -4287,8 +4309,10 @@
     document.querySelector('#sourceCoverageRows').innerHTML = rows.map((row,index) => `<label class="coverage-row"><input type="checkbox" data-coverage-index="${index}" ${row.readable ? '' : 'disabled'}><span><strong>${escapeHtml(row.label)}: ${escapeHtml(row.status)}</strong><small>${escapeHtml(row.title)}</small>${row.lowText || row.imageWarning ? '<small>Limited text or visual content: check the original.</small>' : ''}</span></label>`).join('');
     document.querySelector('#generateSelectedSections').hidden = !readable.length;
     document.querySelector('#sourceStudyOutputEyebrow').textContent = sourceItem.name;
-    document.querySelector('#sourceStudyOutputTitle').textContent = sourceItem.studySheet ? 'Your illustrated study summary' : `${cards.length} ready card${cards.length === 1 ? '' : 's'} from this source`;
-    document.querySelector('#sourceStudyOutputSummary').textContent = sourceItem.studySheet ? `${cards.length} cloze drafts made from this summary. Check the cited facts, mask diagram labels, then review and export to Anki.` : 'Preview the questions, check their source passages, then try a short session. Edit anything that needs work.';
+    document.querySelector('#sourceStudyOutputTitle').textContent = sourceItem.name;
+    document.querySelector('#sourceStudyOutputSummary').textContent = `${cards.length} study cards · start with a five-card session. Check source passages or edit whenever you need to.`;
+    document.querySelector('#sourceSummaryDetails').hidden = !sourceItem.studySheet;
+    document.querySelector('#exportSourceAnki').disabled = !collectApprovedCards(sourceItem.id).length;
     const sheetContainer = document.querySelector('#sourceIllustratedSheet');
     if (sheetContainer) sheetContainer.innerHTML = sourceItem.studySheet ? sheetHtml(sourceItem.studySheet,sourceItem.id) : '';
     document.querySelector('#sourceStudyConcepts').innerHTML = concepts.length
@@ -4511,8 +4535,7 @@
             <span class="source-queue-file-icon" aria-hidden="true">▤</span>
             <div><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(formatFileSize(item.size))}</span></div>
           </div>
-          <div class="source-queue-kind">
-            <span class="source-queue-kind-label">Document type</span>
+          <details class="source-queue-kind"><summary>File type</summary>
             <div class="source-kind-picker source-queue-kind-picker" data-themed-select-picker>
               <select class="source-kind-native" data-source-queue-kind="${escapeHtml(item.id)}" aria-hidden="true" tabindex="-1" ${item.targetSourceId ? 'disabled' : ''}>${optionMarkup}</select>
               <button class="source-kind-trigger" type="button" aria-label="Document type for ${escapeHtml(item.name)}" aria-haspopup="listbox" aria-expanded="false" aria-controls="${menuId}" ${sourceBatchRunning || item.targetSourceId ? 'disabled' : ''}>
@@ -4521,7 +4544,7 @@
               </button>
               <div id="${menuId}" class="source-kind-menu" role="listbox" aria-label="Document type for ${escapeHtml(item.name)}" popover="auto">${menuMarkup}</div>
             </div>
-          </div>
+          </details>
           <div class="source-queue-state">
             <span class="source-queue-status ${statusClass}">${statusLabel}</span>
             ${item.restartRequired ? `<button type="button" data-restart-source="${escapeHtml(item.id)}" ${sourceBatchRunning ? 'disabled' : ''}>Restart unfinished batch</button>` : ''}
@@ -4582,6 +4605,7 @@
     const assertOwner = () => { if (owner !== importOwner) throw new Error('Account changed. Sign back in to resume this import.'); };
 
     sourceBatchRunning = true;
+    setSourceFlowMode('processing');
     const questionStyle = normalizedQuestionStyle(state.anki.questionStyle);
     sourceBatchProgress = null;
     sourceBatchFeedback = '';
@@ -4621,6 +4645,7 @@
       return;
     } finally {
       sourceBatchRunning = false;
+      if(document.querySelector('#source').dataset.flowMode==='processing') setSourceFlowMode('upload');
       await persistImportQueue(owner, workingQueue);
       renderSourceQueue();
     }
@@ -4640,6 +4665,7 @@
     sourceBatchRunning = false;
     sourceBatchProgress = null;
     const remaining = sourceQueueItems.length;
+    if (remaining) setSourceFlowMode('upload');
     const feedbackParts = [];
     if (added.length) feedbackParts.push(added.length + ' document' + (added.length === 1 ? '' : 's') + ' added');
     if (expanded.length) feedbackParts.push(`${expanded.reduce((total,item)=>total+(item.addedCardCount || 0),0)} additional unique cards added; existing cards kept`);
@@ -5036,7 +5062,7 @@
       updateAssessmentIntro();
       renderSourceStudyOutput(detectedKind === 'syllabus' ? null : payload.source);
       if(payload.source.draftCards?.length) window.SyllabloomEvents?.track('generation_succeeded', {cards:queueItem?.addedCardCount ?? payload.source.draftCards.length});
-      if(detectedKind !== 'syllabus') document.querySelector('#sourceStudyOutput').scrollIntoView({behavior:'smooth',block:'start'});
+      if(detectedKind !== 'syllabus') {setSourceFlowMode('ready');document.querySelector('#sourceStudyOutput').scrollIntoView({behavior:'smooth',block:'start'});}
       if (detectedKind !== 'syllabus' && (payload.source.draftCards || []).length
         && ankiDesktopSettings.autoSync && ankiDesktopSettings.ownerId === state.account.userId) {
         sendReadyCardsToDesktop({ automatic: true });
@@ -5329,7 +5355,8 @@
   document.querySelectorAll('[data-open-sample]').forEach(button => button.addEventListener('click', loadSampleClass));
   document.querySelectorAll('[data-back-home]').forEach(button => button.addEventListener('click', showLanding));
   document.querySelector('#mobileNav').addEventListener('change', event => navigate(event.target.value));
-  document.querySelector('#openAnkiSettings').addEventListener('click', () => openAnkiSettings(false));
+  document.querySelector('#openAnkiSettings').addEventListener('click', () => {const options=document.querySelector('#ankiExportOptions');options.hidden=false;options.open=!options.open;});
+  document.querySelector('#advancedAnkiSettings').addEventListener('click', () => openAnkiSettings(false));
   document.querySelector('#openAnkiSettingsOnboarding').addEventListener('click', () => openAnkiSettings(true));
   document.querySelector('#closeAnkiSettings').addEventListener('click', () => document.querySelector('#ankiSettingsDialog').close());
   document.querySelector('#cancelAnkiSettings').addEventListener('click', () => {
@@ -5458,7 +5485,7 @@
   document.querySelector('#previewClass').addEventListener('click', loadSampleClass);
   document.querySelector('#addClass').addEventListener('click', startClassSetup);
   document.querySelector('#addClassFromSource').addEventListener('click', startClassSetup);
-  document.querySelector('#classSwitcher').addEventListener('click', () => navigate('source'));
+  document.querySelector('#classSwitcher').addEventListener('click', () => navigate('knowledge'));
   document.querySelectorAll('[data-close-class-limit]').forEach(button => button.addEventListener('click', () => document.querySelector('#classLimitDialog').close()));
   document.querySelector('[data-see-pricing]').addEventListener('click', showPricing);
   document.querySelector('#classLimitDialog').addEventListener('click', event => {
@@ -5797,7 +5824,15 @@
   const dropzone = document.querySelector('#sourceDropzone');
   dropzone.addEventListener('dragover',event=>{event.preventDefault();if(!sourceBatchRunning)dropzone.classList.add('is-dragging');});
   dropzone.addEventListener('dragleave',()=>dropzone.classList.remove('is-dragging'));
-  dropzone.addEventListener('drop',event=>{event.preventDefault();dropzone.classList.remove('is-dragging');if(!sourceBatchRunning&&event.dataTransfer?.files.length)queueSourceFiles([...event.dataTransfer.files]);});
+  dropzone.addEventListener('drop',event=>{event.preventDefault();dropzone.classList.remove('is-dragging');if(!sourceBatchRunning&&event.dataTransfer?.files.length)acceptLectureFiles([...event.dataTransfer.files]);});
+  function acceptLectureFiles(files) {
+    const media=files.filter(file=>/\.(mp3|mp4|m4a|wav|webm|ogg|mov)$/i.test(file.name));
+    if (media.length) {
+      if(files.length!==1) {showToast('Add recordings one at a time, separately from documents.');return;}
+      navigate('capture');
+      processAudio(media[0],media[0].name,[],{origin:'upload',title:lectureName(media[0].name)});
+    } else queueSourceFiles(files);
+  }
   document.querySelector('#materialSearch').addEventListener('input', event=>{
     const term=event.target.value.trim().toLowerCase();
     document.querySelectorAll('#sourceLibrary [data-source-id]').forEach(row=>{row.hidden=!row.textContent.toLowerCase().includes(term);});
@@ -5805,7 +5840,7 @@
   document.querySelector('#sourceUpload').addEventListener('change', async event => {
     const files = [...(event.target.files || [])];
     event.target.value = '';
-    if (files.length) queueSourceFiles(files);
+    if (files.length) acceptLectureFiles(files);
   });
   document.querySelector('#sourceQueueList').addEventListener('change', event => {
     const select = event.target.closest('[data-source-queue-kind]');
@@ -6002,7 +6037,8 @@
     }
   });
 
-  document.querySelectorAll('[data-export-ready]').forEach(button=>button.addEventListener('click',exportApprovedCards));
+  document.querySelectorAll('[data-export-ready]').forEach(button=>button.addEventListener('click',()=>exportApprovedCards(shortStudy?.sourceId || '')));
+  document.querySelector('#exportSourceAnki').addEventListener('click',()=>exportApprovedCards(document.querySelector('#sourceStudyOutput').dataset.sourceId));
   document.querySelector('#reviewSourceCards').addEventListener('click',()=>{
     reviewFlow.source=document.querySelector('#sourceStudyOutput').dataset.sourceId;
     reviewFlow.status='all';reviewFlow.query='';reviewFlow.id=null;
@@ -6136,7 +6172,7 @@
     const sourceButton = event.target.closest('[data-open-source-tools]');
     if (sourceButton) {
       const source = state.sources.find(item=>item.id===sourceButton.dataset.openSourceTools);
-      if (source) {navigate('source');renderSourceStudyOutput(source);document.querySelector('#sourceStudyOutput').scrollIntoView({behavior:'smooth',block:'start'});}
+      if (source) {navigate('source');renderSourceStudyOutput(source);setSourceFlowMode('ready');document.querySelector('#sourceSummaryDetails').open=false;}
       return;
     }
     const button = event.target.closest('[data-open-occlusion],[data-sheet-occlusion],[data-lecture-sheet]');

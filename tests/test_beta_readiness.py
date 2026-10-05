@@ -229,7 +229,7 @@ class BetaReadinessContractTests(unittest.TestCase):
         self.assertIn("deck: '',", app)
         self.assertIn("state.anki.deck.trim() || state.className.trim() || 'Syllabloom'", app)
         self.assertIn("return setName ? `${deck}::${setName}` : deck;", app)
-        self.assertIn("if (exportHeading) exportHeading.textContent = `Export ${fullDeck} cards to Anki`;", app)
+        self.assertIn("if (exportHeading) exportHeading.textContent = selectedSource ? 'Export this lecture to Anki' : `Export ${fullDeck} cards to Anki`;", app)
 
     def test_source_type_picker_uses_themed_accessible_menu(self) -> None:
         page = (ROOT / "index.html").read_text(encoding="utf-8")
@@ -254,7 +254,7 @@ class BetaReadinessContractTests(unittest.TestCase):
         batch = (ROOT / "source-batch.js").read_text(encoding="utf-8")
         styles = (ROOT / "redesign.css").read_text(encoding="utf-8")
 
-        self.assertIn('id="sourceUpload" type="file" accept=".docx,.ppt,.pptw,.pptx,.pdf,.txt" multiple', page)
+        self.assertIn('id="sourceUpload" type="file" accept=".docx,.ppt,.pptw,.pptx,.pdf,.txt,.mp3,.mp4,.m4a,.wav,.webm,.ogg,.mov" multiple', page)
         self.assertIn('id="sourceQueue"', page)
         self.assertIn('id="sourceQueueList"', page)
         self.assertIn('id="sourceQueueProgress" role="status" aria-live="polite"', page)
@@ -279,8 +279,8 @@ class BetaReadinessContractTests(unittest.TestCase):
         page = (ROOT / "index.html").read_text(encoding="utf-8")
         styles = (ROOT / "redesign.css").read_text(encoding="utf-8")
 
-        self.assertEqual(page.count('class="nav-icon"'), 12)
-        self.assertGreaterEqual(page.count('aria-hidden="true"><svg viewBox="0 0 24 24"'), 12)
+        self.assertEqual(page.count('class="nav-icon"'), 9)
+        self.assertGreaterEqual(page.count('aria-hidden="true"><svg viewBox="0 0 24 24"'), 9)
         self.assertIn(".nav-button .nav-icon svg", styles)
         self.assertIn('.nav-button[data-view="capture"] .nav-icon', styles)
         self.assertIn('.nav-button[data-view="cards"] .nav-icon', styles)

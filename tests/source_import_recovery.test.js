@@ -62,7 +62,7 @@ test('import retry keeps inspection and successful batches, then produces one so
     syncLectureCards: cards => { state.lectureCards = cards; }
   };
   for (const name of ['persistClassSources','persistClassProfile','syncAccountClassUsage','renderSource',
-    'updateGenerationCount','updateReviewSurface','renderStudy','updateAssessmentIntro','renderSourceStudyOutput']) context[name] = () => {};
+    'updateGenerationCount','updateReviewSurface','renderStudy','updateAssessmentIntro','renderSourceStudyOutput','setSourceFlowMode']) context[name] = () => {};
   vm.createContext(context); vm.runInContext(code, context);
   const file = { name: 'lecture.pptx', size: 1024 };
   const queueItem = {};
