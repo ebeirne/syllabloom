@@ -3,6 +3,11 @@
 .flow-path span { padding:8px 12px; border:1px solid var(--ink); border-radius:30px; background:var(--paper); }
 .flow-path span:first-child { background:#cbe8ba; }
 #source .materials-story-panel { padding:32px !important; }
+#source .page-head h1 { font-size:clamp(34px,4vw,52px) !important; max-width:none; line-height:1.12; }
+#source .page-head { margin-bottom:24px; }
+#source .materials-mascot { width:110px; left:auto; right:24px; top:8px; bottom:auto; }
+#source .source-import h2 { padding-right:110px; }
+#source .source-import > div > p:first-of-type { padding-right:110px; }
 #source .source-import h2 { font-size:clamp(26px,4vw,36px); }
 .source-dropzone { border:2px dashed #809775; border-radius:20px; padding:30px; margin:24px 0 16px; text-align:center; background:#fffdf6; }
 .source-dropzone.is-dragging { background:#e2efcb; border-style:solid; }
@@ -51,6 +56,9 @@
  .review-tools label:last-child { grid-column:1/-1; }
  #lectureDraftQueue .lecture-draft-card { padding:20px; }
  #source .materials-story-panel { padding:22px !important; }
+ #source .materials-mascot { width:80px; right:10px; }
+ #source .source-import h2 { padding-right:72px; max-width:none; }
+ #source .source-import > div > p:first-of-type { padding-right:0; }
  .source-dropzone { padding:24px 16px; }
  .materials-library-heading { align-items:stretch; flex-direction:column; gap:12px; }
  .material-search { max-width:none; }
