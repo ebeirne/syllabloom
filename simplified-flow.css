@@ -206,3 +206,41 @@ body { background:#faf9f6 !important; font-size:22px; }
 .source-card-preview:nth-child(3n+2), #lectureDraftQueue .lecture-draft-card:nth-child(3n+2) { background:#fbeaf1 !important; }
 .source-card-preview:nth-child(3n), #lectureDraftQueue .lecture-draft-card:nth-child(3n) { background:#edf5e9 !important; }
 @media(prefers-reduced-motion:reduce) { .button.primary::after,#sourceUploadLabel::after,#reviewSourceCards::after,#exportSourceAnki::after { transition:none !important; transform:translate(-50%,-50%) !important; } }
+
+/* Bright full-width sections, solid navigation, and an inset hover companion. */
+:root { --ink:#080808; --paper:#fff5cf; }
+body, .marketing-home { background:#fff0b8 !important; color:#080808 !important; }
+.marketing-home { width:100% !important; max-width:none !important; padding:0 !important; overflow-x:clip; }
+.marketing-home > main { max-width:none !important; width:100% !important; margin:0 !important; }
+.marketing-nav { display:grid !important; grid-template-columns:1fr auto 1fr; align-items:center; gap:24px; position:sticky; top:0 !important; margin:0 !important; padding:20px 4.5vw !important; background:#f9dc54 !important; border-bottom:2px solid #080808 !important; z-index:30; }
+.marketing-nav nav { display:flex !important; justify-content:center; align-items:center; gap:28px; font-size:22px; font-weight:700; }
+.marketing-nav nav a[href="#anki-first"], .marketing-nav nav a[href="#made-for-class"] { display:inline !important; }
+.marketing-nav-actions { justify-self:end; }
+.marketing-nav .marketing-text-button { background:#fff5cf !important; color:#080808 !important; }
+.marketing-hero, .marketing-section, .marketing-statement, .marketing-final-cta, .marketing-pricing, #anki-first { width:100% !important; max-width:none !important; margin:0 !important; box-sizing:border-box; padding:72px max(24px,4.5vw) !important; }
+.marketing-hero { background:#fff0b8 !important; }
+.marketing-statement { background:#a9d69b !important; border:0 !important; }
+.workflow-section { background:#ffe76b !important; }
+#anki-first { background:#afdaf4 !important; }
+.class-section { background:#f2a5c8 !important; }
+.marketing-pricing, #pricing { background:#fff0b8 !important; }
+.marketing-final-cta { background:#a9d69b !important; }
+.marketing-home h1, .marketing-home h2, .marketing-home h3, .marketing-home p, .marketing-home a { color:#080808 !important; }
+.button.primary::after, #sourceUploadLabel::after, #reviewSourceCards::after, #exportSourceAnki::after { left:auto !important; right:-18px !important; top:50% !important; opacity:0 !important; transform:translate(100%,-50%) rotate(-10deg) !important; transition:opacity .18s ease, transform .3s ease !important; }
+.button.primary:not(:disabled):hover::after, .button.primary:not(:disabled):focus-visible::after, #sourceUploadLabel:hover::after, #sourceUploadLabel:focus-visible::after, #reviewSourceCards:hover::after, #reviewSourceCards:focus-visible::after, #exportSourceAnki:hover::after, #exportSourceAnki:focus-visible::after { opacity:.3 !important; transform:translate(0,-50%) rotate(0) !important; }
+#mainApp { background:#ffe76b !important; color:#080808 !important; font-size:24px; }
+#mainApp .main, #mainApp .page { background:#ffe76b !important; }
+#mainApp .sidebar { background:#a9d69b !important; border-right:2px solid #080808; }
+#mainApp .page-head h1 { font-size:clamp(56px,6vw,88px) !important; color:#080808 !important; }
+#mainApp h2 { font-size:36px !important; color:#080808 !important; }
+#mainApp h3 { font-size:28px !important; color:#080808 !important; }
+#mainApp p, #mainApp label, #mainApp .page-description, #mainApp .nav-button, #mainApp .sidebar-action, #mainApp input, #mainApp select, #mainApp textarea { font-size:24px !important; color:#080808 !important; line-height:1.45; }
+#mainApp .source-card-answer, #mainApp .focused-card-answer, #mainApp .focused-card-prompt { font-size:28px !important; color:#080808 !important; }
+#mainApp .source-dropzone { background:#afdaf4 !important; border-color:#080808 !important; }
+#sourceStudyOutput > header { background:#a9d69b !important; }
+@media(max-width:1100px) { .marketing-nav { grid-template-columns:auto 1fr; gap:16px; } .marketing-nav nav { grid-column:1/-1; grid-row:2; flex-wrap:wrap; gap:14px 24px; } .marketing-nav-actions { grid-column:2; grid-row:1; } }
+@media(max-width:600px) { .marketing-nav { padding:16px !important; } .marketing-nav nav { font-size:20px; } .marketing-logo { font-size:26px !important; } .marketing-nav-actions { gap:8px; } .marketing-nav-actions .button { font-size:18px !important; padding:12px !important; } .marketing-hero,.marketing-section,.marketing-statement,.marketing-final-cta,.marketing-pricing,#anki-first { padding:40px 20px !important; } #mainApp p,#mainApp label,#mainApp input,#mainApp select,#mainApp textarea { font-size:22px !important; } }
+@media(prefers-reduced-motion:reduce) { .button.primary::after,#sourceUploadLabel::after,#reviewSourceCards::after,#exportSourceAnki::after { transition:none !important; } }
+.marketing-nav { width:100% !important; max-width:none !important; box-sizing:border-box; }
+#mainApp h1 { color:#080808 !important; font-family:"Times New Roman",Times,serif !important; font-size:clamp(48px,5vw,72px) !important; line-height:1.08 !important; }
+#mainApp .button { font-size:24px !important; }
