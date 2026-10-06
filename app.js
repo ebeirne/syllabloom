@@ -1830,7 +1830,7 @@
       ? state.account.email || 'Signed-in account'
       : 'Sign in to manage your account. Class files and study settings stay in this browser during beta.';
     const avatar = document.querySelector('#profileAvatar');
-    avatar.src = state.account.imageUrl || 'assets/syllabloom-mark.svg';
+    avatar.src = state.account.imageUrl || 'assets/syllabloom-face-logo.png';
     avatar.alt = state.account.imageUrl ? `${signedInName} profile photo` : 'Syllabloom account mark';
     document.querySelector('#profileIdentityHeading').textContent = signedInName;
     document.querySelector('#profileEmail').textContent = emailText;
@@ -1847,7 +1847,7 @@
       ? `${new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(`${exam.date}T12:00:00`))} · ${exam.title}`
       : 'No exam date yet';
     const sourceTotal = state.includeSampleMaterial ? 3 : state.sources.length;
-    document.querySelector('#profileClassList').innerHTML = `<article class="profile-class-item"><span class="profile-class-mark" aria-hidden="true"><img src="assets/syllabloom-mark.svg" width="50" height="50" alt="" /></span><div><strong>${escapeHtml(state.className)}</strong><span>${escapeHtml(state.classTerm)} · ${state.classMode === 'sample' ? 'Sample class' : 'Active class'}</span></div><dl><div><dt>Sources</dt><dd>${sourceTotal}</dd></div><div><dt>Next date</dt><dd>${escapeHtml(examLabel)}</dd></div></dl><button class="button" type="button" data-open-current-class>Open class</button></article>`;
+    document.querySelector('#profileClassList').innerHTML = `<article class="profile-class-item"><span class="profile-class-mark" aria-hidden="true"><img src="assets/syllabloom-face-logo.png" width="50" height="50" alt="" /></span><div><strong>${escapeHtml(state.className)}</strong><span>${escapeHtml(state.classTerm)} · ${state.classMode === 'sample' ? 'Sample class' : 'Active class'}</span></div><dl><div><dt>Sources</dt><dd>${sourceTotal}</dd></div><div><dt>Next date</dt><dd>${escapeHtml(examLabel)}</dd></div></dl><button class="button" type="button" data-open-current-class>Open class</button></article>`;
     renderProfileSchedule();
   }
 

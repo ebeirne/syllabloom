@@ -7893,7 +7893,7 @@ select option {
   object-fit: cover;
 }
 
-.profile-avatar-wrap img[src$="syllabloom-mark.svg"] {
+.profile-avatar-wrap img[src$="syllabloom-face-logo.png"] {
   padding: 16px;
   background: var(--grass);
   object-fit: contain;

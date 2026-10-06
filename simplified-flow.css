@@ -326,3 +326,6 @@ body,.marketing-home { background:#f5f3ee !important; color:#171d22 !important; 
 #mainApp .page-head { gap:24px; flex-wrap:wrap; }
 #mainApp .button:disabled { opacity:.5; cursor:not-allowed; }
 @media(max-width:600px) { #landing .marketing-section-heading h2 { font-size:38px !important; } #landing .anki-first-copy h2 { max-width:none !important; } #mainApp .page-head h1 { font-size:44px !important; } }
+.brand-mark { background:transparent !important; border:0 !important; box-shadow:none !important; border-radius:0 !important; }
+.brand-mark img { object-fit:contain !important; width:100%; height:100%; }
+.brand-mark::before,.brand-mark::after { display:none !important; }
