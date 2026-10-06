@@ -296,3 +296,9 @@ body,.marketing-home { background:#f5f3ee !important; color:#171d22 !important; 
 #mainApp .focused-card-answer,#mainApp .focused-card-prompt,.source-card-answer,.source-card-preview h3 { text-align:left !important; }
 @media(max-width:600px) { .marketing-hero-actions { padding-right:80px; } .marketing-hero-actions .button.primary { margin-inline-end:0; } .marketing-nav-actions .button.primary { margin-inline-end:56px; } .marketing-nav-actions .button.primary::after { width:48px !important; height:64px !important; } }
 @media(prefers-reduced-motion:reduce) { .button.primary::after,#sourceUploadLabel::after,#reviewSourceCards::after,#exportSourceAnki::after { transition:none !important; } }
+
+/* The radish peeks around the edge rather than standing next to it. */
+.button.primary, #sourceUploadLabel, #reviewSourceCards, #exportSourceAnki { --radish-pose:url("assets/syllabloom-mascot-peek.png"); }
+.button.primary::after, #sourceUploadLabel::after, #reviewSourceCards::after, #exportSourceAnki::after { width:80px !important; height:80px !important; left:calc(100% - 14px) !important; transform:translate(-18px,-50%) rotate(-8deg) !important; }
+.button.primary:not(:disabled):hover::after, .button.primary:not(:disabled):focus-visible::after, #sourceUploadLabel:hover::after, #sourceUploadLabel:focus-visible::after, #reviewSourceCards:hover::after, #reviewSourceCards:focus-visible::after, #exportSourceAnki:hover::after, #exportSourceAnki:focus-visible::after { transform:translate(0,-50%) rotate(0) !important; }
+@media(max-width:600px) { .marketing-nav-actions .button.primary::after { left:calc(100% - 9px) !important; } }
