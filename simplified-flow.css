@@ -304,7 +304,7 @@ body,.marketing-home { background:#f5f3ee !important; color:#171d22 !important; 
 @media(max-width:600px) { .marketing-nav-actions .button.primary::after { left:calc(100% - 9px) !important; } }
 
 /* Refinement pass: reliable content visibility, contrast, and calmer panels. */
-.button.primary,#sourceUploadLabel,#reviewSourceCards,#exportSourceAnki { --radish-pose:url("assets/syllabloom-mascot-peek-point.png"); }
+.button.primary,#sourceUploadLabel,#reviewSourceCards,#exportSourceAnki { --radish-pose:url("assets/syllabloom-mascot-peek-point-v2.png"); }
 #landing .motion-item { opacity:1 !important; transform:none !important; }
 #landing .marketing-section-heading { display:block !important; }
 #landing .marketing-section-heading h2 { max-width:24ch; margin:0 auto 24px !important; }
