@@ -174,3 +174,19 @@ body { background:#faf9f6 !important; font-size:22px; }
 
 .marketing-hero::before,.marketing-hero::after,.marketing-hero-copy::before,.marketing-hero-copy::after,.button::before,.button::after { display:none !important; }
 .marketing-hero-actions .button { background:#171715 !important; color:#faf9f6 !important; }
+
+/* Radish companion: decorative feedback on the primary actions. */
+.marketing-hero { display:grid !important; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); align-items:center; gap:48px; }
+.marketing-hero-copy { min-width:0; }
+.marketing-hero-visual { display:block !important; min-width:0; background:transparent !important; border:0 !important; box-shadow:none !important; }
+.marketing-hero-visual img { display:block; width:100%; height:auto; object-fit:contain; border-radius:8px; }
+.marketing-hero h1 { font-size:clamp(60px,6.8vw,100px) !important; }
+.button.primary, #sourceUploadLabel, #reviewSourceCards, #exportSourceAnki { position:relative; overflow:visible !important; --radish-pose:url("assets/rounds-mascot-celebrate.webp"); }
+#sourceUploadLabel, #sourceQueueAdd { --radish-pose:url("assets/syllabloom-mascot-materials.webp"); }
+#startSourceStudy, #studyAccepted, #continueSourceStudy { --radish-pose:url("assets/syllabloom-mascot-study-coach.webp"); }
+#reviewSourceCards { --radish-pose:url("assets/syllabloom-mascot-detective.webp"); }
+#exportSourceAnki, #exportAnki { --radish-pose:url("assets/rounds-mascot-anki.webp"); }
+.button.primary::after, #sourceUploadLabel::after, #reviewSourceCards::after, #exportSourceAnki::after { content:"" !important; display:block !important; position:absolute !important; width:76px !important; height:76px !important; right:-20px !important; top:-59px !important; inset-inline-start:auto !important; background:var(--radish-pose) center/contain no-repeat !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; pointer-events:none; opacity:0; transform:translateY(16px) rotate(-8deg) scale(.8); transition:opacity .18s ease,transform .24s ease; z-index:5; }
+.button.primary:not(:disabled):hover::after, .button.primary:focus-visible::after, #sourceUploadLabel:hover::after, #sourceUploadLabel:focus-visible::after, #reviewSourceCards:hover::after, #exportSourceAnki:hover::after { opacity:1; transform:translateY(0) rotate(0) scale(1); }
+@media(max-width:760px) { .marketing-hero { grid-template-columns:1fr; gap:32px; } .marketing-hero-visual { max-width:480px; margin:auto; } }
+@media(prefers-reduced-motion:reduce) { .button::after,#sourceUploadLabel::after { transition:none !important; transform:none !important; } }
