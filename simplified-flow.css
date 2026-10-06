@@ -190,3 +190,19 @@ body { background:#faf9f6 !important; font-size:22px; }
 .button.primary:not(:disabled):hover::after, .button.primary:focus-visible::after, #sourceUploadLabel:hover::after, #sourceUploadLabel:focus-visible::after, #reviewSourceCards:hover::after, #exportSourceAnki:hover::after { opacity:1; transform:translateY(0) rotate(0) scale(1); }
 @media(max-width:760px) { .marketing-hero { grid-template-columns:1fr; gap:32px; } .marketing-hero-visual { max-width:480px; margin:auto; } }
 @media(prefers-reduced-motion:reduce) { .button::after,#sourceUploadLabel::after { transition:none !important; transform:none !important; } }
+
+/* Keep the companion inside each action, with readable text above it. */
+.button.primary, #sourceUploadLabel, #reviewSourceCards, #exportSourceAnki { isolation:isolate; overflow:hidden !important; background:#f9dc54 !important; color:#171715 !important; --radish-pose:url("assets/rounds-mascot-listening.webp"); }
+.button.primary::after, #sourceUploadLabel::after, #reviewSourceCards::after, #exportSourceAnki::after { width:112px !important; height:112px !important; left:50% !important; right:auto !important; top:50% !important; opacity:.16; transform:translate(-50%,-45%) rotate(-5deg) !important; z-index:-1; background-size:contain !important; }
+.button.primary:not(:disabled):hover::after, .button.primary:focus-visible::after, #sourceUploadLabel:hover::after, #sourceUploadLabel:focus-visible::after, #reviewSourceCards:hover::after, #reviewSourceCards:focus-visible::after, #exportSourceAnki:hover::after, #exportSourceAnki:focus-visible::after { opacity:.26; transform:translate(-50%,-50%) rotate(3deg) !important; }
+.marketing-hero-actions .button:not(.primary) { background:#efb0cb !important; color:#171715 !important; }
+.marketing-statement { background:#dcebd9 !important; border:1px solid #bed6b9 !important; }
+.workflow-section { background:#fff5cf !important; }
+.class-section { background:#f9e2ec !important; }
+.marketing-final-cta { background:#dcebd9 !important; }
+.source-dropzone { background:#fff5cf !important; border-color:#8c986c !important; }
+#sourceStudyOutput > header { background:#dcebd9 !important; }
+.source-card-preview:nth-child(3n+1), #lectureDraftQueue .lecture-draft-card:nth-child(3n+1) { background:#fff8dc !important; }
+.source-card-preview:nth-child(3n+2), #lectureDraftQueue .lecture-draft-card:nth-child(3n+2) { background:#fbeaf1 !important; }
+.source-card-preview:nth-child(3n), #lectureDraftQueue .lecture-draft-card:nth-child(3n) { background:#edf5e9 !important; }
+@media(prefers-reduced-motion:reduce) { .button.primary::after,#sourceUploadLabel::after,#reviewSourceCards::after,#exportSourceAnki::after { transition:none !important; transform:translate(-50%,-50%) !important; } }
