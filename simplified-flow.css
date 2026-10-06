@@ -244,3 +244,33 @@ body, .marketing-home { background:#fff0b8 !important; color:#080808 !important;
 .marketing-nav { width:100% !important; max-width:none !important; box-sizing:border-box; }
 #mainApp h1 { color:#080808 !important; font-family:"Times New Roman",Times,serif !important; font-size:clamp(48px,5vw,72px) !important; line-height:1.08 !important; }
 #mainApp .button { font-size:24px !important; }
+
+/* Muted study palette and a warm, expressive sans serif. */
+:root { --paper:#f5f3ee; --ink:#171d22; --sun:#e9dca8; --pink:#ead1db; --sky:#d0e2eb; --green:#d6e1cd; }
+body, button, input, select, textarea, .marketing-home h1, .marketing-home h2, .marketing-home h3, #mainApp h1, #mainApp h2, #mainApp h3, .marketing-logo, .brand { font-family:"Bricolage Grotesque","Segoe UI",sans-serif !important; }
+body,.marketing-home { background:#f5f3ee !important; color:#171d22 !important; }
+.marketing-nav { background:#d6e1cd !important; border-bottom:1px solid #69766a !important; }
+.marketing-hero { background:#f5f3ee !important; }
+.marketing-statement, .marketing-final-cta { background:#d6e1cd !important; }
+.workflow-section { background:#ead1db !important; }
+#anki-first { background:#d0e2eb !important; }
+.class-section { background:#e2dced !important; }
+.marketing-pricing, #pricing { background:#eee7d6 !important; }
+.marketing-home h1 { font-weight:600 !important; letter-spacing:-.045em !important; line-height:1.06 !important; }
+.marketing-home h2 { font-weight:600 !important; letter-spacing:-.035em; }
+.marketing-home p { font-size:22px !important; line-height:1.55 !important; }
+.marketing-hero-copy > p:not(.marketing-beta-kicker) { font-size:clamp(22px,2vw,27px) !important; }
+.marketing-home h1,.marketing-home h2,.marketing-home h3,.marketing-home p,.marketing-home a { color:#171d22 !important; }
+.button.primary,#sourceUploadLabel,#reviewSourceCards,#exportSourceAnki { background:#e9dca8 !important; color:#171d22 !important; }
+.marketing-hero-actions .button:not(.primary) { background:#ead1db !important; }
+.marketing-nav .marketing-text-button { background:#f5f3ee !important; }
+.marketing-home section, .marketing-home .marketing-nav, .marketing-home .button, .marketing-home .marketing-text-button, .marketing-home [class*="card"], .marketing-home [class*="panel"], .marketing-home [class*="visual"], #mainApp .sidebar, #mainApp .surface, #mainApp [class*="panel"], #mainApp [class*="card"], #mainApp .button, #mainApp input, #mainApp select, #mainApp textarea, #mainApp .source-dropzone { border-radius:4px !important; }
+#mainApp,#mainApp .main,#mainApp .page { background:#eef0f0 !important; color:#171d22 !important; }
+#mainApp .sidebar { background:#d6e1cd !important; border-color:#a6b59d !important; }
+#mainApp .surface, #mainApp #returnStudyPanel { background:#f8f7f3 !important; }
+#mainApp .source-dropzone { background:#d0e2eb !important; }
+#sourceStudyOutput > header { background:#d6e1cd !important; }
+.source-card-preview:nth-child(3n+1),#lectureDraftQueue .lecture-draft-card:nth-child(3n+1) { background:#eee7d6 !important; }
+.source-card-preview:nth-child(3n+2),#lectureDraftQueue .lecture-draft-card:nth-child(3n+2) { background:#ead1db !important; }
+.source-card-preview:nth-child(3n),#lectureDraftQueue .lecture-draft-card:nth-child(3n) { background:#d0e2eb !important; }
+.marketing-home .marketing-hero::before,.marketing-home .marketing-hero::after,.marketing-home #anki-first::before,.marketing-home #anki-first::after,.marketing-home .marketing-section::before,.marketing-home .marketing-section::after { display:none !important; }
