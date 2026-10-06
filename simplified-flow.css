@@ -302,3 +302,27 @@ body,.marketing-home { background:#f5f3ee !important; color:#171d22 !important; 
 .button.primary::after, #sourceUploadLabel::after, #reviewSourceCards::after, #exportSourceAnki::after { width:80px !important; height:80px !important; left:calc(100% - 14px) !important; transform:translate(-18px,-50%) rotate(-8deg) !important; }
 .button.primary:not(:disabled):hover::after, .button.primary:not(:disabled):focus-visible::after, #sourceUploadLabel:hover::after, #sourceUploadLabel:focus-visible::after, #reviewSourceCards:hover::after, #reviewSourceCards:focus-visible::after, #exportSourceAnki:hover::after, #exportSourceAnki:focus-visible::after { transform:translate(0,-50%) rotate(0) !important; }
 @media(max-width:600px) { .marketing-nav-actions .button.primary::after { left:calc(100% - 9px) !important; } }
+
+/* Refinement pass: reliable content visibility, contrast, and calmer panels. */
+.button.primary,#sourceUploadLabel,#reviewSourceCards,#exportSourceAnki { --radish-pose:url("assets/syllabloom-mascot-peek-point.png"); }
+#landing .motion-item { opacity:1 !important; transform:none !important; }
+#landing .marketing-section-heading { display:block !important; }
+#landing .marketing-section-heading h2 { max-width:24ch; margin:0 auto 24px !important; }
+#landing .anki-first-copy h2 { max-width:18ch !important; }
+#landing .anki-first-copy strong,#landing .anki-first-copy small { color:#171d22 !important; }
+#landing .anki-first-copy small { font-size:18px !important; line-height:1.5; }
+#landing .loop-step { background:#f8f7f3 !important; border-radius:4px !important; padding:28px !important; }
+#landing .loop-step:nth-of-type(2) { background:#d0e2eb !important; }
+#landing .loop-step:nth-of-type(3) { background:#eee7d6 !important; }
+#landing .loop-return { background:#d6e1cd !important; border-radius:4px !important; }
+#landing .loop-return strong,#landing .loop-return small { color:#171d22 !important; font-size:20px !important; line-height:1.5; }
+#landing .class-section article { background:#f8f7f3 !important; border-radius:4px !important; }
+#landing .class-section article:nth-child(2) { background:#eee7d6 !important; }
+#landing .class-section article:nth-child(3) { background:#d6e1cd !important; }
+#landing .marketing-final-cta { display:flex !important; flex-direction:column; gap:28px; align-items:center; }
+#landing .marketing-final-cta::before,#landing .marketing-final-cta::after,#landing #pricing::before,#landing #pricing::after { display:none !important; }
+#landing .cta-companion { display:none !important; }
+#mainApp #sourceLibrary { overflow-wrap:anywhere; }
+#mainApp .page-head { gap:24px; flex-wrap:wrap; }
+#mainApp .button:disabled { opacity:.5; cursor:not-allowed; }
+@media(max-width:600px) { #landing .marketing-section-heading h2 { font-size:38px !important; } #landing .anki-first-copy h2 { max-width:none !important; } #mainApp .page-head h1 { font-size:44px !important; } }
