@@ -2238,26 +2238,43 @@
   }
 
   function updateMarketingStartLabels() {
-    const hasClassReady = classIsReadyForCurrentUser();
-    document.querySelectorAll('[data-start-onboarding]').forEach(button => {
-      button.dataset.startLabel ||= button.textContent.trim();
-      button.textContent = 'Get started';
-    });
+  document.querySelectorAll('[data-start-onboarding]').forEach(button => {
+    button.textContent = button.classList.contains('marketing-primary-cta')
+      ? 'Upload your lecture →'
+      : 'Get started';
+  });
+}
+
+
+function startOrResumeClass() {
+  const hasClassReady = classIsReadyForCurrentUser();
+
+  // Require authentication before entering the app
+  if (!state.account.signedIn) {
+    if (hasClassReady) {
+      state.pendingClassResume = true;
+    } else {
+      state.pendingClassSetup = true;
+    }
+
+    window.dispatchEvent(
+      new CustomEvent('syllabloom:auth-request', {
+        detail: { intent: 'upload-lecture' }
+      })
+    );
+    return;
   }
 
-  function startOrResumeClass() {
-    const hasClassReady = classIsReadyForCurrentUser();
-    if (!hasClassReady) {
-      startClassSetup();
-      return;
-    }
-    if (state.account.signedIn) {
-      closeOnboarding('push');
-      return;
-    }
-    state.pendingClassResume = true;
-    window.dispatchEvent(new CustomEvent('syllabloom:auth-request', { detail: { intent: 'resume-class' } }));
+  // Signed-in user: resume existing class
+  if (hasClassReady) {
+    closeOnboarding('push');
+    return;
   }
+
+  // Signed-in user: create a new class
+  startClassSetup();
+}
+
 
   function showPricing() {
     document.querySelector('#classLimitDialog').close();
